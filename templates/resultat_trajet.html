@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Résultat de recherche — EasyMove Sénégal{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #carte-trajet { width: 100%; height: 420px; border-radius: var(--radius); border: 1px solid var(--bordure); box-shadow: var(--ombre); }
+    .option-card { background: var(--fond-card); border: 1px solid var(--bordure); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; box-shadow: var(--ombre); }
+    .option-card.recommande { border: 2px solid var(--vert); }
+    .option-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+    .option-title { font-family:'Syne', sans-serif; font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:8px; }
+    .option-meta { display:flex; gap:18px; flex-wrap:wrap; font-size:.9rem; color:var(--texte2); margin-bottom:10px; }
+    .option-etapes { font-size:.88rem; color:var(--texte2); }
+    .option-etapes .etape { display:flex; gap:8px; margin-bottom:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › <a href="{{ url_for('trajets') }}">Trajets</a> › Résultat</div>
+            {% if resultat %}
+            <h1>🗺️ {{ resultat.depart_nom }} → {{ resultat.arrivee_nom }}</h1>
+            <p>Voici la carte du trajet et les moyens de transport disponibles.</p>
+            {% else %}
+            <h1>Aucun résultat</h1>
+            <p>Merci de choisir un départ et une arrivée valides.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if resultat %}
+    <section class="section" style="padding-top:40px;">
+        <div class="container">
+
+            <div id="carte-trajet"></div>
+
+            <div style="margin-top:32px;">
+                {% if resultat.options|length > 0 %}
+                <div class="section-header" style="text-align:left; margin-bottom:24px;">
+                    <div class="eyebrow">Moyens de transport pour ce trajet</div>
+                    <h2 style="font-size:1.6rem;">{{ resultat.options|length }} option(s) trouvée(s)</h2>
+                </div>
+                {% for opt in resultat.options %}
+                <div class="option-card {{ 'recommande' if opt.recommande }}">
+                    <div class="option-top">
+                        <div class="option-title">{{ opt.icone }} {{ opt.nom_transport }}{% if opt.numero_ligne %} — {{ opt.numero_ligne }}{% endif %}</div>
+                        {% if opt.recommande %}<span class="badge badge-vert">✅ Recommandé</span>{% endif %}
+                    </div>
+                    <div class="option-meta">
+                        <span>💰 {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
+                        <span>⏱️ {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }} min</span>
+                        <span>🔀 Correspondances : {{ opt.correspondances }}</span>
+                    </div>
+                    <div class="option-etapes">
+                        <strong>Étapes :</strong>
+                        {% for etape in opt.etapes.split(' | ') %}
+                        <div class="etape"><span>{{ loop.index }}.</span><span>{{ etape }}</span></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="option-card">
+                    <p>Aucun trajet prédéfini n'existe encore entre ces deux lieux dans la base de données, mais
+                        vous pouvez voir leur position sur la carte ci-dessus. Essayez une recherche via le
+                        <a href="{{ url_for('trajets') }}" style="color:var(--vert); font-weight:600;">guide des
+                        trajets</a> pour un itinéraire déjà documenté.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </section>
+    {% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if resultat %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const depart = { nom: {{ resultat.depart_nom|tojson }}, lat: {{ resultat.depart_lat }}, lng: {{ resultat.depart_lng }} };
+    const arrivee = { nom: {{ resultat.arrivee_nom|tojson }}, lat: {{ resultat.arrivee_lat }}, lng: {{ resultat.arrivee_lng }} };
+
+    const map = L.map('carte-trajet');
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    const iconDepart = L.divIcon({ html: '📍', className: 'emoji-marker', iconSize: [30, 30] });
+    const iconArrivee = L.divIcon({ html: '🎯', className: 'emoji-marker', iconSize: [30, 30] });
+
+    L.marker([depart.lat, depart.lng], { icon: iconDepart }).addTo(map).bindPopup(`<strong>Départ :</strong> ${depart.nom}`);
+    L.marker([arrivee.lat, arrivee.lng], { icon: iconArrivee }).addTo(map).bindPopup(`<strong>Arrivée :</strong> ${arrivee.nom}`);
+
+    const ligne = L.polyline([[depart.lat, depart.lng], [arrivee.lat, arrivee.lng]], {
+        color: '#0e247c', weight: 4, dashArray: '8 6'
+    }).addTo(map);
+
+    map.fitBounds(ligne.getBounds(), { padding: [40, 40] });
+</script>
+{% endif %}
+{% endblock %}

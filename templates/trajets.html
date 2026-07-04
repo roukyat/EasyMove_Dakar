@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Trajets — EasyMove Sénégal{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Trajets</div>
+            <h1>📍 Trajets prédéfinis</h1>
+            <p>Des itinéraires détaillés entre les lieux les plus fréquentés de Dakar et du Sénégal, générés depuis
+                la base de données.</p>
+        </div>
+    </div>
+
+    <!-- CALCULATEUR -->
+    <section class="section search-section" style="padding-top:40px;">
+        <div class="container">
+            <h2 style="margin-bottom:8px;">Trouvez votre itinéraire</h2>
+            <p style="color:var(--texte2); margin-bottom:20px;">Choisissez un départ et une arrivée pour afficher la
+                carte et comparer les options de transport :</p>
+            <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
+                <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
+                    <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
+                        <option value="" disabled selected>📍 Départ</option>
+                        {% for lieu in lieux %}
+                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
+                        <option value="" disabled selected>🎯 Destination</option>
+                        {% for lieu in lieux %}
+                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="search-button">Rechercher <span class="btn-arrow">➔</span></button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- LÉGENDE -->
+    <section style="padding: 32px 0 0;">
+        <div class="container">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 8px;">
+                <span class="badge tag-facile">🟢 Facile</span>
+                <span style="font-size:.83rem; color:var(--texte2)">Trajet simple, conseillé aux débutants</span>
+                <span class="badge tag-moyen" style="margin-left:16px;">🟡 Moyen</span>
+                <span style="font-size:.83rem; color:var(--texte2)">Quelques correspondances ou négociations</span>
+                <span class="badge tag-complexe" style="margin-left:16px;">🔴 Complexe</span>
+                <span style="font-size:.83rem; color:var(--texte2)">Demande de l'expérience locale</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Base de données</div>
+                <h2>Tous les trajets enregistrés</h2>
+                <p>{{ trajets|length }} trajets, chacun avec ses options de transport</p>
+            </div>
+
+            <div class="grid-2">
+                {% for item in trajets %}
+                {% set t = item.trajet %}
+                <div class="trajet-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        {% if t.niveau_difficulte == 'Facile' %}
+                        <span class="badge tag-facile">🟢 Facile</span>
+                        {% elif t.niveau_difficulte == 'Moyen' %}
+                        <span class="badge tag-moyen">🟡 Moyen</span>
+                        {% else %}
+                        <span class="badge tag-complexe">🔴 Complexe</span>
+                        {% endif %}
+                        <a href="{{ url_for('resultat_trajet', depart=t.id_lieu_depart, arrivee=t.id_lieu_arrivee) }}" class="badge badge-vert">Voir sur la carte 🗺️</a>
+                    </div>
+                    <div class="trajet-route">
+                        <div class="trajet-point">{{ t.nom_depart }}</div>
+                        <div class="trajet-arrow"></div>
+                        <div class="trajet-point">{{ t.nom_arrivee }}</div>
+                    </div>
+                    <div class="trajet-meta">
+                        {% set best = item.options[0] %}
+                        {% if best %}
+                        <span>⏱️ {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
+                        <span>💰 {{ best.prix_min }} – {{ best.prix_max }} FCFA</span>
+                        <span>{{ best.icone }} {{ best.nom_transport }}</span>
+                        {% endif %}
+                    </div>
+                    <p style="font-size:.88rem; color:var(--texte2); margin-bottom:12px;">{{ t.description }}</p>
+                    <div class="trajet-etapes">
+                        <div class="trajet-etapes-title">Options disponibles ({{ item.options|length }})</div>
+                        {% for opt in item.options %}
+                        <div class="etape">
+                            <div class="etape-num">{{ opt.icone }}</div>
+                            <strong>{{ opt.nom_transport }}{% if opt.numero_ligne %} ({{ opt.numero_ligne }}){% endif %}</strong>
+                            — {{ opt.prix_min }}-{{ opt.prix_max }} FCFA, {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
+                            {% if opt.recommande %}<span class="badge badge-vert" style="margin-left:6px;">Recommandé</span>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+{% endblock %}

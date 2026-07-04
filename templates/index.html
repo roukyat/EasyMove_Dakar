@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}EasyMove Sénégal — Voyager sans stress{% endblock %}
+
+{% block content %}
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-inner">
+
+                <div class="hero-text">
+                    <div class="hero-eyebrow">Guide de mobilité au Sénégal</div>
+                    <h1>Voyagez au <em>Sénégal</em> sans stress</h1>
+                    <p>Transports, prix, trajets et phrases utiles en wolof — tout ce qu'il faut pour se déplacer
+                        facilement à Dakar et dans les grandes villes.</p>
+                    <div class="hero-btns">
+                        <a href="{{ url_for('transports') }}" class="btn-primary">🚌 Voir les transports</a>
+                        <a href="{{ url_for('trajets') }}" class="btn-secondary">📍 Trouver un trajet</a>
+                    </div>
+                </div>
+
+                <div class="hero-visual">
+                    {% for t in transports_apercu %}
+                    <div class="hero-card-mini">
+                        <div class="hcm-icon">{{ t.icone }}</div>
+                        <div class="hcm-title">{{ t.nom }}</div>
+                        <div class="hcm-sub">{{ t.description }}</div>
+                        <div class="hcm-prix">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- CALCULATEUR D'ITINÉRAIRE (réel, connecté à la base de données) -->
+    <section class="section search-section">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Calculateur d'itinéraire</div>
+                <h2>Où souhaitez-vous aller ?</h2>
+                <p>Choisissez un point de départ et une destination pour voir la carte du trajet et les meilleurs
+                    moyens de transport.</p>
+            </div>
+
+            <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
+                <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
+                    <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
+                        <option value="" disabled selected>📍 Départ</option>
+                        {% for lieu in lieux %}
+                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
+                        <option value="" disabled selected>🎯 Destination</option>
+                        {% for lieu in lieux %}
+                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="search-button">
+                        Rechercher <span class="btn-arrow">➔</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- STATS -->
+    <section>
+        <div class="container">
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-num">{{ stats.transports }}</div>
+                    <div class="stat-label">Moyens de transport</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">{{ stats.trajets }}+</div>
+                    <div class="stat-label">Trajets en base</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">{{ stats.phrases }}+</div>
+                    <div class="stat-label">Phrases en wolof</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num">{{ stats.conseils }}+</div>
+                    <div class="stat-label">Conseils pratiques</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION APERÇU TRANSPORTS -->
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Moyens de transport</div>
+                <h2>Comment se déplacer au Sénégal ?</h2>
+                <p>Des options pour tous les budgets et toutes les destinations</p>
+            </div>
+            <div class="grid-3">
+                {% for t in transports_apercu %}
+                <div class="transport-card">
+                    <div class="tc-header">
+                        <div class="tc-emoji">{{ t.icone }}</div>
+                        <div>
+                            <div class="tc-name">{{ t.nom }}</div>
+                            <div class="tc-desc">{{ t.description }}</div>
+                        </div>
+                    </div>
+                    <div class="tc-body">
+                        <div class="tc-prix">
+                            <span class="tc-prix-label">💰 Prix</span>
+                            <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
+                        </div>
+                        <span class="badge badge-jaune">{{ t.disponibilite }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="text-align:center; margin-top: 32px;">
+                <a href="{{ url_for('transports') }}" class="btn-primary">Voir tous les transports →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA WOLOF -->
+    <section class="section section-alt">
+        <div class="container">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap: 48px; align-items:center;">
+                <div>
+                    <div class="eyebrow"
+                        style="font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--vert);margin-bottom:10px;">
+                        Phrases utiles</div>
+                    <h2 style="font-size:2rem;font-weight:800;margin-bottom:16px;">Communiquer en <span
+                            style="color:var(--vert)">wolof</span></h2>
+                    <p style="color:var(--texte2);margin-bottom:24px;line-height:1.75;">Le wolof est la langue la plus
+                        parlée au Sénégal. Quelques mots suffisent pour briser la glace, négocier un prix ou demander
+                        votre chemin.</p>
+                    <a href="{{ url_for('wolof') }}" class="btn-primary">📖 Voir les phrases utiles</a>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    {% for p in phrases_apercu %}
+                    <div
+                        style="background:var(--fond-card);border-radius:12px;padding:16px;border:1px solid var(--bordure);box-shadow:var(--ombre)">
+                        <div class="wolof-phrase">{{ p.wolof }}</div>
+                        <div class="wolof-pronon">{{ p.phonetique }}</div>
+                        <div class="wolof-fr">{{ p.francais }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}

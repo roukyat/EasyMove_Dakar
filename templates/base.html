@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EasyMove Sénégal — Voyager sans stress{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <a href="{{ url_for('accueil') }}" class="logo">
+                <div class="logo-icon">🚌</div>
+                Easy<em>Move</em>
+            </a>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('transports') }}" class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
+                <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets</a></li>
+                <li><a href="{{ url_for('prix') }}" class="{{ 'active' if active_page == 'prix' }}">Prix</a></li>
+                <li><a href="{{ url_for('conseils') }}" class="{{ 'active' if active_page == 'conseils' }}">Conseils</a></li>
+                <li><a href="{{ url_for('wolof') }}" class="{{ 'active' if active_page == 'wolof' }}">Wolof</a></li>
+                <li><a href="{{ url_for('contact') }}" class="nav-cta">À propos</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-icon">🚌</div>
+                        Easy<em>Move</em>
+                    </div>
+                    <p>Guide pratique de mobilité pour les nouveaux arrivants, touristes et étudiants étrangers au
+                        Sénégal — propulsé par une vraie base de données et un moteur de recherche Python.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Transports</h4>
+                    <a href="{{ url_for('transports') }}">Taxi clando</a>
+                    <a href="{{ url_for('transports') }}">Dakar Dem Dikk</a>
+                    <a href="{{ url_for('transports') }}">Car rapide</a>
+                    <a href="{{ url_for('transports') }}">Jakarta / TER</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Navigation</h4>
+                    <a href="{{ url_for('trajets') }}">Trajets</a>
+                    <a href="{{ url_for('prix') }}">Estimation des prix</a>
+                    <a href="{{ url_for('conseils') }}">Conseils pratiques</a>
+                    <a href="{{ url_for('wolof') }}">Phrases en wolof</a>
+                </div>
+                <div class="footer-col">
+                    <h4>À propos</h4>
+                    <a href="{{ url_for('contact') }}">Le projet</a>
+                    <a href="{{ url_for('contact') }}">L'équipe</a>
+                    <a href="{{ url_for('contact') }}">Ressources</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© 2025 EasyMove Sénégal — Projet étudiant</span>
+                <span>Fait avec ❤️ au Sénégal 🇸🇳</span>
+            </div>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+
+</body>
+
+</html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Wolof — EasyMove Sénégal{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Wolof</div>
+            <h1>🗣️ Phrases utiles en Wolof</h1>
+            <p>{{ phrases|length }} expressions classées par situation, avec traduction et prononciation, stockées
+                dans la base de données.</p>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="container">
+            {% for situation, liste in phrases_par_situation.items() %}
+            <div class="wolof-section" style="margin-bottom:36px;">
+                <div class="wolof-section-title" style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:14px; color:var(--vert);">{{ situation }}</div>
+                <div style="overflow-x:auto;">
+                    <table class="compare-table">
+                        <thead>
+                            <tr>
+                                <th>Wolof</th>
+                                <th>Prononciation</th>
+                                <th>Français</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in liste %}
+                            <tr>
+                                <td><div class="wolof-phrase">{{ p.wolof }}</div></td>
+                                <td><div class="wolof-pronon">{{ p.phonetique }}</div></td>
+                                <td class="wolof-fr">{{ p.francais }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+{% endblock %}

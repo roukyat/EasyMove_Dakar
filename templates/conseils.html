@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Conseils — EasyMove Sénégal{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Conseils</div>
+            <h1>💡 Conseils pratiques</h1>
+            <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie, stockés dans la base de
+                données.</p>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="container">
+            {% for categorie, liste in conseils_par_categorie.items() %}
+            <div style="margin-bottom:40px;">
+                <h2 style="font-size:1.4rem; margin-bottom:16px; color:var(--vert);">{{ categorie }}</h2>
+                <div class="grid-2">
+                    {% for c in liste %}
+                    <div class="transport-card" style="padding:20px;">
+                        <div class="tc-name" style="margin-bottom:6px;">{{ c.titre }}</div>
+                        <p style="font-size:.9rem; color:var(--texte2); line-height:1.6;">{{ c.contenu }}</p>
+                        {% if c.periode %}<span class="badge badge-jaune" style="margin-top:10px; display:inline-block;">{{ c.periode }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Sécurité</div>
+                <h2>🆘 Numéros d'urgence</h2>
+            </div>
+            <div class="urgence-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
+                {% for info in infos_urgence %}
+                <div class="urgence-card">
+                    <div class="emoji">{{ '🚔' if 'Police' in info.libelle else '🚑' if 'SAMU' in info.libelle else '🚒' if 'Sapeurs' in info.libelle else '🪖' }}</div>
+                    <div class="num">{{ info.valeur }}</div>
+                    <div class="label">{{ info.libelle }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">À emporter</div>
+                <h2 style="font-size:1.4rem;">Ce qu'il faut avoir sur soi</h2>
+            </div>
+            <ul class="pro-list" style="max-width:480px; margin:0 auto;">
+                {% for info in infos_emporter %}
+                <li>{{ info.valeur }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+{% endblock %}

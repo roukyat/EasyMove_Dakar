@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Transports — EasyMove Sénégal{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Transports</div>
+            <h1>🚌 Les moyens de transport</h1>
+            <p>Tout ce qu'il faut savoir sur les différents transports disponibles à Dakar et au Sénégal — données
+                issues directement de la base SQL.</p>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="container">
+            <div class="grid-3">
+                {% for t in transports %}
+                <div class="transport-card">
+                    <div class="tc-header">
+                        <div class="tc-emoji">{{ t.icone }}</div>
+                        <div>
+                            <div class="tc-name">{{ t.nom }}</div>
+                            <div class="tc-desc">{{ t.description }}</div>
+                        </div>
+                    </div>
+                    <div class="tc-body">
+                        <div class="tc-prix">
+                            <span class="tc-prix-label">💰 Prix estimé</span>
+                            <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
+                        </div>
+                        <div class="pros-cons">
+                            <div>
+                                <div class="pros-cons-title">✓ Avantages</div>
+                                <ul class="pro-list">
+                                    {% for a in t.avantages.split(',') %}
+                                    <li>{{ a.strip() }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div>
+                                <div class="pros-cons-title">✕ Inconvénients</div>
+                                <ul class="con-list">
+                                    {% for i in t.inconvenients.split(',') %}
+                                    <li>{{ i.strip() }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <span class="badge badge-jaune">🪑 Confort : {{ t.niveau_confort }}</span>
+                            <span class="badge badge-vert" style="margin-left:6px;">🕐 {{ t.disponibilite }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- TABLEAU COMPARATIF -->
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Comparatif</div>
+                <h2>Quel transport choisir ?</h2>
+                <p>Comparaison générée depuis la base de données</p>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Transport</th>
+                            <th>💰 Prix min</th>
+                            <th>💰 Prix max</th>
+                            <th>😊 Confort</th>
+                            <th>📍 Disponibilité</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transports %}
+                        <tr>
+                            <td><span class="transport-name">{{ t.icone }} {{ t.nom }}</span></td>
+                            <td>{{ t.cout_min }} FCFA</td>
+                            <td>{{ t.cout_max }} FCFA</td>
+                            <td>
+                                {% if t.niveau_confort == 'Élevé' %}<span class="badge badge-vert">Élevé</span>
+                                {% elif t.niveau_confort == 'Moyen' %}<span class="badge badge-jaune">Moyen</span>
+                                {% else %}<span class="badge badge-rouge">Faible</span>{% endif %}
+                            </td>
+                            <td>{{ t.disponibilite }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}

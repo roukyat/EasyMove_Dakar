@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Prix — EasyMove Sénégal{% endblock %}
+
+{% block content %}
+
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Prix</div>
+            <h1>💰 Estimation des prix</h1>
+            <p>Les tarifs approximatifs pour éviter les mauvaises surprises, extraits directement de la base de
+                données.</p>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Tarifs par moyen de transport</div>
+                <h2>Combien ça coûte ?</h2>
+            </div>
+
+            <div class="grid-3">
+                {% for t in transports %}
+                <div class="transport-card">
+                    <div class="tc-header">
+                        <div class="tc-emoji">{{ t.icone }}</div>
+                        <div>
+                            <div class="tc-name">{{ t.nom }}</div>
+                        </div>
+                    </div>
+                    <div class="tc-body">
+                        <div class="tc-prix">
+                            <span class="tc-prix-label">💰 Fourchette</span>
+                            <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header">
+                <div class="eyebrow">Trajets prédéfinis</div>
+                <h2 style="font-size:1.5rem;">Prix des trajets les plus courants</h2>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Trajet</th>
+                            <th>Transport recommandé</th>
+                            <th>💰 Prix</th>
+                            <th>⏱️ Durée</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in trajets %}
+                        {% set t = item.trajet %}
+                        {% set best = item.options[0] %}
+                        <tr>
+                            <td><span class="transport-name">{{ t.nom_depart }} → {{ t.nom_arrivee }}</span></td>
+                            {% if best %}
+                            <td>{{ best.icone }} {{ best.nom_transport }}</td>
+                            <td>{{ best.prix_min }} – {{ best.prix_max }} FCFA</td>
+                            <td>{{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</td>
+                            {% else %}
+                            <td colspan="3">—</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}
