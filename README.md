@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # EasyMove Sénégal — Version full-stack (SQL + Python + Carte interactive)
 
 Ce dossier contient la version complète du projet, avec une vraie architecture
@@ -105,3 +106,6 @@ navigateur (pour charger les tuiles de la carte et la librairie Leaflet).
 - Ajouter une table `utilisateurs` + formulaire de contact avec enregistrement
   en base.
 - Ajouter une page d'administration pour éditer les trajets sans toucher au SQL.
+=======
+# EasyMove_Dakar
+>>>>>>> 59472e4bf97fc64a5bf94d09b8283ada9a3cf783
