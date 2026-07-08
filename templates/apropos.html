@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}À propos — EasyMove Dakar{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 60px 0;">
+    
+    <!-- En-tête de page -->
+    <div style="max-width: 800px; margin-bottom: 60px;">
+        <h1 style="font-size: 3rem; margin-bottom: 20px;">À propos d'EasyMove Dakar</h1>
+        <p style="font-size: 1.2rem; color: var(--text-muted); line-height: 1.7;">
+            EasyMove Dakar est né d'un constat simple : la mobilité urbaine à Dakar est complexe. Notre mission est d'offrir une plateforme intuitive pour simplifier les déplacements de chaque résident et visiteur.
+        </p>
+    </div>
+
+    <!-- Grille de contenu -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px;">
+        
+        
+        <div class="bento-card" style="padding: 40px; background: #0B1120;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px; color: var(--blue-primary);">Notre Vision</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">
+                Nous croyons que la technologie doit être au service du citoyen. En centralisant les informations sur les réseaux de transports (Tata, BRT, TER, Dakar Dem Dikk), nous réduisons le stress lié aux trajets quotidiens.
+            </p>
+            <ul style="list-style: none; color: #FFF; line-height: 2.2;">
+                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Transparence des itinéraires</li>
+                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Accessibilité pour tous</li>
+                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Mise à jour des données en temps réel</li>
+            </ul>
+        </div>
+
+       
+        <div class="bento-card" style="padding: 40px; border: 1px solid var(--border);">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">Support & Contact</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">
+                Une suggestion, une erreur sur une ligne de bus ou besoin d'aide ? Notre équipe est à votre écoute pour améliorer l'expérience EasyMove.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <a href="mailto:contact@easymove-dakar.sn" style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #111827; border-radius: var(--radius);">
+                    <i class="fa-solid fa-envelope" style="color: var(--blue-primary); font-size: 1.2rem;"></i>
+                    <span>contact@easymove-dakar.sn</span>
+                </a>
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #111827; border-radius: var(--radius);">
+                    <i class="fa-solid fa-location-dot" style="color: var(--blue-primary); font-size: 1.2rem;"></i>
+                    <span>Plateau, Dakar, Sénégal</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Réseau Minibus Dakar — Style Google Maps{% endblock %}
+
+{% block content %}
+<div id="donnees-arrets-data" style="display: none;">
+    {% for a in tous_les_arrets %}
+    <div class="js-arret-item" data-id="{{ a.id_arret }}" data-nom="{{ a.nom }}" data-lat="{{ a.latitude }}" data-lng="{{ a.longitude }}" data-ligne="{{ a.numero_ligne }}"></div>
+    {% endfor %}
+</div>
+
+<div class="container-fluid" style="padding: 24px; min-height: 100vh; background-color: #0B0F19; color: #FFF;">
+    
+    <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 style="font-size: 1.8rem; font-family: 'Syne', sans-serif; font-weight: 700; margin: 0; color: #FFF;">
+                <i class="fa-solid fa-map-location-dot" style="color: #06B6D4; margin-right: 12px;"></i>Réseau de Transport Minibus
+            </h1>
+            <p style="color: #94A3B8; margin: 4px 0 0 0; font-size: 0.95rem;">
+                Cartographie interactive style Google Maps pour les lignes de bus et arrêts urbains à Dakar.
+            </p>
+        </div>
+        
+        <button id="btnGeoloc" style="background: #2563EB; color: #FFF; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
+            <i class="fa-solid fa-location-crosshairs"></i> Me géolocaliser (Position actuelle)
+        </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 380px 1fr; gap: 20px; height: calc(100vh - 140px); min-height: 600px;">
+        
+        <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
+            
+            <div style="background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 16px; flex-shrink: 0;">
+                <div style="position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 15px; color: #94A3B8;"></i>
+                    <input type="text" id="searchNetwork" placeholder="Rechercher une ligne, un arrêt..." 
+                           style="width: 100%; padding: 12px 14px 12px 40px; background: #0F172A; border: 1px solid #334155; border-radius: 8px; color: #FFF; box-sizing: border-box; font-size: 0.9rem; outline: none;">
+                </div>
+            </div>
+
+            <div style="background: #1E293B; border: 1px solid #334155; border-radius: 12px; flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 12px; flex-shrink: 0;">
+                    <button id="tabLignes" style="background: #0F172A; color: #FFF; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                        <i class="fa-solid fa-route" style="margin-right: 6px;"></i>Lignes
+                    </button>
+                    <button id="tabProches" style="background: transparent; color: #94A3B8; border: 1px solid transparent; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                        <i class="fa-solid fa-street-view" style="margin-right: 6px;"></i>Arrêts Proches
+                    </button>
+                </div>
+
+                <div id="panelLignes" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                    {% for item in lignes_minibus %}
+                    <div class="line-item-row" 
+                         data-search-pool="{{ item.info.numero_ligne|lower }} {{ item.info.nom_ligne|lower }}"
+                         data-id-ligne="{{ item.info.id_ligne }}"
+                         style="background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 14px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; cursor: pointer;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="background: #06B6D4; color: #0B0F19; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; min-width: 45px; text-align: center;">
+                                {{ item.info.numero_ligne }}
+                            </span>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: #FFF;">{{ item.info.nom_ligne }}</span>
+                                <span style="font-size: 0.75rem; color: #94A3B8;">{{ item.arrets|length }} arrêts</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right" style="font-size: 0.8rem; color: #94A3B8;"></i>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="panelProches" style="flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 8px;">
+                    <div style="text-align: center; padding: 32px 16px; color: #94A3B8;" id="gpsPlaceholder">
+                        <i class="fa-solid fa-location-dot" style="font-size: 1.8rem; color: #2563EB; margin-bottom: 12px; display: block;"></i>
+                        <p style="font-size: 0.85rem; margin: 0; line-height: 1.5;">Cliquez sur "Me géolocaliser" pour afficher les arrêts de bus à proximité immédiate.</p>
+                    </div>
+                    <div id="nearStopsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <div style="border-radius: 16px; overflow: hidden; border: 1px solid #334155; position: relative; height: 100%;">
+            <div id="mapMinibus" style="width: 100%; height: 100%; background: #F4F4F6;"></div>
+        </div>
+
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. Initialisation de la carte (on va refaire ça)
+    const map = L.map('mapMinibus', {
+        zoomControl: false,
+        scrollWheelZoom: true
+    }).setView([14.6937, -17.4441], 13);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    
+    const arretsData = [];
+    document.querySelectorAll(".js-arret-item").forEach(el => {
+        arretsData.push({
+            id: parseInt(el.getAttribute("data-id")),
+            nom: el.getAttribute("data-nom"),
+            lat: parseFloat(el.getAttribute("data-lat")),
+            lng: parseFloat(el.getAttribute("data-lng")),
+            ligne: el.getAttribute("data-ligne")
+        });
+    });
+
+    const markersGroup = L.layerGroup().addTo(map);
+    const routingGroup = L.layerGroup().addTo(map);
+
+    function tracerPointsReseau(liste) {
+        markersGroup.clearLayers();
+        liste.forEach(a => {
+            const pointMarker = L.circleMarker([a.lat, a.lng], {
+                radius: 7,
+                fillColor: "#2563EB",
+                color: "#FFFFFF",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            });
+
+            pointMarker.bindPopup(`
+                <div style="font-family: system-ui, sans-serif; padding: 2px; color: #000;">
+                    <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700;">Arrêt : ${a.nom}</h4>
+                    <span style="background: #E0F2FE; color: #0369A1; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Ligne ${a.ligne}</span>
+                </div>
+            `);
+            markersGroup.addLayer(pointMarker);
+        });
+    }
+
+    if (arretsData.length > 0) {
+        tracerPointsReseau(arretsData);
+    }
+
+    //  Gestion des Onglets du panneau
+    const tabLignes = document.getElementById("tabLignes");
+    const tabProches = document.getElementById("tabProches");
+    const panelLignes = document.getElementById("panelLignes");
+    const panelProches = document.getElementById("panelProches");
+
+    tabLignes.addEventListener("click", () => {
+        tabLignes.style.background = "#0F172A"; tabLignes.style.color = "#FFF";
+        tabProches.style.background = "transparent"; tabProches.style.color = "#94A3B8";
+        panelLignes.style.display = "flex"; panelProches.style.display = "none";
+    });
+
+    tabProches.addEventListener("click", () => {
+        tabProches.style.background = "#0F172A"; tabProches.style.color = "#FFF";
+        tabLignes.style.background = "transparent"; tabLignes.style.color = "#94A3B8";
+        panelProches.style.display = "flex"; panelLignes.style.display = "none";
+    });
+
+    //  Tracé d'itinéraires complets 
+    const lignesRows = document.querySelectorAll(".line-item-row");
+    lignesRows.forEach(row => {
+        row.addEventListener("click", function() {
+            const idLigne = this.getAttribute("data-id-ligne");
+            lignesRows.forEach(r => r.style.borderColor = "#334155");
+            this.style.borderColor = "#06B6D4";
+
+            fetch(`/api/minibus/arrets?id_ligne=${idLigne}`)
+                .then(res => res.json())
+                .then(arrets => {
+                    if (arrets.length === 0) return;
+                    routingGroup.clearLayers();
+                    const polylinePoints = [];
+                    arrets.forEach(a => {
+                        polylinePoints.push([a.latitude, a.longitude]);
+                    });
+
+                    const routeLine = L.polyline(polylinePoints, {
+                        color: "#06B6D4",
+                        weight: 5,
+                        opacity: 0.85,
+                        lineJoin: 'round'
+                    }).addTo(routingGroup);
+
+                    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+                });
+        });
+    });
+
+    // Filtrage de l'input de recherche
+    const searchInput = document.getElementById("searchNetwork");
+    searchInput.addEventListener("input", function() {
+        const token = this.value.toLowerCase().trim();
+        lignesRows.forEach(row => {
+            const pool = row.getAttribute("data-search-pool");
+            row.style.display = pool.includes(token) ? "flex" : "none";
+        });
+    });
+
+    // 6. Localisation GPS
+    const btnGeoloc = document.getElementById("btnGeoloc");
+    btnGeoloc.addEventListener("click", function() {
+        if (!navigator.geolocation) {
+            alert("Votre appareil ne supporte pas le GPS.");
+            return;
+        }
+        btnGeoloc.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Alignement...';
+
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            const uLat = pos.coords.latitude;
+            const uLng = pos.coords.longitude;
+
+            const userIcon = L.divIcon({
+                className: 'g-pulse',
+                html: '<div style="width:14px; height:14px; background:#1A73E8; border:3px solid #FFF; border-radius:50%; box-shadow:0 0 8px rgba(26,115,232,0.6);"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            L.marker([uLat, uLng], { icon: userIcon }).addTo(map).bindPopup("Vous êtes ici").openPopup();
+            map.setView([uLat, uLng], 15);
+            btnGeoloc.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> GPS Actif';
+
+            fetch(`/api/arrets_proches?lat=${uLat}&lng=${uLng}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("gpsPlaceholder").style.display = "none";
+                    const listContainer = document.getElementById("nearStopsList");
+                    listContainer.innerHTML = "";
+                    tabProches.click();
+
+                    data.forEach(stop => {
+                        const item = document.createElement("div");
+                        item.style = "background: #0F172A; border: 1px solid #334155; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;";
+                        item.innerHTML = `
+                            <div>
+                                <strong style="color: #FFF; font-size: 0.9rem; display:block; margin-bottom:2px;">${stop.nom}</strong>
+                                <span style="color: #06B6D4; font-size: 0.75rem; font-weight:700;">Ligne ${stop.numero_ligne}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="color: #10B981; font-weight:700; font-size: 0.85rem; display:block;">${stop.distance} km</span>
+                            </div>
+                        `;
+
+                        item.addEventListener("click", function() {
+                            map.setView([stop.latitude, stop.longitude], 16);
+                            routingGroup.clearLayers();
+                            L.polyline([[uLat, uLng], [stop.latitude, stop.longitude]], {
+                                color: "#1A73E8", weight: 4, dashArray: "5, 10"
+                            }).addTo(routingGroup);
+                        });
+                        listContainer.appendChild(item);
+                    });
+                });
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -4,74 +4,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}EasyMove Sénégal — Voyager sans stress{% endblock %}</title>
+    <title>{% block title %}EasyMove Dakar — Voyager sans stress{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     {% block extra_head %}{% endblock %}
 </head>
 
-<body>
+<body class = dark-mode>
 
-    <!-- NAVBAR -->
     <nav class="navbar">
         <div class="navbar-inner">
             <a href="{{ url_for('accueil') }}" class="logo">
-                <div class="logo-icon">🚌</div>
+                <div class="logo-icon"><i class="fa-solid fa-route"></i></div>
                 Easy<em>Move</em>
             </a>
             <ul class="nav-links">
-                <li><a href="{{ url_for('transports') }}" class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
-                <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets</a></li>
+                <li><a href="{{ url_for('accueil') }}" class="{{ 'active' if active_page == 'accueil' }}">Accueil</a>
+                </li>
+                <li><a href="{{ url_for('transports') }}"
+                        class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
+                <li><a href="{{ url_for('minibus') }}" class="{{ 'active' if active_page == 'minibus' }}">Réseau
+                        Minibus</a></li>
+                <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets &amp;
+                        Cartes</a></li>
                 <li><a href="{{ url_for('prix') }}" class="{{ 'active' if active_page == 'prix' }}">Prix</a></li>
-                <li><a href="{{ url_for('conseils') }}" class="{{ 'active' if active_page == 'conseils' }}">Conseils</a></li>
+                <li><a href="{{ url_for('historique') }}"
+                        class="{{ 'active' if active_page == 'historique' }}">Historique</a></li>
+                <li><a href="{{ url_for('conseils') }}" class="{{ 'active' if active_page == 'conseils' }}">Conseils</a>
+                </li>
                 <li><a href="{{ url_for('wolof') }}" class="{{ 'active' if active_page == 'wolof' }}">Wolof</a></li>
-                <li><a href="{{ url_for('contact') }}" class="nav-cta">À propos</a></li>
+                <li><a href="{{ url_for('apropos') }}" class="nav-cta {{ 'active' if active_page == 'apropos' }}">À
+                        propos</a></li>
             </ul>
+
+            <button id="theme-toggle" class="nav-cta" style="cursor:pointer;">
+                <i class="fa-solid fa-moon"></i>
+            </button>
         </div>
     </nav>
 
-    {% block content %}{% endblock %}
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
 
-    <!-- FOOTER -->
     <footer>
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
                     <div class="logo">
-                        <div class="logo-icon">🚌</div>
+                        <div class="logo-icon"><i class="fa-solid fa-route"></i></div>
                         Easy<em>Move</em>
                     </div>
-                    <p>Guide pratique de mobilité pour les nouveaux arrivants, touristes et étudiants étrangers au
-                        Sénégal — propulsé par une vraie base de données et un moteur de recherche Python.</p>
+                    <p>Guide de mobilité urbaine pour les résidents, touristes et étudiants à Dakar. Naviguez
+                        sereinement à travers le réseau routier sénégalais grâce à notre calculateur d'itinéraires et
+                        nos données synchronisées.</p>
                 </div>
                 <div class="footer-col">
-                    <h4>Transports</h4>
-                    <a href="{{ url_for('transports') }}">Taxi clando</a>
-                    <a href="{{ url_for('transports') }}">Dakar Dem Dikk</a>
-                    <a href="{{ url_for('transports') }}">Car rapide</a>
-                    <a href="{{ url_for('transports') }}">Jakarta / TER</a>
+                    <h4>Réseaux</h4>
+                    <a href="{{ url_for('transports') }}">Moyens de Transport</a>
+                    <a href="{{ url_for('minibus') }}">Réseau Minibus Tata</a>
+                    <a href="{{ url_for('transports') }}">Dakar Dem Dikk &amp; BRT</a>
+                    <a href="{{ url_for('transports') }}">Train TER Dakar</a>
                 </div>
                 <div class="footer-col">
                     <h4>Navigation</h4>
-                    <a href="{{ url_for('trajets') }}">Trajets</a>
-                    <a href="{{ url_for('prix') }}">Estimation des prix</a>
-                    <a href="{{ url_for('conseils') }}">Conseils pratiques</a>
-                    <a href="{{ url_for('wolof') }}">Phrases en wolof</a>
+                    <a href="{{ url_for('trajets') }}">Recherche de trajets</a>
+                    <a href="{{ url_for('prix') }}">Grilles des tarifs</a>
+                    <a href="{{ url_for('historique') }}">Historique de recherche</a>
                 </div>
                 <div class="footer-col">
-                    <h4>À propos</h4>
-                    <a href="{{ url_for('contact') }}">Le projet</a>
-                    <a href="{{ url_for('contact') }}">L'équipe</a>
-                    <a href="{{ url_for('contact') }}">Ressources</a>
+                    <h4>Ressources</h4>
+                    <a href="{{ url_for('conseils') }}">Conseils de sécurité</a>
+                    <a href="{{ url_for('wolof') }}">Lexique Wolof pratique</a>
+                    <a href="{{ url_for('apropos') }}">À propos de l'application</a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <span>© 2025 EasyMove Sénégal </span>
-                
+                <span>&copy; 2026 EasyMove Dakar — Tous droits réservés.</span>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     {% block scripts %}{% endblock %}
+
+    <script>
+    // 1. Appliquer le thème dès le chargement 
+    (function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+        }
+    })();
+
+    // Gérer le clic une fois que la page est prête
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                
+                // Sauvegarder l'état
+                const isLight = document.body.classList.contains('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                
+                //  changer l'icône du bouton
+                const icon = themeToggle.querySelector('i');
+                if (icon) {
+                    icon.className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+                }
+            });
+        }
+    });
+</script>
 
 </body>
 

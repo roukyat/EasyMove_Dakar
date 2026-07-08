@@ -1,53 +1,64 @@
 {% extends "base.html" %}
-{% block title %}Trajets — EasyMove Sénégal{% endblock %}
+{% block title %}Trajets — EasyMove Dakar{% endblock %}
 
 {% block content %}
 
-    <div class="page-header">
+    <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Trajets</div>
-            <h1> Trajets prédéfinis</h1>
-            <p>Des itinéraires détaillés entre les lieux les plus fréquentés de Dakar et du Sénégal, générés depuis
-                la base de données.</p>
+            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+                <a href="{{ url_for('accueil') }}">Accueil</a> <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Trajets
+            </div>
+            <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Calculateur d'itinéraires</h1>
+            <p style="color: var(--texte-muted); max-width: 600px;">Planifiez vos déplacements entre les nœuds névralgiques de Dakar et comparez en temps réel les alternatives de transport.</p>
         </div>
     </div>
 
-    <!-- CALCULATEUR -->
-    <section class="section search-section" style="padding-top:40px;">
+    <section class="section search-section">
         <div class="container">
-            <h2 style="margin-bottom:8px;">Trouvez votre itinéraire</h2>
-            <p style="color:var(--texte2); margin-bottom:20px;">Choisissez un départ et une arrivée pour afficher la
-                carte et comparer les options de transport :</p>
+            <h2 style="margin-bottom: 8px; font-size: 1.6rem;">Trouver une ligne ou un trajet</h2>
+            <p style="color: var(--texte-muted); margin-bottom: 24px;">Sélectionnez vos points de repère pour générer votre tracé cartographique :</p>
+            
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
-                <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
-                    <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected> Départ</option>
-                        {% for lieu in lieux %}
-                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected> Destination</option>
-                        {% for lieu in lieux %}
-                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="search-button">Rechercher <span class="btn-arrow">➔</span></button>
+                <div class="route-picker-grid">
+                    <div class="select-wrapper">
+                        <select name="depart" required class="select-custom">
+                            <option value="" disabled selected>Point de départ</option>
+                            {% for lieu in lieux %}
+                            <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <select name="arrivee" required class="select-custom">
+                            <option value="" disabled selected>Destination finale</option>
+                            {% for lieu in lieux %}
+                            <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        Rechercher <i class="fa-solid fa-arrow-right-long"></i>
+                    </button>
                 </div>
             </form>
         </div>
     </section>
 
-    <!-- LÉGENDE -->
-    <section style="padding: 32px 0 0;">
+    <section style="padding: 40px 0 0;">
         <div class="container">
-            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 8px;">
-                <span class="badge tag-facile"> Facile</span>
-                <span style="font-size:.83rem; color:var(--texte2)">Trajet simple, conseillé aux débutants</span>
-                <span class="badge tag-moyen" style="margin-left:16px;"> Moyen</span>
-                <span style="font-size:.83rem; color:var(--texte2)">Quelques correspondances ou négociations</span>
-                <span class="badge tag-complexe" style="margin-left:16px;"> Complexe</span>
-                <span style="font-size:.83rem; color:var(--texte2)">Demande de l'expérience locale</span>
+            <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-vert">Facile</span>
+                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Lignes directes, idéal pour les nouveaux arrivants</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-jaune">Moyen</span>
+                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Nécessite un changement ou une tarification à la volée</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-rouge">Complexe</span>
+                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Négociation requise ou réseau informel dense</span>
+                </div>
             </div>
         </div>
     </section>
@@ -55,47 +66,77 @@
     <section class="section">
         <div class="container">
             <div class="section-header">
-                <div class="eyebrow">Base de données</div>
-                <h2>Tous les trajets enregistrés</h2>
-                <p>{{ trajets|length }} trajets, chacun avec ses options de transport</p>
+                <div class="eyebrow">Réseau Métropolitain</div>
+                <h2>Trajets enregistrés en base</h2>
+                <p>{{ trajets|length }} liaisons stratégiques configurées avec options multimodales.</p>
             </div>
 
             <div class="grid-2">
                 {% for item in trajets %}
                 {% set t = item.trajet %}
                 <div class="trajet-card">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                        {% if t.niveau_difficulte == 'Facile' %}
-                        <span class="badge tag-facile"> Facile</span>
-                        {% elif t.niveau_difficulte == 'Moyen' %}
-                        <span class="badge tag-moyen"> Moyen</span>
-                        {% else %}
-                        <span class="badge tag-complexe"> Complexe</span>
-                        {% endif %}
-                        <a href="{{ url_for('resultat_trajet', depart=t.id_lieu_depart, arrivee=t.id_lieu_arrivee) }}" class="badge badge-vert">Voir sur la carte 🗺️</a>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            {% if t.niveau_difficulte == 'Facile' %}
+                            <span class="badge badge-vert">Facile</span>
+                            {% elif t.niveau_difficulte == 'Moyen' %}
+                            <span class="badge badge-jaune">Moyen</span>
+                            {% else %}
+                            <span class="badge badge-rouge">Complexe</span>
+                            {% endif %}
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn-favori" 
+                                    data-id-depart="{{ t.id_lieu_depart }}" 
+                                    data-id-arrivee="{{ t.id_lieu_arrivee }}" 
+                                    data-nom-trajet="{{ t.nom_depart }} - {{ t.nom_arrivee }}"
+                                    title="Ajouter aux favoris">
+                                <i class="fa-regular fa-star"></i>
+                            </button>
+                            <a href="{{ url_for('resultat_trajet', depart=t.id_lieu_depart, arrivee=t.id_lieu_arrivee) }}" class="badge badge-vert" style="padding: 6px 12px;">
+                                <i class="fa-solid fa-map-location-dot" style="margin-right: 4px;"></i> Cartographie
+                            </a>
+                        </div>
                     </div>
+
                     <div class="trajet-route">
                         <div class="trajet-point">{{ t.nom_depart }}</div>
                         <div class="trajet-arrow"></div>
                         <div class="trajet-point">{{ t.nom_arrivee }}</div>
                     </div>
-                    <div class="trajet-meta">
+
+                    <div class="trajet-meta" style="margin-bottom: 16px;">
                         {% set best = item.options[0] %}
                         {% if best %}
-                        <span>{{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
-                        <span> {{ best.prix_min }} – {{ best.prix_max }} FCFA</span>
-                        <span>{{ best.icone }} {{ best.nom_transport }}</span>
+                        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 16px;">
+                            <i class="fa-regular fa-clock"></i> {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-coins"></i> {{ best.prix_min }} – {{ best.prix_max }} FCFA
+                        </span>
                         {% endif %}
                     </div>
-                    <p style="font-size:.88rem; color:var(--texte2); margin-bottom:12px;">{{ t.description }}</p>
+
+                    <p style="font-size: 0.9rem; color: var(--texte-muted); margin-bottom: 20px; line-height: 1.5;">{{ t.description }}</p>
+                    
                     <div class="trajet-etapes">
-                        <div class="trajet-etapes-title">Options disponibles ({{ item.options|length }})</div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--texte-muted); margin-bottom: 12px; font-weight: 600;">
+                            Modes de transport disponibles ({{ item.options|length }})
+                        </div>
                         {% for opt in item.options %}
                         <div class="etape">
-                            <div class="etape-num">{{ opt.icone }}</div>
-                            <strong>{{ opt.nom_transport }}{% if opt.numero_ligne %} ({{ opt.numero_ligne }}){% endif %}</strong>
-                            — {{ opt.prix_min }}-{{ opt.prix_max }} FCFA, {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
-                            {% if opt.recommande %}<span class="badge badge-vert" style="margin-left:6px;">Recommandé</span>{% endif %}
+                            <div class="etape-num" style="border-radius: 50%;">
+                                <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <span style="color: #FFF; font-weight: 500;">{{ opt.nom_transport }}{% if opt.numero_ligne %} (Ligne {{ opt.numero_ligne }}){% endif %}</span>
+                                <span style="display: block; font-size: 0.8rem; color: var(--texte-muted); margin-top: 2px;">
+                                    {{ opt.prix_min }}-{{ opt.prix_max }} FCFA <bull style="margin: 0 4px;">•</bull> {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
+                                </span>
+                            </div>
+                            {% if opt.recommande %}
+                            <span class="badge badge-vert" style="align-self: center; font-size: 0.65rem;">Optimal</span>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -105,4 +146,42 @@
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.btn-favori').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const icon = this.querySelector('i');
+        
+        const payload = {
+            nom_trajet: this.getAttribute('data-nom-trajet'),
+            id_depart: parseInt(this.getAttribute('data-id-depart')),
+            id_arrivee: parseInt(this.getAttribute('data-id-arrivee'))
+        };
+
+        fetch('/api/favoris', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.statut === 'success') {
+                this.classList.add('active');
+                icon.className = 'fa-solid fa-star';
+                button.disabled = true;
+            } else {
+                alert(data.erreur || "Erreur lors de l'ajout aux favoris");
+            }
+        })
+        .catch(err => {
+            console.error("Erreur Favoris:", err);
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -1,30 +1,35 @@
 {% extends "base.html" %}
-{% block title %}EasyMove Sénégal — Voyager sans stress{% endblock %}
+{% block title %}EasyMove Dakar — Voyager sans stress{% endblock %}
 
 {% block content %}
 
-    <!-- HERO -->
+    <!-- SECTION HERO VISUELLE -->
     <section class="hero">
         <div class="container">
             <div class="hero-inner">
 
                 <div class="hero-text">
-                    <div class="hero-eyebrow">Guide de mobilité au Sénégal</div>
-                    <h1>Voyagez au <em>Sénégal</em> sans stress</h1>
-                    <p>Transports, prix, trajets et phrases utiles en wolof — tout ce qu'il faut pour se déplacer
-                        facilement à Dakar et dans les grandes villes.</p>
+                    <div class="hero-eyebrow">Guide de mobilité métropolitaine</div>
+                    <h1>Voyagez à <em>Dakar</em> sans stress</h1>
+                    <p>Réseaux de transit, grilles tarifaires, cartographie des lignes et lexique Wolof : tout le nécessaire pour naviguer sereinement dans la capitale.</p>
                     <div class="hero-btns">
-                        <a href="{{ url_for('transports') }}" class="btn-primary"> Voir les transports</a>
-                        <a href="{{ url_for('trajets') }}" class="btn-secondary"> Trouver un trajet</a>
+                        <a href="{{ url_for('transports') }}" class="btn-primary">
+                            <i class="fa-solid fa-bus-simple" style="margin-right: 6px;"></i> Voir les réseaux
+                        </a>
+                        <a href="{{ url_for('trajets') }}" class="btn-secondary">
+                            <i class="fa-solid fa-map-location-dot" style="margin-right: 6px;"></i> Trouver un trajet
+                        </a>
                     </div>
                 </div>
 
                 <div class="hero-visual">
                     {% for t in transports_apercu %}
                     <div class="hero-card-mini">
-                        <div class="hcm-icon">{{ t.icone }}</div>
+                        <div class="hcm-icon">
+                            <i class="fa-solid {% if 'Bus' in t.nom or 'Tata' in t.nom or 'AFTU' in t.nom %}fa-bus{% elif 'TER' in t.nom or 'Brt' in t.nom %}fa-train-subway{% elif 'Taxi' in t.nom %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
+                        </div>
                         <div class="hcm-title">{{ t.nom }}</div>
-                        <div class="hcm-sub">{{ t.description }}</div>
+                        <div class="hcm-sub">{{ t.description|truncate(45) }}</div>
                         <div class="hcm-prix">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</div>
                     </div>
                     {% endfor %}
@@ -34,52 +39,57 @@
         </div>
     </section>
 
-    <!-- CALCULATEUR D'ITINÉRAIRE (réel, connecté à la base de données) -->
+    <!-- CALCULATEUR DE TRAJETS SYNC -> DB -->
     <section class="section search-section">
         <div class="container">
             <div class="section-header">
-                <div class="eyebrow">Calculateur d'itinéraire</div>
+                <div class="eyebrow">Calculateur d'itinéraires</div>
                 <h2>Où souhaitez-vous aller ?</h2>
-                <p>Choisissez un point de départ et une destination pour voir la carte du trajet et les meilleurs
-                    moyens de transport.</p>
+                <p>Sélectionnez vos hubs urbains pour croiser les réseaux de transit disponibles et afficher le tracé cartographique.</p>
             </div>
 
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
-                <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
-                    <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected> Départ</option>
-                        {% for lieu in lieux %}
-                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected> Destination</option>
-                        {% for lieu in lieux %}
-                        <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="search-button">
-                        Rechercher <span class="btn-arrow">➔</span>
+                <div class="route-picker-grid">
+                    <div class="select-wrapper">
+                        <select name="depart" required class="select-custom">
+                            <option value="" disabled selected>Point de départ</option>
+                            {% for lieu in lieux %}
+                            <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <select name="arrivee" required class="select-custom">
+                            <option value="" disabled selected>Destination finale</option>
+                            {% for lieu in lieux %}
+                            <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        Rechercher <i class="fa-solid fa-arrow-right-long" style="margin-left: 4px;"></i>
                     </button>
                 </div>
             </form>
         </div>
     </section>
 
-    
-    <!-- SECTION APERÇU TRANSPORTS -->
+    <!-- APERÇU DES MODES DE TRANSPORT -->
     <section class="section">
         <div class="container">
             <div class="section-header">
-                <div class="eyebrow">Moyens de transport</div>
-                <h2>Comment se déplacer au Sénégal ?</h2>
-                <p>Des options pour tous les budgets et toutes les destinations</p>
+                <div class="eyebrow">Modes de transport</div>
+                <h2>Se déplacer dans l'agglomération</h2>
+                <p>Des alternatives multimodales adaptées à tous les budgets et impératifs de temps.</p>
             </div>
+            
             <div class="grid-3">
                 {% for t in transports_apercu %}
                 <div class="transport-card">
                     <div class="tc-header">
-                        <div class="tc-emoji">{{ t.icone }}</div>
+                        <div class="tc-emoji" style="display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid {% if 'Bus' in t.nom or 'Tata' in t.nom or 'AFTU' in t.nom %}fa-bus{% elif 'TER' in t.nom or 'Brt' in t.nom %}fa-train-subway{% elif 'Taxi' in t.nom %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
+                        </div>
                         <div>
                             <div class="tc-name">{{ t.nom }}</div>
                             <div class="tc-desc">{{ t.description }}</div>
@@ -87,7 +97,7 @@
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">
-                            <span class="tc-prix-label"> Prix</span>
+                            <span class="tc-prix-label"><i class="fa-solid fa-coins" style="margin-right: 4px; font-size: 0.8rem;"></i> Tarifs</span>
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
                         </div>
                         <span class="badge badge-jaune">{{ t.disponibilite }}</span>
@@ -95,34 +105,36 @@
                 </div>
                 {% endfor %}
             </div>
-            <div style="text-align:center; margin-top: 32px;">
-                <a href="{{ url_for('transports') }}" class="btn-primary">Voir tous les transports →</a>
+            
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="{{ url_for('transports') }}" class="btn-primary">
+                    Découvrir l'offre globale <i class="fa-solid fa-arrow-right" style="margin-left: 6px;"></i>
+                </a>
             </div>
         </div>
     </section>
 
-    <!-- CTA WOLOF -->
-    <section class="section section-alt">
+    <!-- ACCROCHE LEXIQUE WOLOF -->
+    <section class="section section-alt" style="border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap: 48px; align-items:center;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 48px; align-items: center;">
                 <div>
-                    <div class="eyebrow"
-                        style="font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--vert);margin-bottom:10px;">
-                        Phrases utiles</div>
-                    <h2 style="font-size:2rem;font-weight:800;margin-bottom:16px;">Communiquer en <span
-                            style="color:var(--vert)">wolof</span></h2>
-                    <p style="color:var(--texte2);margin-bottom:24px;line-height:1.75;">Le wolof est la langue la plus
-                        parlée au Sénégal. Quelques mots suffisent pour briser la glace, négocier un prix ou demander
-                        votre chemin.</p>
-                    <a href="{{ url_for('wolof') }}" class="btn-primary"> Voir les phrases utiles</a>
+                    <div class="eyebrow" style="color: var(--accent-cyan); margin-bottom: 12px;">Échanges de courtoisie</div>
+                    <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 16px; font-family: 'Syne', sans-serif;">Communiquer en <span style="color: var(--accent-cyan)">Wolof</span></h2>
+                    <p style="color: var(--texte-muted); margin-bottom: 24px; line-height: 1.75;">La maîtrise de quelques expressions clés facilite grandement les interactions avec les chauffeurs, la négociation des courses et la précision de votre arrêt.</p>
+                    <a href="{{ url_for('wolof') }}" class="btn-secondary">
+                        <i class="fa-solid fa-book-open" style="margin-right: 6px;"></i> Consulter le lexique de survie
+                    </a>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:10px;">
+                
+                <div style="display: flex; flex-direction: column; gap: 14px;">
                     {% for p in phrases_apercu %}
-                    <div
-                        style="background:var(--fond-card);border-radius:12px;padding:16px;border:1px solid var(--bordure);box-shadow:var(--ombre)">
-                        <div class="wolof-phrase">{{ p.wolof }}</div>
-                        <div class="wolof-pronon">{{ p.phonetique }}</div>
-                        <div class="wolof-fr">{{ p.francais }}</div>
+                    <div style="background: var(--fond-carte); border-radius: var(--radius); padding: 18px 24px; border: 1px solid var(--border-light);">
+                        <div class="wolof-phrase" style="font-size: 1.15rem; color: #FFF; font-weight: 600; margin-bottom: 4px;">{{ p.wolof }}</div>
+                        <div class="wolof-pronon" style="font-size: 0.85rem; color: var(--accent-cyan); font-style: italic; margin-bottom: 8px;">
+                            <i class="fa-solid fa-volume-low" style="margin-right: 4px; font-size: 0.75rem;"></i> {{ p.phonetique }}
+                        </div>
+                        <div class="wolof-fr" style="font-size: 0.9rem; color: var(--texte-muted);">{{ p.francais }}</div>
                     </div>
                     {% endfor %}
                 </div>

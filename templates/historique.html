@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Mon Historique de Trajets — EasyMove Dakar{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 40px 0; max-width: 1050px;">
+    
+    <div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 style="font-size: 2.2rem; font-family: 'Syne', sans-serif; font-weight: 700; margin: 0; color: #FFF;">
+                <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-cyan); margin-right: 12px;"></i>Historique des Recherches
+            </h1>
+            <p style="color: var(--text-muted); margin: 6px 0 0 0; font-size: 1rem;">
+                Retrouvez vos itinéraires récents et relancez vos trajets fréquents dans Dakar en un clic.
+            </p>
+        </div>
+        
+        {% if historique|length > 0 %}
+        <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); font-weight: 600; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; border: 1px solid rgba(6, 182, 212, 0.2);">
+            {{ historique|length }} requêtes enregistrées
+        </span>
+        {% endif %}
+    </div>
+
+    {% if historique|length == 0 %}
+    <div class="bento-card" style="text-align: center; padding: 60px 20px;">
+        <div style="width: 80px; height: 80px; background: #1E293B; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+            <i class="fa-solid fa-route" style="font-size: 2rem; color: var(--text-muted);"></i>
+        </div>
+        <h2 style="font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; color: #FFF;">Votre historique est vierge</h2>
+        <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto 24px auto; font-size: 0.95rem; line-height: 1.6;">
+            Il semble que vous n'avez pas encore recherché d'itinéraires sur EasyMove Dakar. Vos calculs de trajets apparaîtront ici automatiquement.
+        </p>
+        <a href="{{ url_for('trajets') }}" class="cta-button" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--accent-cyan); color: #0B0F19; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
+            Planifier mon premier trajet <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+    {% else %}
+    
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for item in historique %}
+        <div class="bento-card" style="padding: 20px; transition: transform 0.2s, border-color 0.2s; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 20px;">
+            
+            <div style="display: flex; align-items: flex-start; gap: 20px;">
+                <div style="background: #1E293B; border: 1px solid var(--border-color); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-muted);">
+                    <i class="fa-solid fa-location-dot" style="color: var(--accent-cyan);"></i>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <span style="font-weight: 600; font-size: 1.1rem; color: #FFF;">{{ item.adresse_depart }}</span>
+                        <i class="fa-solid fa-arrow-right-long" style="color: var(--text-muted); font-size: 0.9rem;"></i>
+                        <span style="font-weight: 600; font-size: 1.1rem; color: var(--accent-emerald);">{{ item.adresse_arrivee }}</span>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--text-muted);">
+                        <span>
+                            <i class="fa-regular fa-calendar" style="margin-right: 4px;"></i> {{ item.date_recherche }}
+                        </span>
+                        {% if item.lat_depart and item.lat_arrivee %}
+                        <span style="color: rgba(255,255,255,0.25);">|</span>
+                        <span>
+                            <i class="fa-solid fa-earth-africa" style="margin-right: 4px;"></i> Coordonnées GPS indexées
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <a href="{{ url_for('trajets') }}?auto_depart={{ item.adresse_depart }}&auto_arrivee={{ item.adresse_arrivee }}" 
+                   title="Relancer cette recherche d'itinéraire"
+                   style="background: #1E293B; border: 1px solid var(--border-color); color: #FFF; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                    <i class="fa-solid fa-rotate"></i> Revoir l'itinéraire
+                </a>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

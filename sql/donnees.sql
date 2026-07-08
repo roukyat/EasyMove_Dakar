@@ -1,5 +1,5 @@
 -- =====================================================================
--- EasyMoveDakar - Données (DML)
+-- EasyMoveDakar - Données (DML) - Version Professionnelle épurée
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -25,42 +25,44 @@ INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES
 ('Ziguinchor',         'ville',            12.5833, -16.2719, 'Capitale de la Casamance');
 
 -- ---------------------------------------------------------------------
--- MOYENS DE TRANSPORT
+-- MOYENS DE TRANSPORT (Changement d''icones IA vers chemins d''images réelles)
 -- ---------------------------------------------------------------------
-INSERT INTO moyens_transport (nom, icone, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients) VALUES
-('Taxi clando',        '🚖', 'Taxi de ville jaune et noir, prix à négocier',                         500,  2000,  'Moyen',  '24h/24',
+INSERT INTO moyens_transport (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients) VALUES
+('Taxi clando',        '/static/img/taxi.jpg', 'Taxi de ville jaune et noir, prix à négocier',                         500,  2000,  'Moyen',  '24h/24',
  'Rapide, disponible partout, porte-à-porte',
  'Prix à négocier, confort variable, pas de compteur'),
-('Dakar Dem Dikk',     '🚌', 'Bus officiel de la ville de Dakar (DDD), tarif fixe',                   150,  300,   'Moyen',  '6h - 22h',
+('Dakar Dem Dikk',     '/static/img/mini_bus.jpg', 'Bus officiel de la ville de Dakar (DDD), tarif fixe',                   150,  300,   'Moyen',  '6h - 22h',
  'Prix fixe et abordable, réseau étendu',
  'Peut être bondé aux heures de pointe, moins flexible'),
-('Car rapide',         '🎨', 'Minibus coloré, emblème populaire du transport à Dakar',                100,  200,   'Faible', 'Selon affluence',
+('Car rapide',         '/static/img/Car_rapide.jpg', 'Minibus coloré, emblème populaire du transport à Dakar',                100,  200,   'Faible', 'Selon affluence',
  'Très bon marché, expérience authentique',
  'Confort limité, pas d''horaires fixes'),
-('Jakarta (moto-taxi)','🏍️', 'Moto-taxi rapide pour se faufiler dans les embouteillages',             300,  1500,  'Faible', '24h/24',
+('Jakarta (moto-taxi)','/static/img/taxi.jpg', 'Moto-taxi rapide pour se faufiler dans les embouteillages',             300,  1500,  'Faible', '24h/24',
  'Très rapide en cas d''embouteillages, économique',
  'Moins sécurisant, casque pas toujours fourni'),
-('TER',                '🚂', 'Train Express Régional reliant Dakar à Diamniadio / AIBD / Thiès',      500,  2500,  'Élevé',  '5h30 - 22h30',
+('TER',                '/static/img/BRT.jpg', 'Train Express Régional reliant Dakar à Diamniadio / AIBD / Thiès',      500,  2500,  'Élevé',  '5h30 - 22h30',
  'Rapide, climatisé, ponctuel, prix fixe',
  'Dessert un nombre limité de gares'),
-('Sept-places',        '🚐', 'Véhicule interurbain partagé, part quand il est plein',                 3000, 6000,  'Moyen',  'Journée uniquement',
+('Sept-places',        '/static/img/mini_bus.jpg', 'Véhicule interurbain partagé, part quand il est plein',                 3000, 6000,  'Moyen',  'Journée uniquement',
  'Bon marché pour les longs trajets',
  'Départ non garanti à heure fixe, confort limité'),
-('Avion (Air Sénégal)','✈️', 'Vols intérieurs pour rejoindre rapidement les régions éloignées',       35000,50000, 'Élevé',  'Selon vols programmés',
+('Avion (Air Sénégal)','/static/img/taxi.jpg', 'Vols intérieurs pour rejoindre rapidement les régions éloignées',       35000,50000, 'Élevé',  'Selon vols programmés',
  'Très rapide sur longue distance',
  'Coût élevé, aéroports parfois éloignés du centre-ville'),
-('Ferry',              '⛴️', 'Traversée maritime, notamment Dakar - Ziguinchor',                      8000, 15000, 'Moyen',  'Départs programmés (souvent de nuit)',
+('Ferry',              '/static/img/taxi.jpg', 'Traversée maritime, notamment Dakar - Ziguinchor',                      8000, 15000, 'Moyen',  'Départs programmés (souvent de nuit)',
  'Confortable pour un long trajet, cabines disponibles',
  'Durée longue, dépend des conditions maritimes');
 
 -- ---------------------------------------------------------------------
--- LIGNES DE BUS / TRAIN
+-- LIGNES DE BUS / TRAIN / MINIBUS (Séparation stricte via est_minibus)
 -- ---------------------------------------------------------------------
-INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, description) VALUES
-('Ligne 14', 'Plateau - UCAD',        (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 'Liaison entre le Plateau et l''université'),
-('Ligne 7',  'Plateau - Pikine',      (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 'Liaison entre le centre-ville et Pikine'),
-('Ligne 9',  'Plateau - Guédiawaye',  (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 'Liaison vers la banlieue nord'),
-('TER',      'Dakar - AIBD',          (SELECT id_transport FROM moyens_transport WHERE nom='TER'),           'Ligne ferroviaire Dakar - Diamniadio - AIBD');
+INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) VALUES
+('Ligne 14', 'Plateau - UCAD',        (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 0, 'Liaison entre le Plateau et l''université'),
+('Ligne 7',  'Plateau - Pikine',      (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 0, 'Liaison entre le centre-ville et Pikine'),
+('Ligne 9',  'Plateau - Guédiawaye',  (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), 0, 'Liaison vers la banlieue nord'),
+('TER',      'Dakar - AIBD',          (SELECT id_transport FROM moyens_transport WHERE nom='TER'),           0, 'Ligne ferroviaire Dakar - Diamniadio - AIBD'),
+('Ligne 44', 'Tata - Liberté 6 - Plateau', (SELECT id_transport FROM moyens_transport WHERE nom='Car rapide'), 1, 'Minibus AFTU desservant les axes centraux'),
+('Ligne 219', 'Tata - Pikine - Médina',    (SELECT id_transport FROM moyens_transport WHERE nom='Car rapide'), 1, 'Ligne de minibus reliant la banlieue au centre-ville');
 
 -- ---------------------------------------------------------------------
 -- ARRÊTS
@@ -70,7 +72,19 @@ INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES
 ('UCAD Étudiants',             (SELECT id_lieu FROM lieux WHERE nom='UCAD (Fann)'),   14.6928, -17.4610),
 ('Gare TER Petersen',          (SELECT id_lieu FROM lieux WHERE nom='Plateau'),       14.6775, -17.4370),
 ('Gare TER AIBD',              (SELECT id_lieu FROM lieux WHERE nom='Aéroport AIBD'), 14.6704, -17.0730),
-('Gare Routière Pompiers',     (SELECT id_lieu FROM lieux WHERE nom='Gare Routière Pompiers'), 14.7231, -17.4419);
+('Gare Routière Pompiers',     (SELECT id_lieu FROM lieux WHERE nom='Gare Routière Pompiers'), 14.7231, -17.4419),
+('Rond-point Liberté 6',       (SELECT id_lieu FROM lieux WHERE nom='Ouakam'),        14.7251, -17.4690),
+('Arrêt Marché Tilène',        (SELECT id_lieu FROM lieux WHERE nom='Médina'),        14.6782, -17.4491);
+
+-- ---------------------------------------------------------------------
+-- TABLE D''ASSOCIATION LIGNE_ARRETS (Tracé des lignes sur carte)
+-- ---------------------------------------------------------------------
+INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES
+((SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 44'), (SELECT id_arret FROM arrets WHERE nom='Rond-point Liberté 6'), 1),
+((SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 44'), (SELECT id_arret FROM arrets WHERE nom='UCAD Étudiants'), 2),
+((SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 44'), (SELECT id_arret FROM arrets WHERE nom='Place de l''Indépendance'), 3),
+((SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 219'), (SELECT id_arret FROM arrets WHERE nom='Arrêt Marché Tilène'), 1),
+((SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 219'), (SELECT id_arret FROM arrets WHERE nom='Gare TER Petersen'), 2);
 
 -- ---------------------------------------------------------------------
 -- TRAJETS + OPTIONS
@@ -79,7 +93,7 @@ INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES
 -- Trajet 1 : Plateau -> UCAD
 INSERT INTO trajets (id_lieu_depart, id_lieu_arrivee, distance_km, niveau_difficulte, description) VALUES
 ((SELECT id_lieu FROM lieux WHERE nom='Plateau'), (SELECT id_lieu FROM lieux WHERE nom='UCAD (Fann)'), 4.5, 'Facile',
- 'Trajet fréquent pour les étudiants. Le bus DDD est la meilleure option aux heures de pointe.');
+ 'Trajet fréquent pour les étudiants. Le bus DDD ou la ligne 44 de minibus restent de bonnes options.');
 INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
 ((SELECT last_insert_rowid()), (SELECT id_transport FROM moyens_transport WHERE nom='Dakar Dem Dikk'), (SELECT id_ligne FROM lignes_bus WHERE numero_ligne='Ligne 14'), 150, 500, 20, 35, 'Aucune',
  'Prendre le bus DDD ligne 14 au Plateau (Place de l''Indépendance) | Descendre à l''arrêt "UCAD Étudiants"', 1);
@@ -95,10 +109,6 @@ INSERT INTO trajets (id_lieu_depart, id_lieu_arrivee, distance_km, niveau_diffic
 INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
 ((SELECT last_insert_rowid()), (SELECT id_transport FROM moyens_transport WHERE nom='TER'), (SELECT id_ligne FROM lignes_bus WHERE numero_ligne='TER'), 500, 2500, 45, 60, '1 (TER puis taxi/DDD)',
  'Prendre le TER à la gare AIBD (dans l''aéroport) | Direction "Dakar" — arrêt Petersen ou Gare de Dakar | Ensuite taxi ou DDD vers votre destination finale', 1);
-INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
-((SELECT id_trajet FROM trajets WHERE id_lieu_depart=(SELECT id_lieu FROM lieux WHERE nom='Aéroport AIBD') AND id_lieu_arrivee=(SELECT id_lieu FROM lieux WHERE nom='Plateau')),
- (SELECT id_transport FROM moyens_transport WHERE nom='Taxi clando'), NULL, 15000, 25000, 60, 90, 'Aucune',
- 'Prendre un taxi directement à la sortie de l''aéroport | Négocier le prix avant de monter (trajet long)', 0);
 
 -- Trajet 3 : Plateau -> Almadies
 INSERT INTO trajets (id_lieu_depart, id_lieu_arrivee, distance_km, niveau_difficulte, description) VALUES
@@ -119,7 +129,7 @@ INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_ma
 -- Trajet 5 : Dakar (Plateau) -> Lac Rose
 INSERT INTO trajets (id_lieu_depart, id_lieu_arrivee, distance_km, niveau_difficulte, description) VALUES
 ((SELECT id_lieu FROM lieux WHERE nom='Plateau'), (SELECT id_lieu FROM lieux WHERE nom='Lac Rose (Retba)'), 35, 'Moyen',
- 'Le Lac Retba (Lac Rose) est un site touristique majeur, classé UNESCO. À visiter absolument.');
+ 'Le Lac Retba (Lac Rose) est un site touristique majeur.');
 INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
 ((SELECT last_insert_rowid()), (SELECT id_transport FROM moyens_transport WHERE nom='Taxi clando'), NULL, 1000, 3000, 45, 60, '1 (via Rufisque)',
  'Prendre un taxi depuis Dakar vers Rufisque | Puis minibus ou taxi vers le lac | Négocier un taxi aller-retour (meilleure option)', 1);
@@ -163,10 +173,6 @@ INSERT INTO trajets (id_lieu_depart, id_lieu_arrivee, distance_km, niveau_diffic
 INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
 ((SELECT last_insert_rowid()), (SELECT id_transport FROM moyens_transport WHERE nom='Ferry'), NULL, 8000, 15000, 660, 720, 'Aucune',
  'Ferry Dakar - Ziguinchor (traversée de nuit) | Réserver sa cabine à l''avance', 1);
-INSERT INTO trajet_options (id_trajet, id_transport, id_ligne, prix_min, prix_max, duree_min_minutes, duree_max_minutes, correspondances, etapes, recommande) VALUES
-((SELECT id_trajet FROM trajets WHERE id_lieu_depart=(SELECT id_lieu FROM lieux WHERE nom='Plateau') AND id_lieu_arrivee=(SELECT id_lieu FROM lieux WHERE nom='Ziguinchor')),
- (SELECT id_transport FROM moyens_transport WHERE nom='Avion (Air Sénégal)'), NULL, 35000, 50000, 60, 75, 'Aucune',
- 'Vol direct Air Sénégal Dakar - Ziguinchor', 0);
 
 -- ---------------------------------------------------------------------
 -- PHRASES EN WOLOF
@@ -188,7 +194,6 @@ INSERT INTO phrases_wolof (wolof, francais, phonetique, situation) VALUES
 ('Taxawal fii !',         'Arrêtez-vous ici !',                           'ta-xa-wal fi',       'Transport'),
 ('Yëgël ma ci...',        'Déposez-moi à...',                             'yé-guél ma si...',   'Transport'),
 ('Fan la [lieu] nekk ?',  'Où se trouve [lieu] ?',                        'fan la [lieu] nèk',  'Direction'),
-('Ma dem [lieu] lañu jëf ?', 'Comment aller à [lieu] ?',                  'ma dem... la-ñoo jef', 'Direction'),
 ('Jëm ci kanam',          'Aller tout droit',                             'djèm si ka-nam',     'Direction'),
 ('Jëm ci ndey',           'Tourner à gauche',                             'djèm si ndèy',       'Direction'),
 ('Jëm ci kaw',            'Tourner à droite',                             'djèm si kaw',        'Direction'),
@@ -214,7 +219,7 @@ INSERT INTO conseils (categorie, titre, contenu, periode) VALUES
 ('Périodes',            'Affluence pendant les vacances',    'Pendant les vacances scolaires et les grands événements religieux (Magal, Tabaski), les gares routières sont bondées : réserver ou partir tôt.', 'Vacances');
 
 -- ---------------------------------------------------------------------
--- INFOS UTILES (numéros d'urgence etc.)
+-- INFOS UTILES
 -- ---------------------------------------------------------------------
 INSERT INTO infos_utiles (categorie, libelle, valeur) VALUES
 ('Urgence', 'Police nationale',       '17'),

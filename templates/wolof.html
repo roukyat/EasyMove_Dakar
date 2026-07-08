@@ -1,37 +1,56 @@
 {% extends "base.html" %}
-{% block title %}Wolof — EasyMove Sénégal{% endblock %}
+{% block title %}Lexique Wolof — EasyMove Dakar{% endblock %}
 
 {% block content %}
 
-    <div class="page-header">
+    <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Wolof</div>
-            <h1> Phrases utiles en Wolof</h1>
-            <p>{{ phrases|length }} expressions classées par situation, avec traduction et prononciation, stockées
-                dans la base de données.</p>
+            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+                <a href="{{ url_for('accueil') }}">Accueil</a> 
+                <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Wolof
+            </div>
+            <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Lexique de survie en Wolof</h1>
+            <p style="color: var(--texte-muted); max-width: 600px;">{{ phrases|length }} expressions de mobilité synchronisées depuis la base de données pour échanger sereinement avec les chauffeurs.</p>
         </div>
     </div>
 
-    <section class="section">
+    <section class="section search-section" style="padding: 30px 0;">
+        <div class="container">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass" style="color: var(--texte-muted); margin-right: 12px;"></i>
+                <input type="text" id="wolofSearch" class="search-input" placeholder="Filtrer une expression ou un mot-clé (ex: prix, arrêt, taxi)...">
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="padding: 40px 0;">
         <div class="container">
             {% for situation, liste in phrases_par_situation.items() %}
-            <div class="wolof-section" style="margin-bottom:36px;">
-                <div class="wolof-section-title" style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:14px; color:var(--vert);">{{ situation }}</div>
-                <div style="overflow-x:auto;">
-                    <table class="compare-table">
+            <div class="wolof-section" style="margin-bottom: 48px;">
+                <div class="wolof-section-title" style="font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.3rem; margin-bottom: 16px; color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-comments" style="font-size: 1.1rem;"></i> {{ situation }}
+                </div>
+                <div style="overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border-light);">
+                    <table class="wolof-table" style="width: 100%; border: none;">
                         <thead>
                             <tr>
-                                <th>Wolof</th>
-                                <th>Prononciation</th>
-                                <th>Français</th>
+                                <th style="width: 35%;">Expression Wolof</th>
+                                <th style="width: 30%;">Prononciation guidée</th>
+                                <th style="width: 35%;">Traduction Française</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for p in liste %}
-                            <tr>
-                                <td><div class="wolof-phrase">{{ p.wolof }}</div></td>
-                                <td><div class="wolof-pronon">{{ p.phonetique }}</div></td>
-                                <td class="wolof-fr">{{ p.francais }}</td>
+                            <tr class="phrase-row">
+                                <td>
+                                    <div class="wolof-phrase">{{ p.wolof }}</div>
+                                </td>
+                                <td>
+                                    <div class="wolof-pronon">
+                                        <i class="fa-solid fa-volume-low" style="margin-right: 6px; opacity: 0.6;"></i> {{ p.phonetique }}
+                                    </div>
+                                </td>
+                                <td class="wolof-fr" style="color: var(--texte-muted);">{{ p.francais }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -39,7 +58,58 @@
                 </div>
             </div>
             {% endfor %}
+            
+            <div id="noResultsMessage" style="display: none; text-align: center; padding: 40px; background: var(--fond-carte); border: 1px solid var(--border-light); border-radius: var(--radius);">
+                <i class="fa-solid fa-circle-question" style="font-size: 2rem; color: var(--accent-jaune); margin-bottom: 12px;"></i>
+                <p style="color: var(--texte-muted);">Aucune correspondance trouvée pour votre recherche.</p>
+            </div>
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("wolofSearch");
+    const rows = document.querySelectorAll(".phrase-row");
+    const sections = document.querySelectorAll(".wolof-section");
+    const noResultsMessage = document.getElementById("noResultsMessage");
+
+    searchInput.addEventListener("input", function() {
+        const filter = this.value.toLowerCase().trim();
+        let globalHasResults = false;
+
+        sections.forEach(section => {
+            const sectionRows = section.querySelectorAll(".phrase-row");
+            let sectionHasResults = false;
+
+            sectionRows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    row.style.display = "";
+                    sectionHasResults = true;
+                    globalHasResults = true;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            // Masquer la section entière si aucune ligne ne correspond
+            if (sectionHasResults) {
+                section.style.display = "";
+            } else {
+                section.style.display = "none";
+            }
+        });
+
+        // Afficher un message alternatif si tout est filtré
+        if (globalHasResults || filter === "") {
+            noResultsMessage.style.display = "none";
+        } else {
+            noResultsMessage.style.display = "block";
+        }
+    });
+});
+</script>
 {% endblock %}
