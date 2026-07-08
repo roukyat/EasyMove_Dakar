@@ -91,8 +91,8 @@
         maxZoom: 19
     }).addTo(map);
 
-    const iconDepart = L.divIcon({ html:  className: 'emoji-marker', iconSize: [30, 30] });
-    const iconArrivee = L.divIcon({ html:  className: 'emoji-marker', iconSize: [30, 30] });
+    const iconDepart = L.divIcon({ html: 'A', className: 'emoji-marker', iconSize: [30, 30] });
+    const iconArrivee = L.divIcon({ html: 'B', className: 'emoji-marker', iconSize: [30, 30] });
 
     L.marker([depart.lat, depart.lng], { icon: iconDepart }).addTo(map).bindPopup(`<strong>Départ :</strong> ${depart.nom}`);
     L.marker([arrivee.lat, arrivee.lng], { icon: iconArrivee }).addTo(map).bindPopup(`<strong>Arrivée :</strong> ${arrivee.nom}`);

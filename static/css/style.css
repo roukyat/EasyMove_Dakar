@@ -397,8 +397,4 @@ footer { background: #030408; padding: 80px 0 40px; border-top: 1px solid var(--
   .footer-grid { grid-template-columns: 1fr; }
   .stats-bar { grid-template-columns: 1fr; }
   .pros-cons { grid-template-columns: 1fr; }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 8fda8324f607c75ae90f8a335f4cf4b6ea6646c1
