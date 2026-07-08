@@ -6,7 +6,7 @@
     <div class="page-header">
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Conseils</div>
-            <h1>💡 Conseils pratiques</h1>
+            <h1> Conseils pratiques</h1>
             <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie, stockés dans la base de
                 données.</p>
         </div>
@@ -35,12 +35,12 @@
         <div class="container">
             <div class="section-header">
                 <div class="eyebrow">Sécurité</div>
-                <h2>🆘 Numéros d'urgence</h2>
+                <h2> Numéros d'urgence</h2>
             </div>
             <div class="urgence-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
                 {% for info in infos_urgence %}
                 <div class="urgence-card">
-                    <div class="emoji">{{ '🚔' if 'Police' in info.libelle else '🚑' if 'SAMU' in info.libelle else '🚒' if 'Sapeurs' in info.libelle else '🪖' }}</div>
+                    <div class="emoji">{{  if 'Police' in info.libelle else '🚑' if 'SAMU' in info.libelle else '🚒' if 'Sapeurs' in info.libelle else '🪖' }}</div>
                     <div class="num">{{ info.valeur }}</div>
                     <div class="label">{{ info.libelle }}</div>
                 </div>

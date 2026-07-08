@@ -14,8 +14,8 @@
                     <p>Transports, prix, trajets et phrases utiles en wolof — tout ce qu'il faut pour se déplacer
                         facilement à Dakar et dans les grandes villes.</p>
                     <div class="hero-btns">
-                        <a href="{{ url_for('transports') }}" class="btn-primary">🚌 Voir les transports</a>
-                        <a href="{{ url_for('trajets') }}" class="btn-secondary">📍 Trouver un trajet</a>
+                        <a href="{{ url_for('transports') }}" class="btn-primary"> Voir les transports</a>
+                        <a href="{{ url_for('trajets') }}" class="btn-secondary"> Trouver un trajet</a>
                     </div>
                 </div>
 
@@ -47,13 +47,13 @@
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
                 <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
                     <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected>📍 Départ</option>
+                        <option value="" disabled selected> Départ</option>
                         {% for lieu in lieux %}
                         <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
                         {% endfor %}
                     </select>
                     <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected>🎯 Destination</option>
+                        <option value="" disabled selected> Destination</option>
                         {% for lieu in lieux %}
                         <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
                         {% endfor %}
@@ -66,30 +66,7 @@
         </div>
     </section>
 
-    <!-- STATS -->
-    <section>
-        <div class="container">
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <div class="stat-num">{{ stats.transports }}</div>
-                    <div class="stat-label">Moyens de transport</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-num">{{ stats.trajets }}+</div>
-                    <div class="stat-label">Trajets en base</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-num">{{ stats.phrases }}+</div>
-                    <div class="stat-label">Phrases en wolof</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-num">{{ stats.conseils }}+</div>
-                    <div class="stat-label">Conseils pratiques</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
+    
     <!-- SECTION APERÇU TRANSPORTS -->
     <section class="section">
         <div class="container">
@@ -110,7 +87,7 @@
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">
-                            <span class="tc-prix-label">💰 Prix</span>
+                            <span class="tc-prix-label"> Prix</span>
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
                         </div>
                         <span class="badge badge-jaune">{{ t.disponibilite }}</span>
@@ -137,7 +114,7 @@
                     <p style="color:var(--texte2);margin-bottom:24px;line-height:1.75;">Le wolof est la langue la plus
                         parlée au Sénégal. Quelques mots suffisent pour briser la glace, négocier un prix ou demander
                         votre chemin.</p>
-                    <a href="{{ url_for('wolof') }}" class="btn-primary">📖 Voir les phrases utiles</a>
+                    <a href="{{ url_for('wolof') }}" class="btn-primary"> Voir les phrases utiles</a>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:10px;">
                     {% for p in phrases_apercu %}

@@ -6,7 +6,7 @@
     <div class="page-header">
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Transports</div>
-            <h1>🚌 Les moyens de transport</h1>
+            <h1> Les moyens de transport</h1>
             <p>Tout ce qu'il faut savoir sur les différents transports disponibles à Dakar et au Sénégal — données
                 issues directement de la base SQL.</p>
         </div>
@@ -26,7 +26,7 @@
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">
-                            <span class="tc-prix-label">💰 Prix estimé</span>
+                            <span class="tc-prix-label"> Prix estimé</span>
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
                         </div>
                         <div class="pros-cons">
@@ -48,8 +48,8 @@
                             </div>
                         </div>
                         <div style="margin-top:12px;">
-                            <span class="badge badge-jaune">🪑 Confort : {{ t.niveau_confort }}</span>
-                            <span class="badge badge-vert" style="margin-left:6px;">🕐 {{ t.disponibilite }}</span>
+                            <span class="badge badge-jaune"> Confort : {{ t.niveau_confort }}</span>
+                            <span class="badge badge-vert" style="margin-left:6px;"> {{ t.disponibilite }}</span>
                         </div>
                     </div>
                 </div>
@@ -72,10 +72,10 @@
                     <thead>
                         <tr>
                             <th>Transport</th>
-                            <th>💰 Prix min</th>
-                            <th>💰 Prix max</th>
-                            <th>😊 Confort</th>
-                            <th>📍 Disponibilité</th>
+                            <th> Prix min</th>
+                            <th> Prix max</th>
+                            <th> Confort</th>
+                            <th> Disponibilité</th>
                         </tr>
                     </thead>
                     <tbody>

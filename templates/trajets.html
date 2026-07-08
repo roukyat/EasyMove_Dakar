@@ -6,7 +6,7 @@
     <div class="page-header">
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Trajets</div>
-            <h1>📍 Trajets prédéfinis</h1>
+            <h1> Trajets prédéfinis</h1>
             <p>Des itinéraires détaillés entre les lieux les plus fréquentés de Dakar et du Sénégal, générés depuis
                 la base de données.</p>
         </div>
@@ -21,13 +21,13 @@
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
                 <div class="search-input-wrapper" style="flex-wrap:wrap; gap:12px;">
                     <select name="depart" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected>📍 Départ</option>
+                        <option value="" disabled selected> Départ</option>
                         {% for lieu in lieux %}
                         <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
                         {% endfor %}
                     </select>
                     <select name="arrivee" required class="search-input" style="flex:1; min-width:180px;">
-                        <option value="" disabled selected>🎯 Destination</option>
+                        <option value="" disabled selected> Destination</option>
                         {% for lieu in lieux %}
                         <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
                         {% endfor %}
@@ -42,11 +42,11 @@
     <section style="padding: 32px 0 0;">
         <div class="container">
             <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 8px;">
-                <span class="badge tag-facile">🟢 Facile</span>
+                <span class="badge tag-facile"> Facile</span>
                 <span style="font-size:.83rem; color:var(--texte2)">Trajet simple, conseillé aux débutants</span>
-                <span class="badge tag-moyen" style="margin-left:16px;">🟡 Moyen</span>
+                <span class="badge tag-moyen" style="margin-left:16px;"> Moyen</span>
                 <span style="font-size:.83rem; color:var(--texte2)">Quelques correspondances ou négociations</span>
-                <span class="badge tag-complexe" style="margin-left:16px;">🔴 Complexe</span>
+                <span class="badge tag-complexe" style="margin-left:16px;"> Complexe</span>
                 <span style="font-size:.83rem; color:var(--texte2)">Demande de l'expérience locale</span>
             </div>
         </div>
@@ -66,11 +66,11 @@
                 <div class="trajet-card">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         {% if t.niveau_difficulte == 'Facile' %}
-                        <span class="badge tag-facile">🟢 Facile</span>
+                        <span class="badge tag-facile"> Facile</span>
                         {% elif t.niveau_difficulte == 'Moyen' %}
-                        <span class="badge tag-moyen">🟡 Moyen</span>
+                        <span class="badge tag-moyen"> Moyen</span>
                         {% else %}
-                        <span class="badge tag-complexe">🔴 Complexe</span>
+                        <span class="badge tag-complexe"> Complexe</span>
                         {% endif %}
                         <a href="{{ url_for('resultat_trajet', depart=t.id_lieu_depart, arrivee=t.id_lieu_arrivee) }}" class="badge badge-vert">Voir sur la carte 🗺️</a>
                     </div>
@@ -82,8 +82,8 @@
                     <div class="trajet-meta">
                         {% set best = item.options[0] %}
                         {% if best %}
-                        <span>⏱️ {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
-                        <span>💰 {{ best.prix_min }} – {{ best.prix_max }} FCFA</span>
+                        <span>{{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
+                        <span> {{ best.prix_min }} – {{ best.prix_max }} FCFA</span>
                         <span>{{ best.icone }} {{ best.nom_transport }}</span>
                         {% endif %}
                     </div>

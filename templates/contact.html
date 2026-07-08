@@ -6,7 +6,7 @@
     <div class="page-header">
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › À propos</div>
-            <h1>👥 À propos du projet</h1>
+            <h1> À propos du projet</h1>
             <p>EasyMove Sénégal — Un projet étudiant né d'un besoin réel</p>
         </div>
     </div>
@@ -28,11 +28,7 @@
                         pour se déplacer sereinement : types de transport, estimations de prix, trajets courants,
                         carte interactive et phrases utiles en wolof pour communiquer avec les habitants.
                     </p>
-                    <p>
-                        Ce site a été réalisé dans le cadre d'un projet de fin d'année. Il repose sur une véritable
-                        architecture trois-tiers : une base de données SQL, un serveur web Python (Flask) qui traite
-                        les recherches d'itinéraires, et une interface HTML/CSS/JS avec carte interactive.
-                    </p>
+                    
 
                     <div style="margin-top: 32px;">
                         <h3 style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; margin-bottom:16px;">🎯 Ce que couvre EasyMove</h3>
@@ -61,16 +57,16 @@
                     <div style="margin-top:36px;">
                         <h3 style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; margin-bottom:16px;">🔗 Ressources officielles</h3>
                         <div class="ressources-list">
-                            <a href="https://www.dakardemdikk.sn" target="_blank">
-                                <span style="color:var(--vert);">🚌</span>
+                            <a href="https://demdikk.sn/" target="_blank">
+                                <span style="color:var(--vert);"></span>
                                 <div>
                                     <div style="font-weight:600; color:var(--texte);">Dakar Dem Dikk</div>
                                     <div style="font-size:.78rem;">Site officiel du réseau de bus de Dakar</div>
                                 </div>
                                 <span style="margin-left:auto; color:var(--gris); font-size:.8rem;">↗</span>
                             </a>
-                            <a href="https://www.ter.sn" target="_blank">
-                                <span style="color:var(--vert);">🚂</span>
+                            <a href="https://ter-senegal.sn/" target="_blank">
+                                <span style="color:var(--vert);"></span>
                                 <div>
                                     <div style="font-weight:600; color:var(--texte);">Train Express Régional (TER)</div>
                                     <div style="font-size:.78rem;">Horaires et tarifs officiels du TER</div>
@@ -78,7 +74,7 @@
                                 <span style="margin-left:auto; color:var(--gris); font-size:.8rem;">↗</span>
                             </a>
                             <a href="https://www.cetud.sn" target="_blank">
-                                <span style="color:var(--vert);">📋</span>
+                                <span style="color:var(--vert);"></span>
                                 <div>
                                     <div style="font-weight:600; color:var(--texte);">CETUD</div>
                                     <div style="font-size:.78rem;">Conseil Exécutif des Transports Urbains de Dakar</div>
@@ -86,7 +82,7 @@
                                 <span style="margin-left:auto; color:var(--gris); font-size:.8rem;">↗</span>
                             </a>
                             <a href="https://www.aibd.sn" target="_blank">
-                                <span style="color:var(--vert);">✈️</span>
+                                <span style="color:var(--vert);"></span>
                                 <div>
                                     <div style="font-weight:600; color:var(--texte);">Aéroport AIBD</div>
                                     <div style="font-size:.78rem;">Aéroport International Blaise Diagne</div>
@@ -97,52 +93,7 @@
                     </div>
                 </div>
 
-                <!-- TEAM / STACK -->
-                <div>
-                    <h3 style="font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; margin-bottom:20px;">👩‍💻 L'équipe</h3>
-
-                    <div class="team-card" style="margin-bottom:16px;">
-                        <div class="team-avatar">👩‍💻</div>
-                        <div class="team-name">Étudiant(e) 1</div>
-                        <div class="team-role">Design & Frontend</div>
-                        <div style="font-size:.8rem; color:var(--gris); margin-top:8px; line-height:1.5;">Conception visuelle, structure des pages, intégration du contenu</div>
-                    </div>
-
-                    <div class="team-card" style="margin-bottom:32px;">
-                        <div class="team-avatar">👨‍💻</div>
-                        <div class="team-name">Étudiant(e) 2</div>
-                        <div class="team-role">Backend & Base de données</div>
-                        <div style="font-size:.8rem; color:var(--gris); margin-top:8px; line-height:1.5;">Modélisation SQL, développement Flask, moteur de recherche d'itinéraires</div>
-                    </div>
-
-                    <!-- STACK TECH -->
-                    <div style="background:var(--fond); border-radius:var(--radius); padding:20px; border:1px solid var(--bordure);">
-                        <h4 style="font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; margin-bottom:12px; color:var(--texte);">🛠️ Technologies utilisées</h4>
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="background:#F06529; color:#fff; border-radius:4px; padding:2px 8px; font-size:.75rem; font-weight:700;">HTML5</span>
-                                <span style="font-size:.83rem; color:var(--texte2);">Structure sémantique (templates Jinja2)</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="background:#2965F1; color:#fff; border-radius:4px; padding:2px 8px; font-size:.75rem; font-weight:700;">CSS3</span>
-                                <span style="font-size:.83rem; color:var(--texte2);">Mise en page responsive, animations</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="background:#3776AB; color:#fff; border-radius:4px; padding:2px 8px; font-size:.75rem; font-weight:700;">Python</span>
-                                <span style="font-size:.83rem; color:var(--texte2);">Serveur Flask, logique de recherche</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="background:#003B57; color:#fff; border-radius:4px; padding:2px 8px; font-size:.75rem; font-weight:700;">SQL</span>
-                                <span style="font-size:.83rem; color:var(--texte2);">Base SQLite (9 tables reliées)</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="background:#199900; color:#fff; border-radius:4px; padding:2px 8px; font-size:.75rem; font-weight:700;">Leaflet.js</span>
-                                <span style="font-size:.83rem; color:var(--texte2);">Carte interactive (OpenStreetMap)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                
             </div>
         </div>
     </section>

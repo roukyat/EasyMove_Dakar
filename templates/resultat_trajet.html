@@ -21,7 +21,7 @@
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › <a href="{{ url_for('trajets') }}">Trajets</a> › Résultat</div>
             {% if resultat %}
-            <h1>🗺️ {{ resultat.depart_nom }} → {{ resultat.arrivee_nom }}</h1>
+            <h1> {{ resultat.depart_nom }} → {{ resultat.arrivee_nom }}</h1>
             <p>Voici la carte du trajet et les moyens de transport disponibles.</p>
             {% else %}
             <h1>Aucun résultat</h1>
@@ -49,9 +49,9 @@
                         {% if opt.recommande %}<span class="badge badge-vert">✅ Recommandé</span>{% endif %}
                     </div>
                     <div class="option-meta">
-                        <span>💰 {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
-                        <span>⏱️ {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }} min</span>
-                        <span>🔀 Correspondances : {{ opt.correspondances }}</span>
+                        <span> {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
+                        <span> {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }} min</span>
+                        <span> Correspondances : {{ opt.correspondances }}</span>
                     </div>
                     <div class="option-etapes">
                         <strong>Étapes :</strong>
@@ -91,8 +91,8 @@
         maxZoom: 19
     }).addTo(map);
 
-    const iconDepart = L.divIcon({ html: '📍', className: 'emoji-marker', iconSize: [30, 30] });
-    const iconArrivee = L.divIcon({ html: '🎯', className: 'emoji-marker', iconSize: [30, 30] });
+    const iconDepart = L.divIcon({ html:  className: 'emoji-marker', iconSize: [30, 30] });
+    const iconArrivee = L.divIcon({ html:  className: 'emoji-marker', iconSize: [30, 30] });
 
     L.marker([depart.lat, depart.lng], { icon: iconDepart }).addTo(map).bindPopup(`<strong>Départ :</strong> ${depart.nom}`);
     L.marker([arrivee.lat, arrivee.lng], { icon: iconArrivee }).addTo(map).bindPopup(`<strong>Arrivée :</strong> ${arrivee.nom}`);
