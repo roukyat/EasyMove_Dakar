@@ -132,6 +132,7 @@ h1, h2, h3, h4 {
     align-items: center;
     justify-content: space-between;
     padding: 16px 0;
+    position: relative;
 }
 
 .logo {
@@ -190,6 +191,35 @@ h1, h2, h3, h4 {
     background: var(--accent-bleu);
     color: #FFFFFF;
 }
+
+/* Bouton hamburger (masqué sur bureau, affiché sous 860px) */
+.navbar-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    cursor: pointer;
+    padding: 0;
+    z-index: 1100;
+}
+.navbar-toggle span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: var(--text-main);
+    border-radius: 2px;
+    transition: var(--transition);
+}
+.navbar-toggle.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.navbar-toggle.active span:nth-child(2) { opacity: 0; }
+.navbar-toggle.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 .main-content, .sidebar-content {
     padding: 20px;
@@ -303,8 +333,12 @@ h1, h2, h3, h4 {
 .section-header h2, .section-title h2 { font-size: clamp(1.8rem, 3.5vw, 2.5rem); margin-bottom: 12px; font-weight: 700; }
 .section-header p, .section-title p { color: var(--text-muted); font-size: 0.95rem; }
 
-.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-.grid-2, .grid-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; }
+/* minmax(Xpx, 1fr) "a l'ancienne" force une piste d'au moins Xpx meme si le
+   conteneur est plus etroit (telephones tres etroits <360px), ce qui
+   provoque un debordement horizontal. min(Xpx, 100%) rend la valeur
+   "bulletproof" : jamais plus large que le conteneur disponible. */
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 24px; }
+.grid-2, .grid-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 24px; }
 
 /* ==========================================================================
    FORMULAIRES
@@ -388,6 +422,32 @@ h1, h2, h3, h4 {
     white-space: nowrap;
 }
 .search-form .btn-primary:hover { opacity: 0.92; }
+
+/* Bouton "Partir de ma position GPS actuelle" */
+.btn-geoloc {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: var(--radius);
+    border: 1px dashed var(--accent-cyan);
+    background: rgba(6, 182, 212, 0.06);
+    color: var(--accent-cyan);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+    justify-content: center;
+}
+.btn-geoloc:hover { background: rgba(6, 182, 212, 0.14); border-style: solid; }
+.btn-geoloc:disabled { opacity: 0.6; cursor: wait; }
+.btn-geoloc.active {
+    border-style: solid;
+    border-color: var(--accent-vert);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-vert);
+}
 
 /* Barre de recherche texte (ex: lexique wolof) */
 .search-input-wrapper {
@@ -537,8 +597,40 @@ h1, h2, h3, h4 {
     font-size: 0.95rem;
     flex-shrink: 0;
 }
-.tc-icon-img { padding: 0; overflow: hidden; }
+.tc-icon-img { padding: 0; overflow: hidden; cursor: zoom-in; }
 .tc-icon-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Aperçu agrandi d'un moyen de transport (survol ordinateur / clic mobile).
+   Positionné en absolu par rapport à .transport-card (plus proche ancêtre
+   avec position:relative), et toujours contenu dans la carte grâce à son
+   overflow:hidden — l'image ne déborde donc jamais sur le reste de la page. */
+.tc-zoom-overlay {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 58%;
+    max-width: 210px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: var(--radius);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    opacity: 0;
+    transform: scale(0.85) translateY(-6px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+    z-index: 30;
+}
+@media (hover: hover) and (pointer: fine) {
+    .tc-icon-img:hover .tc-zoom-overlay {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+.tc-icon-img.zoom-active .tc-zoom-overlay {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
 .tc-name, .card-details-static h3 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
 .tc-body { padding: 20px 24px 24px; }
 .tc-desc, .card-details-static .desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; min-height: 40px; }
@@ -592,6 +684,35 @@ h1, h2, h3, h4 {
 .floating-card { position: absolute; top: 20px; left: 20px; z-index: 1000; width: 320px; }
 .leaflet-popup-tip { background: var(--bg-primary) !important; border: 1px solid var(--border-color); }
 .leaflet-container a.leaflet-popup-close-button { color: var(--text-muted) !important; padding: 6px; }
+
+/* Panneau d'instructions pas-à-pas de Leaflet Routing Machine.
+   La librairie impose un fond blanc (`background-color: white`) mais ne
+   fixe aucune couleur de texte : celui-ci héritait donc du blanc défini
+   globalement sur <body>, rendant les instructions illisibles (texte
+   blanc sur fond blanc). On force ici un texte sombre et lisible, quel
+   que soit le thème clair/sombre du site. */
+.leaflet-routing-container {
+    background-color: #ffffff !important;
+    color: #16202e !important;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-family: 'Inter', sans-serif;
+}
+.leaflet-routing-container h2,
+.leaflet-routing-container h3 {
+    color: #16202e !important;
+}
+.leaflet-routing-alt {
+    color: #16202e !important;
+    border-bottom-color: #e2e5ea;
+}
+.leaflet-routing-alt table,
+.leaflet-routing-alt td,
+.leaflet-routing-alt tr {
+    color: #16202e !important;
+}
+.leaflet-routing-alt-minimized { color: #6b7684 !important; }
+.leaflet-routing-geocoders input { color: #16202e !important; }
 
 .hidden { display: none !important; }
 .route-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -886,6 +1007,148 @@ a.feature-card { color: inherit; }
 }
 
 /* ==========================================================================
+   TRAJETS — cartes de trajets prédéfinis (page /trajets)
+   ========================================================================== */
+.trajet-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.trajet-card:hover { border-color: var(--border-active); transform: translateY(-2px); }
+
+.trajet-route { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.trajet-point { font-weight: 700; font-size: 1rem; color: var(--text-main); white-space: nowrap; }
+.trajet-arrow {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-cyan), rgba(255,255,255,0.05));
+    position: relative;
+}
+.trajet-arrow::after {
+    content: '\f061';
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent-cyan);
+    font-size: 0.7rem;
+}
+
+.trajet-etapes { border-top: 1px solid var(--border-color); padding-top: 14px; }
+.trajet-etapes .etape { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.etape-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent-cyan);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   CONSEILS — mise en page compacte avec filtres par catégorie
+   ========================================================================== */
+.conseils-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+.conseil-filtre {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.conseil-filtre:hover { border-color: var(--accent-cyan); color: var(--text-main); }
+.conseil-filtre.actif { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #04121a; }
+
+.conseils-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+}
+
+.conseil-card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    overflow: hidden;
+    transition: var(--transition);
+}
+.conseil-card:hover { border-color: var(--border-active); transform: translateY(-2px); }
+
+.conseil-card-visuel {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: #fff;
+}
+
+.conseil-card-body { padding: 14px 16px 16px; }
+.conseil-card-body .cc-titre {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--text-main);
+}
+.conseil-card-body .cc-texte {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.conseil-card-body .badge { margin-top: 10px; font-size: 0.6rem; }
+
+/* ==========================================================================
+   MINIBUS — explorateur (panneau lignes/arrets + carte), page /minibus
+   Remplace l'ancien grid inline "380px 1fr" qui n'avait aucun breakpoint
+   et debordait sur tout ecran < ~800px.
+   ========================================================================== */
+.minibus-explorer-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    height: calc(100vh - 140px);
+    min-height: 600px;
+}
+
+/* ==========================================================================
+   HISTORIQUE — carte de recherche recente, page /historique
+   Remplace l'ancien grid inline "1fr auto" qui pouvait ecraser le bouton
+   d'action sur mobile en presence de noms de lieux longs.
+   ========================================================================== */
+.historique-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 20px;
+}
+.historique-main { display: flex; align-items: flex-start; gap: 20px; min-width: 0; }
+.historique-main > div:last-child { min-width: 0; }
+
+/* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 @media (max-width: 960px) {
@@ -897,12 +1160,74 @@ a.feature-card { color: inherit; }
     .hero-btns { justify-content: center; }
     .minibus-layout, .grid-split { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr 1fr; }
+
+    /* L'explorateur minibus (panneau lignes + carte) passe en 1 colonne :
+       les deux panneaux enfants reposaient sur height:100% d'un parent a
+       hauteur fixe (calc(100vh - 140px)) — sur 1 colonne il faut leur
+       donner une hauteur explicite propre, sinon ils s'effondrent a 0. */
+    .minibus-explorer-grid { grid-template-columns: 1fr; height: auto; min-height: 0; }
+    .minibus-side-panel { height: auto !important; max-height: 65vh; }
+    .minibus-map-panel { height: 420px !important; }
+}
+
+/* Navbar : bascule vers un menu hamburger deroulant. En dessous de 860px,
+   tous les liens (sauf le CTA) disparaissaient auparavant sans aucun
+   remplacement — navigation impossible sur mobile. */
+@media (max-width: 860px) {
+    .navbar-toggle { display: flex; }
+    .nav-links {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 var(--radius) var(--radius);
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        padding: 0 16px;
+        transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
+    }
+    .nav-links.open {
+        max-height: 75vh;
+        overflow-y: auto;
+        opacity: 1;
+        padding: 10px 16px 18px;
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+    }
+    .nav-links li { width: 100%; }
+    .nav-links a, .main-nav a { display: block; width: 100%; padding: 13px 12px; }
+    .nav-links a.nav-cta { margin-left: 0; margin-top: 6px; text-align: center; }
 }
 
 @media (max-width: 640px) {
     .container { padding: 0 20px; }
-    .nav-links a:not(.nav-cta) { display: none; }
     .selector-grid { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr; }
     .pros-cons { grid-template-columns: 1fr; }
+
+    /* Les deux vignettes du hero (accueil) passent en 1 colonne : a 300-340px
+       de large chacune, un layout 2 colonnes serrait trop le texte. */
+    .hero-visual { grid-template-columns: 1fr; }
+    .hero-card-mini:first-child { grid-column: span 1; }
+
+    /* Carte "historique" : icone + texte + bouton empiles verticalement au
+       lieu du grid "1fr auto" qui pouvait ecraser le bouton d'action quand
+       les noms de lieux etaient longs. */
+    .historique-item { grid-template-columns: 1fr; }
+    .historique-actions { width: 100%; }
+    .historique-actions a { width: 100%; }
+}
+
+@media (max-width: 400px) {
+    .container { padding: 0 16px; }
+    /* Sous 400px, 2 colonnes de chiffres cles (page A propos) restent
+       lisibles mais deviennent serrees avec des libelles longs : on repasse
+       a 1 colonne. */
+    .stats-grid { grid-template-columns: 1fr !important; }
 }

@@ -1,7 +1,11 @@
 {% extends "base.html" %}
+
 {% block title %}Résultat de recherche — EasyMove Dakar{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
 <style>
     .result-map-wrapper {
         width: 100%;
@@ -12,11 +16,12 @@
         overflow: hidden;
         margin-bottom: 32px;
     }
-    #carte-trajet { 
-        width: 100%; 
-        height: 100%; 
+
+    #carte-trajet {
+        width: 100%;
+        height: 100%;
     }
-    
+
     /* Marqueurs cartographiques  */
     .custom-map-marker {
         width: 32px;
@@ -32,66 +37,78 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         border: 2px solid #FFFFFF;
     }
+
     .marker-depart {
         background: var(--accent-bleu);
     }
+
     .marker-arrivee {
         background: var(--accent-rouge);
     }
 
     /* Cartes des options */
-    .option-card { 
-        background: var(--fond-carte); 
-        border: 1px solid var(--border-light); 
-        border-radius: var(--radius); 
-        padding: 24px; 
-        margin-bottom: 20px; 
+    .option-card {
+        background: var(--fond-carte);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 20px;
         transition: var(--transition-douce);
+        position: relative;
+        overflow: hidden;
     }
-    .option-card.recommande { 
-        border-color: var(--accent-vert); 
+
+    .option-card.recommande {
+        border-color: var(--accent-vert);
         background: rgba(16, 185, 129, 0.02);
     }
-    .option-top { 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        margin-bottom: 16px; 
-        flex-wrap: wrap; 
-        gap: 12px; 
+
+    .option-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
     }
-    .option-title { 
-        font-family: 'Syne', sans-serif; 
-        font-weight: 700; 
-        font-size: 1.15rem; 
-        display: flex; 
-        align-items: center; 
-        gap: 10px; 
+
+    .option-title {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 1.15rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    .option-meta { 
-        display: flex; 
-        gap: 20px; 
-        flex-wrap: wrap; 
-        font-size: 0.9rem; 
-        color: var(--texte-muted); 
-        margin-bottom: 20px; 
+
+    .option-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+        color: var(--texte-muted);
+        margin-bottom: 20px;
         border-bottom: 1px solid var(--border-light);
         padding-bottom: 14px;
     }
+
     .option-meta span {
         display: inline-flex;
         align-items: center;
         gap: 6px;
     }
-    .option-etapes { 
-        font-size: 0.9rem; 
+
+    .option-etapes {
+        font-size: 0.9rem;
     }
-    .option-etapes .etape { 
-        display: flex; 
-        gap: 12px; 
-        margin-bottom: 8px; 
+
+    .option-etapes .etape {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 8px;
         color: var(--texte-muted);
     }
+
     .etape-idx {
         color: var(--accent-cyan);
         font-weight: 600;
@@ -100,130 +117,232 @@
 {% endblock %}
 
 {% block content %}
+<div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
+    <div class="container">
+        <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+            <a href="{{ url_for('accueil') }}">Accueil</a>
+            <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i>
+            <a href="{{ url_for('trajets') }}">Trajets</a>
+            <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Résultat
+        </div>
+        {% if resultat %}
+        <h1 style="font-size: 2.3rem; margin-bottom: 8px;">
+            {{ resultat.depart_nom }} <i class="fa-solid fa-arrow-right-long"
+                style="font-size: 1.3rem; color: var(--accent-cyan); margin: 0 12px; vertical-align: middle;"></i> {{
+            resultat.arrivee_nom }}
+        </h1>
+        <p style="color: var(--texte-muted);">Visualisation cartographique de votre liaison et comparatif des réseaux de
+            transit dakarois.</p>
+        {% else %}
+        <h1 style="font-size: 2.3rem; margin-bottom: 8px;">Aucun résultat trouvé</h1>
+        <p style="color: var(--texte-muted);">Le formulaire soumis n'a renvoyé aucune concordance exploitable.</p>
+        {% endif %}
+    </div>
+</div>
 
-    <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
-        <div class="container">
-            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
-                <a href="{{ url_for('accueil') }}">Accueil</a> 
-                <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> 
-                <a href="{{ url_for('trajets') }}">Trajets</a> 
-                <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Résultat
+{% if resultat %}
+<section class="section" style="padding: 40px 0;">
+    <div class="container">
+
+        <div class="result-map-wrapper">
+            <div id="carte-trajet"></div>
+        </div>
+
+        <div style="margin-top: 40px;">
+            {% if resultat.options|length > 0 %}
+            <div class="section-header" style="margin-bottom: 32px;">
+                <div class="eyebrow">Options disponibles</div>
+                <h2>{{ resultat.options|length }} solution(s) de transport détectée(s)</h2>
             </div>
-            {% if resultat %}
-            <h1 style="font-size: 2.3rem; margin-bottom: 8px;">
-                {{ resultat.depart_nom }} <i class="fa-solid fa-arrow-right-long" style="font-size: 1.3rem; color: var(--accent-cyan); margin: 0 12px; vertical-align: middle;"></i> {{ resultat.arrivee_nom }}
-            </h1>
-            <p style="color: var(--texte-muted);">Visualisation cartographique de votre liaison et comparatif des réseaux de transit dakarois.</p>
+
+            {% for opt in resultat.options %}
+            <div class="option-card {{ 'recommande' if opt.recommande }}">
+                <div class="option-top">
+                    <div class="option-title">
+                        {% if opt.image_url %}
+                        <div class="tc-icon tc-icon-img" style="width: 34px; height: 34px; border-radius: 8px;" title="Voir en grand">
+                            <img src="{{ opt.image_url }}" alt="{{ opt.nom_transport }}" loading="lazy">
+                            <img class="tc-zoom-overlay" src="{{ opt.image_url }}" alt="{{ opt.nom_transport }} — aperçu agrandi" loading="lazy">
+                        </div>
+                        {% else %}
+                        <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}"
+                            style="color: var(--accent-cyan);"></i>
+                        {% endif %}
+                        {{ opt.nom_transport }}{% if opt.numero_ligne %} — Ligne {{ opt.numero_ligne }}{% endif %}
+                    </div>
+                    {% if opt.recommande %}
+                    <span class="badge badge-vert"><i class="fa-solid fa-star" style="margin-right: 4px;"></i>
+                        Recommandé</span>
+                    {% endif %}
+                </div>
+
+                <div class="option-meta">
+                    <span><i class="fa-solid fa-coins"></i> {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
+                    <span><i class="fa-regular fa-clock"></i> {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }}
+                        min</span>
+                    <span><i class="fa-solid fa-code-branch"></i> Correspondances : {{ opt.correspondances }}</span>
+                </div>
+
+                <div class="option-etapes">
+                    <div
+                        style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #FFF; margin-bottom: 12px; font-weight: 600;">
+                        Feuille de route pas-à-pas :</div>
+                    {% for etape in opt.etapes.split(' | ') %}
+                    <div class="etape">
+                        <span class="etape-idx">{{ loop.index }}.</span>
+                        <span>{{ etape }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
             {% else %}
-            <h1 style="font-size: 2.3rem; margin-bottom: 8px;">Aucun résultat trouvé</h1>
-            <p style="color: var(--texte-muted);">Le formulaire soumis n'a renvoyé aucune concordance exploitable.</p>
+            <div class="option-card" style="border-left: 3px solid var(--accent-jaune);">
+                <p style="color: var(--texte-muted);">Aucune option de transport en commun prédéfinie n'est actuellement
+                    liée à cette combinaison dans notre base de données.</p>
+                <p style="margin-top: 12px; font-size: 0.9rem;">Vous pouvez néanmoins situer les deux repères
+                    géographiques sur la carte ci-dessus ou soumettre une autre requête depuis le <a
+                        href="{{ url_for('trajets') }}"
+                        style="color: var(--accent-cyan); font-weight: 500; text-decoration: underline;">catalogue des
+                        trajets</a>.</p>
+            </div>
             {% endif %}
         </div>
+
     </div>
-
-    {% if resultat %}
-    <section class="section" style="padding: 40px 0;">
-        <div class="container">
-
-            <div class="result-map-wrapper">
-                <div id="carte-trajet"></div>
-            </div>
-
-            <div style="margin-top: 40px;">
-                {% if resultat.options|length > 0 %}
-                <div class="section-header" style="margin-bottom: 32px;">
-                    <div class="eyebrow">Options disponibles</div>
-                    <h2>{{ resultat.options|length }} solution(s) de transport détectée(s)</h2>
-                </div>
-                
-                {% for opt in resultat.options %}
-                <div class="option-card {{ 'recommande' if opt.recommande }}">
-                    <div class="option-top">
-                        <div class="option-title">
-                            <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}" style="color: var(--accent-cyan);"></i> 
-                            {{ opt.nom_transport }}{% if opt.numero_ligne %} — Ligne {{ opt.numero_ligne }}{% endif %}
-                        </div>
-                        {% if opt.recommande %}
-                        <span class="badge badge-vert"><i class="fa-solid fa-star" style="margin-right: 4px;"></i> Recommandé</span>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="option-meta">
-                        <span><i class="fa-solid fa-coins"></i> {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
-                        <span><i class="fa-regular fa-clock"></i> {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }} min</span>
-                        <span><i class="fa-solid fa-code-branch"></i> Correspondances : {{ opt.correspondances }}</span>
-                    </div>
-                    
-                    <div class="option-etapes">
-                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #FFF; margin-bottom: 12px; font-weight: 600;">Feuille de route pas-à-pas :</div>
-                        {% for etape in opt.etapes.split(' | ') %}
-                        <div class="etape">
-                            <span class="etape-idx">{{ loop.index }}.</span>
-                            <span>{{ etape }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-                
-                {% else %}
-                <div class="option-card" style="border-left: 3px solid var(--accent-jaune);">
-                    <p style="color: var(--texte-muted);">Aucune option de transport en commun prédéfinie n'est actuellement liée à cette combinaison dans notre base de données.</p>
-                    <p style="margin-top: 12px; font-size: 0.9rem;">Vous pouvez néanmoins situer les deux repères géographiques sur la carte ci-dessus ou soumettre une autre requête depuis le <a href="{{ url_for('trajets') }}" style="color: var(--accent-cyan); font-weight: 500; text-decoration: underline;">catalogue des trajets</a>.</p>
-                </div>
-                {% endif %}
-            </div>
-
-        </div>
-    </section>
-    {% endif %}
-
+</section>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 {% if resultat %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+<style>
+    /* Point bleu de suivi GPS de l'utilisateur */
+    .user-location-marker {
+        background: #1a73e8;
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 50%;
+        border: 3px solid #ffffff;
+        box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.4);
+        animation: pulseUser 2s infinite;
+    }
+
+    @keyframes pulseUser {
+        0% {
+            box-shadow: 0 0 0 0px rgba(26, 115, 232, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(26, 115, 232, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0px rgba(26, 115, 232, 0);
+        }
+    }
+</style>
+
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const depart = { nom: {{ resultat.depart_nom|tojson }}, lat: {{ resultat.depart_lat }}, lng: {{ resultat.depart_lng }} };
-        const arrivee = { nom: {{ resultat.arrivee_nom|tojson }}, lat: {{ resultat.arrivee_lat }}, lng: {{ resultat.arrivee_lng }} };
+    window.addEventListener("load", function () {
+        try {
+            const depart = {
+                nom: {{ resultat.depart_nom| tojson
+        }},
+        lat: parseFloat("{{ resultat.depart_lat }}"),
+        lng: parseFloat("{{ resultat.depart_lng }}") 
+            };
+    const arrivee = {
+        nom: {{ resultat.arrivee_nom| tojson }},
+    lat: parseFloat("{{ resultat.arrivee_lat }}"),
+        lng: parseFloat("{{ resultat.arrivee_lng }}") 
+            };
 
-        // Initialisation de la carte 
-        const map = L.map('carte-trajet');
+    if (isNaN(depart.lat) || isNaN(arrivee.lat)) {
+        return;
+    }
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
+    // 1. Initialisation de la carte
+    const map = L.map('carte-trajet', { zoomControl: false }).setView([depart.lat, depart.lng], 13);
 
-        // Configuration des icônes sans émojis
-        const iconDepart = L.divIcon({ 
-            html: '<div class="custom-map-marker marker-depart">A</div>', 
-            className: '', 
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-        
-        const iconArrivee = L.divIcon({ 
-            html: '<div class="custom-map-marker marker-arrivee">B</div>', 
-            className: '', 
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
 
-        // Liaison des marqueurs
-        L.marker([depart.lat, depart.lng], { icon: iconDepart }).addTo(map).bindPopup(`<strong>Départ :</strong> ${depart.nom}`);
-        L.marker([arrivee.lat, arrivee.lng], { icon: iconArrivee }).addTo(map).bindPopup(`<strong>Arrivée :</strong> ${arrivee.nom}`);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-        // Tracé de la ligne brisée en pointillés 
-        const ligne = L.polyline([[depart.lat, depart.lng], [arrivee.lat, arrivee.lng]], {
-            color: '#2563EB', 
-            weight: 4, 
-            dashArray: '8 8',
-            opacity: 0.8
-        }).addTo(map);
+    const iconDepart = L.divIcon({
+        html: '<div class="custom-map-marker marker-depart">A</div>',
+        className: '',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+    const iconArrivee = L.divIcon({
+        html: '<div class="custom-map-marker marker-arrivee">B</div>',
+        className: '',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
 
-        // Ajustement automatique du zoom
-        map.fitBounds(ligne.getBounds(), { padding: [50, 50] });
+    // 2. Trajet routier Google Maps
+    const routingControl = L.Routing.control({
+        waypoints: [
+            L.latLng(depart.lat, depart.lng),
+            L.latLng(arrivee.lat, arrivee.lng)
+        ],
+        router: L.Routing.osrmv1({ language: 'fr', profile: 'car' }),
+        lineOptions: { styles: [{ color: '#2563EB', weight: 6, opacity: 0.85 }] },
+        createMarker: function (i, waypoint, n) {
+            if (i === 0) return L.marker(waypoint.latLng, { icon: iconDepart }).bindPopup(`<strong>Départ :</strong> ${depart.nom}`);
+            return L.marker(waypoint.latLng, { icon: iconArrivee }).bindPopup(`<strong>Arrivée :</strong> ${arrivee.nom}`);
+        },
+        show: true,
+        collapsible: true
+    }).addTo(map);
+
+    routingControl.on('routesfound', function (e) {
+        const bounds = L.latLngBounds(e.routes[0].coordinates);
+        map.fitBounds(bounds, { padding: [50, 50] });
+    });
+
+    // 3. Suivi GPS en continu de la position utilisateur
+    let userMarker = null;
+
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            function (position) {
+                const uLat = position.coords.latitude;
+                const uLng = position.coords.longitude;
+
+                const userIcon = L.divIcon({
+                    className: 'user-location-marker',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                });
+
+                if (!userMarker) {
+                    userMarker = L.marker([uLat, uLng], { icon: userIcon }).addTo(map).bindPopup("Vous êtes ici");
+                } else {
+                    userMarker.setLatLng([uLat, uLng]);
+                }
+
+                // Recentrage automatique dynamique pendant le déplacement
+                map.panTo([uLat, uLng], { animate: true, duration: 1 });
+            },
+            function (error) {
+                console.warn("GPS en attente d'acquisition :", error.message);
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+    }
+        } catch (err) {
+        console.error("Erreur d'exécution cartographique :", err);
+    }
     });
 </script>
 {% endif %}

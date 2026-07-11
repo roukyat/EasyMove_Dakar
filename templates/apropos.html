@@ -13,8 +13,10 @@
                     <h1>Toute la mobilité de Dakar sur une seule plateforme.</h1>
                     <p class="lead">
                         Ne perdez plus de temps à chercher les informations.
-                        EasyMove réunit les trajets, les tarifs, les correspondances et les lignes
-                        Tata dans une plateforme unique, pensée pour simplifier tous vos déplacements à Dakar.
+                        EasyMove réunit les trajets, les tarifs, les correspondances, les lignes
+                        Tata ainsi que les quartiers et sites touristiques de Dakar — jusqu'au lexique
+                        wolof pour échanger avec les chauffeurs — dans une plateforme unique, pensée
+                        pour simplifier tous vos déplacements.
                     </p>
                     <div class="hero-btns">
                         <a href="{{ url_for('trajets') }}" class="btn-primary">
@@ -84,7 +86,7 @@
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">La plateforme</div>
-                <h2>Quatre choses, un seul endroit.</h2>
+                <h2>Cinq choses, un seul endroit.</h2>
             </div>
             <div class="feature-grid reveal">
                 <a href="{{ url_for('trajets') }}" class="feature-card">
@@ -107,6 +109,11 @@
                     <h3>Explorer les lignes</h3>
                     <p>Visualisez le réseau Tata/AFTU sur une carte interactive, arrêt par arrêt.</p>
                 </a>
+                <a href="{{ url_for('wolof') }}" class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-comments"></i></div>
+                    <h3>Parler avec les chauffeurs</h3>
+                    <p>Un lexique wolof pratique pour négocier un prix, indiquer une destination ou simplement saluer.</p>
+                </a>
             </div>
         </div>
     </section>
@@ -127,8 +134,8 @@
                     <div class="stat-label">Arrêts géolocalisés</div>
                 </div>
                 <div>
-                    <div class="stat-number" data-count="1">0</div>
-                    <div class="stat-label">Plateforme, au lieu de dix sources</div>
+                    <div class="stat-number" data-count="{{ stats.lieux }}">0</div>
+                    <div class="stat-label">Quartiers, sites et lieux référencés</div>
                 </div>
             </div>
         </div>

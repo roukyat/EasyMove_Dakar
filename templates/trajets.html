@@ -5,23 +5,28 @@
 
     <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
                 <a href="{{ url_for('accueil') }}">Accueil</a> <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Trajets
             </div>
             <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Calculateur d'itinéraires</h1>
-            <p style="color: var(--texte-muted); max-width: 600px;">Planifiez vos déplacements entre les nœuds névralgiques de Dakar et comparez en temps réel les alternatives de transport.</p>
+            <p style="color: var(--text-muted); max-width: 600px;">Planifiez vos déplacements entre les nœuds névralgiques de Dakar et comparez en temps réel les alternatives de transport.</p>
         </div>
     </div>
 
     <section class="section search-section">
         <div class="container">
             <h2 style="margin-bottom: 8px; font-size: 1.6rem;">Trouver une ligne ou un trajet</h2>
-            <p style="color: var(--texte-muted); margin-bottom: 24px;">Sélectionnez vos points de repère pour générer votre tracé cartographique :</p>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Sélectionnez vos points de repère pour générer votre tracé cartographique :</p>
             
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
+                <div id="donnees-lieux-data" style="display:none;">
+                    {% for lieu in lieux %}
+                    <div class="js-lieu-item" data-id="{{ lieu.id_lieu }}" data-lat="{{ lieu.latitude }}" data-lng="{{ lieu.longitude }}"></div>
+                    {% endfor %}
+                </div>
                 <div class="route-picker-grid">
                     <div class="select-wrapper">
-                        <select name="depart" required class="select-custom">
+                        <select name="depart" id="selectDepart" required class="select-custom">
                             <option value="" disabled selected>Point de départ</option>
                             {% for lieu in lieux %}
                             <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
@@ -29,7 +34,7 @@
                         </select>
                     </div>
                     <div class="select-wrapper">
-                        <select name="arrivee" required class="select-custom">
+                        <select name="arrivee" id="selectArrivee" required class="select-custom">
                             <option value="" disabled selected>Destination finale</option>
                             {% for lieu in lieux %}
                             <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
@@ -40,7 +45,43 @@
                         Rechercher <i class="fa-solid fa-arrow-right-long"></i>
                     </button>
                 </div>
+                <button type="button" id="btnMaPosition" class="btn-geoloc" style="margin-top: 14px;">
+                    <i class="fa-solid fa-location-crosshairs"></i> Partir de ma position GPS actuelle
+                </button>
             </form>
+        </div>
+    </section>
+
+    <section class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="section-header" style="margin-bottom: 20px;">
+                <div class="eyebrow">Vos raccourcis</div>
+                <h2 style="display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-star" style="color: var(--accent-jaune); font-size: 1.2rem;"></i>
+                    Mes trajets favoris
+                </h2>
+            </div>
+
+            {% if favoris|length == 0 %}
+            <div class="bento-card" style="padding: 24px; color: var(--text-muted); font-size: 0.9rem;">
+                <i class="fa-regular fa-star" style="margin-right: 8px;"></i>
+                Vous n'avez pas encore de trajet favori. Cliquez sur l'étoile d'un trajet ci-dessous pour l'enregistrer ici.
+            </div>
+            {% else %}
+            <div id="listeFavoris" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px;">
+                {% for f in favoris %}
+                <div class="favori-item" data-id-favori="{{ f.id_favori }}">
+                    <a href="{{ url_for('resultat_trajet', depart=f.id_lieu_depart, arrivee=f.id_lieu_arrivee) }}" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+                        <i class="fa-solid fa-star" style="color: var(--accent-jaune); flex-shrink:0;"></i>
+                        <span style="font-size:0.88rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ f.nom_depart }} <i class="fa-solid fa-arrow-right" style="font-size:0.7rem; margin:0 4px; color:var(--text-muted);"></i> {{ f.nom_arrivee }}</span>
+                    </a>
+                    <button class="favori-remove" data-id-favori="{{ f.id_favori }}" title="Retirer des favoris">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </section>
 
@@ -49,15 +90,15 @@
             <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 24px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="badge badge-vert">Facile</span>
-                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Lignes directes, idéal pour les nouveaux arrivants</span>
+                    <span style="font-size: 0.85rem; color: var(--text-muted)">Lignes directes, idéal pour les nouveaux arrivants</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="badge badge-jaune">Moyen</span>
-                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Nécessite un changement ou une tarification à la volée</span>
+                    <span style="font-size: 0.85rem; color: var(--text-muted)">Nécessite un changement ou une tarification à la volée</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="badge badge-rouge">Complexe</span>
-                    <span style="font-size: 0.85rem; color: var(--texte-muted)">Négociation requise ou réseau informel dense</span>
+                    <span style="font-size: 0.85rem; color: var(--text-muted)">Négociation requise ou réseau informel dense</span>
                 </div>
             </div>
         </div>
@@ -117,20 +158,27 @@
                         {% endif %}
                     </div>
 
-                    <p style="font-size: 0.9rem; color: var(--texte-muted); margin-bottom: 20px; line-height: 1.5;">{{ t.description }}</p>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">{{ t.description }}</p>
                     
                     <div class="trajet-etapes">
-                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--texte-muted); margin-bottom: 12px; font-weight: 600;">
+                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
                             Modes de transport disponibles ({{ item.options|length }})
                         </div>
                         {% for opt in item.options %}
                         <div class="etape">
-                            <div class="etape-num" style="border-radius: 50%;">
+                            {% if opt.image_url %}
+                            <div class="etape-num tc-icon-img" title="Voir en grand">
+                                <img src="{{ opt.image_url }}" alt="{{ opt.nom_transport }}" loading="lazy">
+                                <img class="tc-zoom-overlay" src="{{ opt.image_url }}" alt="{{ opt.nom_transport }} — aperçu agrandi" loading="lazy">
+                            </div>
+                            {% else %}
+                            <div class="etape-num">
                                 <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
                             </div>
+                            {% endif %}
                             <div style="flex: 1;">
                                 <span style="color: #FFF; font-weight: 500;">{{ opt.nom_transport }}{% if opt.numero_ligne %} (Ligne {{ opt.numero_ligne }}){% endif %}</span>
-                                <span style="display: block; font-size: 0.8rem; color: var(--texte-muted); margin-top: 2px;">
+                                <span style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
                                     {{ opt.prix_min }}-{{ opt.prix_max }} FCFA <bull style="margin: 0 4px;">•</bull> {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
                                 </span>
                             </div>
@@ -150,11 +198,19 @@
 
 {% block scripts %}
 <script>
+// ---------------------------------------------------------------------
+// 1. Ajout aux favoris (avec retour visuel + toast)
+// ---------------------------------------------------------------------
 document.querySelectorAll('.btn-favori').forEach(button => {
     button.addEventListener('click', function(e) {
         e.preventDefault();
+        if (button.disabled) return;
+
         const icon = this.querySelector('i');
-        
+        button.disabled = true;
+        button.classList.add('loading');
+        icon.className = 'fa-solid fa-circle-notch';
+
         const payload = {
             nom_trajet: this.getAttribute('data-nom-trajet'),
             id_depart: parseInt(this.getAttribute('data-id-depart')),
@@ -163,24 +219,115 @@ document.querySelectorAll('.btn-favori').forEach(button => {
 
         fetch('/api/favoris', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
         .then(response => response.json())
         .then(data => {
+            button.classList.remove('loading');
             if (data.statut === 'success') {
                 this.classList.add('active');
                 icon.className = 'fa-solid fa-star';
+                showToast(`"${payload.nom_trajet}" ajouté aux favoris.`, 'success');
+                setTimeout(() => location.reload(), 900); // rafraîchit la liste "Mes favoris"
+            } else if (data.statut === 'existe_deja') {
+                this.classList.add('active');
+                icon.className = 'fa-solid fa-star';
                 button.disabled = true;
+                showToast(data.message, 'info');
             } else {
-                alert(data.erreur || "Erreur lors de l'ajout aux favoris");
+                button.disabled = false;
+                icon.className = 'fa-regular fa-star';
+                showToast(data.erreur || "Erreur lors de l'ajout aux favoris", 'error');
             }
         })
         .catch(err => {
+            button.disabled = false;
+            button.classList.remove('loading');
+            icon.className = 'fa-regular fa-star';
+            showToast("Impossible de contacter le serveur.", 'error');
             console.error("Erreur Favoris:", err);
         });
+    });
+});
+
+// ---------------------------------------------------------------------
+// 2. Suppression d'un favori
+// ---------------------------------------------------------------------
+document.querySelectorAll('.favori-remove').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const idFavori = this.getAttribute('data-id-favori');
+        const carte = this.closest('.favori-item');
+
+        fetch(`/api/favoris/${idFavori}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(() => {
+                showToast("Favori retiré.", 'info');
+                carte.style.opacity = '0';
+                setTimeout(() => carte.remove(), 250);
+            })
+            .catch(() => showToast("Erreur lors de la suppression.", 'error'));
+    });
+});
+
+// ---------------------------------------------------------------------
+// 3. "Partir de ma position GPS actuelle" : détecte le lieu enregistré
+//    le plus proche de l'utilisateur et le présélectionne comme départ.
+// ---------------------------------------------------------------------
+const lieuxGPS = [];
+document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {
+    lieuxGPS.push({
+        id: el.getAttribute("data-id"),
+        lat: parseFloat(el.getAttribute("data-lat")),
+        lng: parseFloat(el.getAttribute("data-lng"))
+    });
+});
+
+function distanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const btnMaPosition = document.getElementById('btnMaPosition');
+btnMaPosition.addEventListener('click', function () {
+    if (!navigator.geolocation) {
+        showToast("La géolocalisation n'est pas supportée par votre appareil.", 'error');
+        return;
+    }
+
+    const original = btnMaPosition.innerHTML;
+    btnMaPosition.disabled = true;
+    btnMaPosition.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Localisation en cours...';
+
+    navigator.geolocation.getCurrentPosition(function (pos) {
+        const { latitude, longitude } = pos.coords;
+
+        let plusProche = null;
+        let distanceMin = Infinity;
+        lieuxGPS.forEach(l => {
+            const d = distanceKm(latitude, longitude, l.lat, l.lng);
+            if (d < distanceMin) { distanceMin = d; plusProche = l; }
+        });
+
+        if (plusProche) {
+            document.getElementById('selectDepart').value = plusProche.id;
+            btnMaPosition.classList.add('active');
+            btnMaPosition.innerHTML = '<i class="fa-solid fa-check"></i> Position détectée';
+            showToast(`Départ défini sur le lieu le plus proche de vous (${distanceMin.toFixed(1)} km).`, 'success');
+        }
+
+        btnMaPosition.disabled = false;
+        setTimeout(() => { btnMaPosition.innerHTML = original; btnMaPosition.classList.remove('active'); }, 3000);
+
+    }, function (err) {
+        btnMaPosition.disabled = false;
+        btnMaPosition.innerHTML = original;
+        showToast("Position GPS refusée ou indisponible.", 'error');
+        console.error(err);
     });
 });
 </script>

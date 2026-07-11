@@ -1,5 +1,5 @@
 -- =====================================================================
--- EasyMoveDakar - Schéma de la base de données (Version Professionnelle)
+-- EasyMoveDakar - Schéma de la base de données 
 -- =====================================================================
 
 PRAGMA foreign_keys = ON;

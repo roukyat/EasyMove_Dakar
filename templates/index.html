@@ -50,9 +50,14 @@
             </div>
 
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
+                <div id="donnees-lieux-data" style="display:none;">
+                    {% for lieu in lieux %}
+                    <div class="js-lieu-item" data-id="{{ lieu.id_lieu }}" data-lat="{{ lieu.latitude }}" data-lng="{{ lieu.longitude }}"></div>
+                    {% endfor %}
+                </div>
                 <div class="route-picker-grid">
                     <div class="select-wrapper">
-                        <select name="depart" required class="select-custom">
+                        <select name="depart" id="selectDepart" required class="select-custom">
                             <option value="" disabled selected>Point de départ</option>
                             {% for lieu in lieux %}
                             <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
@@ -60,7 +65,7 @@
                         </select>
                     </div>
                     <div class="select-wrapper">
-                        <select name="arrivee" required class="select-custom">
+                        <select name="arrivee" id="selectArrivee" required class="select-custom">
                             <option value="" disabled selected>Destination finale</option>
                             {% for lieu in lieux %}
                             <option value="{{ lieu.id_lieu }}">{{ lieu.nom }}</option>
@@ -71,6 +76,9 @@
                         Rechercher <i class="fa-solid fa-arrow-right-long" style="margin-left: 4px;"></i>
                     </button>
                 </div>
+                <button type="button" id="btnMaPosition" class="btn-geoloc" style="margin-top: 14px;">
+                    <i class="fa-solid fa-location-crosshairs"></i> Partir de ma position GPS actuelle
+                </button>
             </form>
         </div>
     </section>
@@ -116,7 +124,7 @@
     <!-- ACCROCHE LEXIQUE WOLOF -->
     <section class="section section-alt" style="border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 48px; align-items: center;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 48px; align-items: center;">
                 <div>
                     <div class="eyebrow" style="color: var(--accent-cyan); margin-bottom: 12px;">Échanges de courtoisie</div>
                     <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 16px; font-family: 'Syne', sans-serif;">Communiquer en <span style="color: var(--accent-cyan)">Wolof</span></h2>
@@ -141,4 +149,71 @@
         </div>
     </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+// "Partir de ma position GPS actuelle" : détecte le lieu enregistré le plus
+// proche de l'utilisateur et le présélectionne comme point de départ, avant
+// qu'il ne choisisse sa destination.
+(function () {
+    const lieuxGPS = [];
+    document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {
+        lieuxGPS.push({
+            id: el.getAttribute("data-id"),
+            lat: parseFloat(el.getAttribute("data-lat")),
+            lng: parseFloat(el.getAttribute("data-lng"))
+        });
+    });
+
+    function distanceKm(lat1, lng1, lat2, lng2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    const btnMaPosition = document.getElementById('btnMaPosition');
+    if (!btnMaPosition) return;
+
+    btnMaPosition.addEventListener('click', function () {
+        if (!navigator.geolocation) {
+            showToast("La géolocalisation n'est pas supportée par votre appareil.", 'error');
+            return;
+        }
+
+        const original = btnMaPosition.innerHTML;
+        btnMaPosition.disabled = true;
+        btnMaPosition.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Localisation en cours...';
+
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            const { latitude, longitude } = pos.coords;
+
+            let plusProche = null;
+            let distanceMin = Infinity;
+            lieuxGPS.forEach(l => {
+                const d = distanceKm(latitude, longitude, l.lat, l.lng);
+                if (d < distanceMin) { distanceMin = d; plusProche = l; }
+            });
+
+            if (plusProche) {
+                document.getElementById('selectDepart').value = plusProche.id;
+                btnMaPosition.classList.add('active');
+                btnMaPosition.innerHTML = '<i class="fa-solid fa-check"></i> Position détectée';
+                showToast(`Départ défini sur le lieu le plus proche de vous (${distanceMin.toFixed(1)} km). Choisissez votre destination.`, 'success');
+            }
+
+            btnMaPosition.disabled = false;
+            setTimeout(() => { btnMaPosition.innerHTML = original; btnMaPosition.classList.remove('active'); }, 3000);
+
+        }, function (err) {
+            btnMaPosition.disabled = false;
+            btnMaPosition.innerHTML = original;
+            showToast("Position GPS refusée ou indisponible.", 'error');
+            console.error(err);
+        });
+    });
+})();
+</script>
 {% endblock %}

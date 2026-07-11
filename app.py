@@ -100,29 +100,23 @@ def resultat_trajet():
 
     resultat = None
     if id_depart and id_arrivee:
+        # Le moteur d'itinéraire (itineraire.py) calcule désormais la route à la
+        # volée pour n'importe quelle paire de lieux : bus/Tata/BRT/TER avec
+        # correspondances plus Taxi/Jakarta toujours disponibles en secours.
         data = database.rechercher_trajet(id_depart, id_arrivee)
-        if data:
-            if data["trouve"]:
-                t = data["trajet"]
-                resultat = {
-                    "depart_nom": t["nom_depart"],
-                    "depart_lat": t["lat_depart"],
-                    "depart_lng": t["lng_depart"],
-                    "arrivee_nom": t["nom_arrivee"],
-                    "arrivee_lat": t["lat_arrivee"],
-                    "arrivee_lng": t["lng_arrivee"],
-                    "options": data["options"],
-                }
-            else:
-                resultat = {
-                    "depart_nom": data["depart"]["nom"],
-                    "depart_lat": data["depart"]["latitude"],
-                    "depart_lng": data["depart"]["longitude"],
-                    "arrivee_nom": data["arrivee"]["nom"],
-                    "arrivee_lat": data["arrivee"]["latitude"],
-                    "arrivee_lng": data["arrivee"]["longitude"],
-                    "options": [],
-                }
+        if data and data["trouve"]:
+            t = data["trajet"]
+            resultat = {
+                "depart_nom": t["nom_depart"],
+                "depart_lat": t["lat_depart"],
+                "depart_lng": t["lng_depart"],
+                "arrivee_nom": t["nom_arrivee"],
+                "arrivee_lat": t["lat_arrivee"],
+                "arrivee_lng": t["lng_arrivee"],
+                "distance_km": t["distance_km"],
+                "niveau_difficulte": t["niveau_difficulte"],
+                "options": data["options"],
+            }
 
     return render_template(
         "resultat_trajet.html",
@@ -290,16 +284,32 @@ def api_minibus_arrets():
 
 @app.route("/api/favoris", methods=["POST"])
 def api_ajouter_favori():
-    data = request.get_json() or {}
+    data = request.get_json()
+    if not data:
+        return jsonify({"erreur": "Aucune donnée reçue"}), 400
+
     nom_trajet = data.get("nom_trajet")
-    id_depart = data.get("id_depart")
-    id_arrivee = data.get("id_arrivee")
-    
+
+    # On accepte indifféremment id_lieu_depart ou id_depart
+    id_depart = data.get("id_lieu_depart") or data.get("id_depart")
+    id_arrivee = data.get("id_lieu_arrivee") or data.get("id_arrivee")
+
+    # Vérification stricte
     if not nom_trajet or not id_depart or not id_arrivee:
         return jsonify({"erreur": "Données incomplètes"}), 400
-        
+
+    if database.favori_existe(id_depart, id_arrivee):
+        return jsonify({"statut": "existe_deja", "message": "Ce trajet est déjà dans vos favoris."})
+
     database.ajouter_favori(nom_trajet, id_depart, id_arrivee)
-    return jsonify({"statut": "success", "message": "Favori enregistré."})
+
+    return jsonify({"statut": "success", "message": "Favori ajouté !"})
+
+
+@app.route("/api/favoris/<int:id_favori>", methods=["DELETE"])
+def api_supprimer_favori(id_favori):
+    database.supprimer_favori(id_favori)
+    return jsonify({"statut": "success", "message": "Favori supprimé."})
 
 
 if __name__ == "__main__":

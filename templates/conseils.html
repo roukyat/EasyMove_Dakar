@@ -7,34 +7,74 @@
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Conseils</div>
             <h1>Conseils pratiques</h1>
-            <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie, stockés dans la base de
-                données.</p>
+            <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie.
+            </p>
         </div>
     </div>
 
-    <section class="section">
+    <section class="section" style="padding-bottom:24px;">
         <div class="container">
-            {% for categorie, liste in conseils_par_categorie.items() %}
-            <div style="margin-bottom:40px;">
-                <h2 style="font-size:1.4rem; margin-bottom:16px; color:var(--accent-vert, var(--vert)); display:flex; align-items:center; gap:10px;">
-                    <span style="width:34px; height:34px; border-radius:8px; background:var(--bg-primary, #0F172A); border:1px solid var(--border-color, #334155); display:inline-flex; align-items:center; justify-content:center; font-size:0.95rem;">
-                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
-                    </span>
-                    {{ categorie }}
-                </h2>
-                <div class="grid-2">
-                    {% for c in liste %}
-                    <div class="transport-card" style="padding:20px;">
-                        <div class="tc-name" style="margin-bottom:6px;">{{ c.titre }}</div>
-                        <p style="font-size:.9rem; color:var(--texte2); line-height:1.6;">{{ c.contenu }}</p>
-                        {% if c.periode %}<span class="badge badge-jaune" style="margin-top:10px; display:inline-block;">{{ c.periode }}</span>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+            <div class="section-header" style="margin-bottom:20px;">
+                <div class="eyebrow">{{ conseils_par_categorie.values()|map('length')|sum }} conseils</div>
+                <h2 style="font-size:1.6rem;">Filtrez par catégorie</h2>
             </div>
-            {% endfor %}
+
+            <div class="conseils-filters">
+                <button type="button" class="conseil-filtre actif" data-filtre="tous">
+                    <i class="fa-solid fa-layer-group"></i> Tous
+                </button>
+                {% for categorie in conseils_par_categorie.keys() %}
+                <button type="button" class="conseil-filtre" data-filtre="{{ categorie }}">
+                    <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                    {{ categorie }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="conseils-grid" id="conseilsGrid">
+                {% set gradients = [
+                    'linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan))',
+                    'linear-gradient(135deg, var(--accent-cyan), var(--accent-vert))',
+                    'linear-gradient(135deg, var(--accent-vert), var(--accent-jaune))',
+                    'linear-gradient(135deg, var(--accent-jaune), var(--accent-rouge))',
+                    'linear-gradient(135deg, var(--accent-rouge), var(--accent-bleu))'
+                ] %}
+                {% set ns = namespace(i=0) %}
+                {% for categorie, liste in conseils_par_categorie.items() %}
+                {% for c in liste %}
+                {% set ns.i = ns.i + 1 %}
+                <div class="conseil-card" data-categorie="{{ categorie }}">
+                    <div class="conseil-card-visuel" style="background:{{ gradients[ns.i % 5] }};">
+                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                    </div>
+                    <div class="conseil-card-body">
+                        <div class="cc-titre">{{ c.titre }}</div>
+                        <p class="cc-texte">{{ c.contenu }}</p>
+                        {% if c.periode %}<span class="badge badge-jaune">{{ c.periode }}</span>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endfor %}
+            </div>
         </div>
     </section>
+
+    <script>
+        (function () {
+            const filtres = document.querySelectorAll('.conseil-filtre');
+            const cartes = document.querySelectorAll('#conseilsGrid .conseil-card');
+            filtres.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filtres.forEach(b => b.classList.remove('actif'));
+                    btn.classList.add('actif');
+                    const cible = btn.getAttribute('data-filtre');
+                    cartes.forEach(c => {
+                        c.style.display = (cible === 'tous' || c.getAttribute('data-categorie') === cible) ? '' : 'none';
+                    });
+                });
+            });
+        })();
+    </script>
 
     <section class="section section-alt">
         <div class="container">
@@ -56,20 +96,20 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" style="padding-top:0;">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header" style="margin-bottom:16px;">
                 <div class="eyebrow">À emporter</div>
                 <h2 style="font-size:1.4rem;">Ce qu'il faut avoir sur soi</h2>
                 <p>La check-list minimale avant de sortir, quel que soit le moyen de transport choisi.</p>
             </div>
-            <div class="grid-3" style="max-width:900px; margin:0 auto;">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; max-width:900px; margin:0 auto;">
                 {% for info in infos_emporter %}
-                <div class="transport-card" style="padding:20px; display:flex; align-items:center; gap:14px;">
-                    <div class="tc-icon" style="width:44px; height:44px; font-size:1.1rem;">
-                        <i class="fa-solid {% if 'monnaie' in info.valeur|lower %}fa-coins{% elif 'chapeau' in info.valeur|lower or 'casquette' in info.valeur|lower %}fa-umbrella-beach{% elif 'eau' in info.valeur|lower %}fa-bottle-water{% elif 'papiers' in info.valeur|lower or 'identité' in info.valeur|lower %}fa-id-card{% else %}fa-check{% endif %}"></i>
-                    </div>
-                    <span style="font-size:0.95rem;">{{ info.valeur }}</span>
+                <div style="display:inline-flex; align-items:center; gap:8px; background:var(--fond-carte); border:1px solid var(--border-color); border-radius:999px; padding:8px 16px 8px 10px;">
+                    <span style="width:26px; height:26px; border-radius:50%; background:var(--bg-primary); display:inline-flex; align-items:center; justify-content:center; font-size:0.8rem; color:var(--accent-cyan); flex-shrink:0;">
+                        <i class="fa-solid {% if 'monnaie' in info.valeur|lower %}fa-coins{% elif 'chapeau' in info.valeur|lower or 'casquette' in info.valeur|lower %}fa-umbrella-beach{% elif 'eau' in info.valeur|lower %}fa-bottle-water{% elif 'papiers' in info.valeur|lower or 'identité' in info.valeur|lower %}fa-id-card{% elif 'téléphone' in info.valeur|lower or 'batterie' in info.valeur|lower %}fa-mobile-screen-button{% elif 'crème' in info.valeur|lower or 'solaire' in info.valeur|lower %}fa-sun{% elif 'lingette' in info.valeur|lower or 'mouchoir' in info.valeur|lower %}fa-hand-sparkles{% elif 'sac' in info.valeur|lower %}fa-bag-shopping{% elif 'plan' in info.valeur|lower or 'application' in info.valeur|lower or 'carto' in info.valeur|lower %}fa-map-location-dot{% else %}fa-check{% endif %}"></i>
+                    </span>
+                    <span style="font-size:0.85rem; white-space:nowrap;">{{ info.valeur }}</span>
                 </div>
                 {% endfor %}
             </div>

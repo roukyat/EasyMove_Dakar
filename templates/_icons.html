@@ -14,10 +14,18 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# Bloc image/icone reutilisable pour une carte de transport #}
+{# Bloc image/icone reutilisable pour une carte de transport.
+   Au survol (ordinateur) ou au clic (mobile/tactile), une version agrandie
+   de la photo s'affiche en superposition, contenue dans la carte parente
+   (qui doit avoir position:relative + overflow:hidden — c'est le cas de
+   .transport-card). Voir la classe .tc-zoom-overlay dans style.css et le
+   script global dans base.html pour la bascule au clic. #}
 {% macro vignette_transport(t) -%}
 {% if t.image_url %}
-<div class="tc-icon tc-icon-img"><img src="{{ t.image_url }}" alt="{{ t.nom }}" loading="lazy"></div>
+<div class="tc-icon tc-icon-img" title="Voir en grand">
+    <img src="{{ t.image_url }}" alt="{{ t.nom }}" loading="lazy">
+    <img class="tc-zoom-overlay" src="{{ t.image_url }}" alt="{{ t.nom }} — aperçu agrandi" loading="lazy">
+</div>
 {% else %}
 <div class="tc-icon"><i class="fa-solid {{ icone_transport(t.nom) }}"></i></div>
 {% endif %}

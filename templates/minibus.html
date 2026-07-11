@@ -25,9 +25,9 @@
         </button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 380px 1fr; gap: 20px; height: calc(100vh - 140px); min-height: 600px;">
-        
-        <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
+    <div class="minibus-explorer-grid">
+
+        <div class="minibus-side-panel" style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
             
             <div style="background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 16px; flex-shrink: 0;">
                 <div style="position: relative;">
@@ -79,7 +79,7 @@
             </div>
         </div>
 
-        <div style="border-radius: 16px; overflow: hidden; border: 1px solid #334155; position: relative; height: 100%;">
+        <div class="minibus-map-panel" style="border-radius: 16px; overflow: hidden; border: 1px solid #334155; position: relative; height: 100%;">
             <div id="mapMinibus" style="width: 100%; height: 100%; background: #F4F4F6;"></div>
         </div>
 
@@ -87,7 +87,9 @@
 </div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -117,6 +119,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const markersGroup = L.layerGroup().addTo(map);
     const routingGroup = L.layerGroup().addTo(map);
+    let walkingRoutingControl = null; // Guidage piéton vers l'arrêt le plus proche
 
     function tracerPointsReseau(liste) {
         markersGroup.clearLayers();
@@ -248,11 +251,33 @@ document.addEventListener("DOMContentLoaded", function() {
                         `;
 
                         item.addEventListener("click", function() {
-                            map.setView([stop.latitude, stop.longitude], 16);
+                            // Itinéraire piéton détaillé (pas-à-pas) jusqu'à l'arrêt de minibus
+                            // le plus proche, avec le même guidage textuel que sur la page Trajets.
+                            if (walkingRoutingControl) {
+                                map.removeControl(walkingRoutingControl);
+                                walkingRoutingControl = null;
+                            }
                             routingGroup.clearLayers();
-                            L.polyline([[uLat, uLng], [stop.latitude, stop.longitude]], {
-                                color: "#1A73E8", weight: 4, dashArray: "5, 10"
-                            }).addTo(routingGroup);
+
+                            walkingRoutingControl = L.Routing.control({
+                                waypoints: [
+                                    L.latLng(uLat, uLng),
+                                    L.latLng(stop.latitude, stop.longitude)
+                                ],
+                                router: L.Routing.osrmv1({ language: 'fr', profile: 'foot' }),
+                                lineOptions: { styles: [{ color: "#1A73E8", weight: 5, opacity: 0.85 }] },
+                                createMarker: function(i, waypoint) {
+                                    const label = i === 0 ? "Vous êtes ici" : `<b>Arrêt :</b> ${stop.nom} (Ligne ${stop.numero_ligne})`;
+                                    return L.marker(waypoint.latLng).bindPopup(label);
+                                },
+                                show: true,
+                                collapsible: true
+                            }).addTo(map);
+
+                            walkingRoutingControl.on('routesfound', function(e) {
+                                const bounds = L.latLngBounds(e.routes[0].coordinates);
+                                map.fitBounds(bounds, { padding: [40, 40] });
+                            });
                         });
                         listContainer.appendChild(item);
                     });

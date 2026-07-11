@@ -5,19 +5,19 @@
 
     <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+            <div class="breadcrumb" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
                 <a href="{{ url_for('accueil') }}">Accueil</a> 
                 <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Wolof
             </div>
             <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Lexique de survie en Wolof</h1>
-            <p style="color: var(--texte-muted); max-width: 600px;">{{ phrases|length }} expressions de mobilité synchronisées depuis la base de données pour échanger sereinement avec les chauffeurs.</p>
+            <p style="color: var(--text-muted); max-width: 600px;">{{ phrases|length }} expressions de mobilité synchronisées depuis la base de données pour échanger sereinement avec les chauffeurs.</p>
         </div>
     </div>
 
     <section class="section search-section" style="padding: 30px 0;">
         <div class="container">
             <div class="search-input-wrapper">
-                <i class="fa-solid fa-magnifying-glass" style="color: var(--texte-muted); margin-right: 12px;"></i>
+                <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted); margin-right: 12px;"></i>
                 <input type="text" id="wolofSearch" class="search-input" placeholder="Filtrer une expression ou un mot-clé (ex: prix, arrêt, taxi)...">
             </div>
         </div>
@@ -50,7 +50,7 @@
                                         <i class="fa-solid fa-volume-low" style="margin-right: 6px; opacity: 0.6;"></i> {{ p.phonetique }}
                                     </div>
                                 </td>
-                                <td class="wolof-fr" style="color: var(--texte-muted);">{{ p.francais }}</td>
+                                <td class="wolof-fr" style="color: var(--text-muted);">{{ p.francais }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -61,7 +61,7 @@
             
             <div id="noResultsMessage" style="display: none; text-align: center; padding: 40px; background: var(--fond-carte); border: 1px solid var(--border-light); border-radius: var(--radius);">
                 <i class="fa-solid fa-circle-question" style="font-size: 2rem; color: var(--accent-jaune); margin-bottom: 12px;"></i>
-                <p style="color: var(--texte-muted);">Aucune correspondance trouvée pour votre recherche.</p>
+                <p style="color: var(--text-muted);">Aucune correspondance trouvée pour votre recherche.</p>
             </div>
         </div>
     </section>

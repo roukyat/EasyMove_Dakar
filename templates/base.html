@@ -20,36 +20,40 @@
     {% block extra_head %}{% endblock %}
 </head>
 
-<body class = dark-mode>
+<body class>
 
     <nav class="navbar">
-        <div class="navbar-inner">
-            <a href="{{ url_for('accueil') }}" class="logo">
-                <div class="logo-icon"><i class="fa-solid fa-route"></i></div>
-                Easy<em>Move</em>
-            </a>
-            <ul class="nav-links">
-                <li><a href="{{ url_for('accueil') }}" class="{{ 'active' if active_page == 'accueil' }}">Accueil</a>
-                </li>
-                <li><a href="{{ url_for('transports') }}"
-                        class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
-                <li><a href="{{ url_for('minibus') }}" class="{{ 'active' if active_page == 'minibus' }}">Réseau
-                        Minibus</a></li>
-                <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets &amp;
-                        Cartes</a></li>
-                <li><a href="{{ url_for('prix') }}" class="{{ 'active' if active_page == 'prix' }}">Prix</a></li>
-                <li><a href="{{ url_for('historique') }}"
-                        class="{{ 'active' if active_page == 'historique' }}">Historique</a></li>
-                <li><a href="{{ url_for('conseils') }}" class="{{ 'active' if active_page == 'conseils' }}">Conseils</a>
-                </li>
-                <li><a href="{{ url_for('wolof') }}" class="{{ 'active' if active_page == 'wolof' }}">Wolof</a></li>
-                <li><a href="{{ url_for('apropos') }}" class="nav-cta {{ 'active' if active_page == 'apropos' }}">À
-                        propos</a></li>
-            </ul>
+        <div class="container">
+            <div class="navbar-inner">
+                <a href="{{ url_for('accueil') }}" class="logo">
+                    <div class="logo-icon"><i class="fa-solid fa-route"></i></div>
+                    Easy<em>Move</em>
+                </a>
 
-            <button id="theme-toggle" class="nav-cta" style="cursor:pointer;">
-                <i class="fa-solid fa-moon"></i>
-            </button>
+                <button type="button" class="navbar-toggle" id="navbarToggle" aria-label="Ouvrir le menu"
+                    aria-expanded="false" aria-controls="navLinks">
+                    <span></span><span></span><span></span>
+                </button>
+
+                <ul class="nav-links" id="navLinks">
+                    <li><a href="{{ url_for('accueil') }}" class="{{ 'active' if active_page == 'accueil' }}">Accueil</a>
+                    </li>
+                    <li><a href="{{ url_for('transports') }}"
+                            class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
+                    <li><a href="{{ url_for('minibus') }}" class="{{ 'active' if active_page == 'minibus' }}">Réseau
+                            Minibus</a></li>
+                    <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets &amp;
+                            Cartes</a></li>
+                    <li><a href="{{ url_for('prix') }}" class="{{ 'active' if active_page == 'prix' }}">Prix</a></li>
+                    <li><a href="{{ url_for('historique') }}"
+                            class="{{ 'active' if active_page == 'historique' }}">Historique</a></li>
+                    <li><a href="{{ url_for('conseils') }}" class="{{ 'active' if active_page == 'conseils' }}">Conseils</a>
+                    </li>
+                    <li><a href="{{ url_for('wolof') }}" class="{{ 'active' if active_page == 'wolof' }}">Wolof</a></li>
+                    <li><a href="{{ url_for('apropos') }}" class="nav-cta {{ 'active' if active_page == 'apropos' }}">À
+                            propos</a></li>
+                </ul>
+            </div>
         </div>
     </nav>
 
@@ -98,38 +102,107 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <div id="toast-container" style="position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:10px; pointer-events:none;"></div>
+    <script>
+        // Notification "toast" globale, utilisée par toutes les pages (favoris, etc.)
+        function showToast(message, type) {
+            type = type || 'info';
+            const colors = {
+                success: 'var(--accent-vert, #10b981)',
+                error: 'var(--accent-rouge, #ef4444)',
+                info: 'var(--accent-cyan, #06b6d4)'
+            };
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-exclamation',
+                info: 'fa-circle-info'
+            };
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                pointer-events: auto;
+                display: flex; align-items: center; gap: 10px;
+                background: var(--bg-secondary, #0b0f19);
+                color: var(--text-main, #fff);
+                border: 1px solid var(--border-color, #3c4043);
+                border-left: 4px solid ${colors[type] || colors.info};
+                padding: 14px 18px;
+                border-radius: 10px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+                font-size: 0.9rem;
+                max-width: 340px;
+                opacity: 0;
+                transform: translateY(10px);
+                transition: opacity 0.25s ease, transform 0.25s ease;
+            `;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}" style="color:${colors[type] || colors.info};"></i><span>${message}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // Aperçu agrandi d'un moyen de transport au clic (mobile / tactile).
+        // Sur ordinateur, le survol (CSS :hover) suffit déjà.
+        document.addEventListener('click', function (e) {
+            const trigger = e.target.closest('.tc-icon-img');
+            document.querySelectorAll('.tc-icon-img.zoom-active').forEach(el => {
+                if (el !== trigger) el.classList.remove('zoom-active');
+            });
+            if (trigger) {
+                trigger.classList.toggle('zoom-active');
+            }
+        });
+
+        // Menu mobile (hamburger) : la navbar masquait tous les liens sauf le
+        // CTA sous 860px sans aucun remplacement, rendant la navigation
+        // inaccessible sur téléphone. On bascule ici un panneau déroulant.
+        (function () {
+            const toggle = document.getElementById('navbarToggle');
+            const navLinks = document.getElementById('navLinks');
+            if (!toggle || !navLinks) return;
+
+            function fermerMenu() {
+                navLinks.classList.remove('open');
+                toggle.classList.remove('active');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            toggle.addEventListener('click', function () {
+                const estOuvert = navLinks.classList.toggle('open');
+                toggle.classList.toggle('active', estOuvert);
+                toggle.setAttribute('aria-expanded', String(estOuvert));
+            });
+
+            // Ferme le menu après avoir choisi un lien
+            navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', fermerMenu));
+
+            // Ferme le menu si on clique en dehors
+            document.addEventListener('click', function (e) {
+                if (!navLinks.classList.contains('open')) return;
+                if (e.target.closest('#navLinks') || e.target.closest('#navbarToggle')) return;
+                fermerMenu();
+            });
+
+            // Ferme le menu si on repasse en largeur "bureau"
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 860) fermerMenu();
+            });
+        })();
+    </script>
+
     {% block scripts %}{% endblock %}
 
-    <script>
-    // 1. Appliquer le thème dès le chargement 
-    (function() {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.body.classList.add('light-mode');
-        }
-    })();
-
-    // Gérer le clic une fois que la page est prête
-    document.addEventListener('DOMContentLoaded', () => {
-        const themeToggle = document.getElementById('theme-toggle');
-        
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                document.body.classList.toggle('light-mode');
-                
-                // Sauvegarder l'état
-                const isLight = document.body.classList.contains('light-mode');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                
-                //  changer l'icône du bouton
-                const icon = themeToggle.querySelector('i');
-                if (icon) {
-                    icon.className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-                }
-            });
-        }
-    });
-</script>
 
 </body>
 
