@@ -1,0 +1,24 @@
+{# Icone de repli (Font Awesome) utilisee quand un moyen de transport n'a pas
+   encore de photo reelle en base (image_url vide). #}
+{% macro icone_transport(nom) -%}
+{%- if 'Jakarta' in nom or 'moto' in nom -%}fa-motorcycle
+{%- elif 'BRT' in nom -%}fa-bus-simple
+{%- elif 'TER' in nom -%}fa-train-subway
+{%- elif 'Bus' in nom or 'Tata' in nom or 'AFTU' in nom or 'Dikk' in nom -%}fa-bus
+{%- elif 'Taxi' in nom -%}fa-taxi
+{%- elif 'rapide' in nom -%}fa-van-shuttle
+{%- elif 'Avion' in nom -%}fa-plane
+{%- elif 'Ferry' in nom -%}fa-ship
+{%- elif 'places' in nom -%}fa-car-side
+{%- else -%}fa-route
+{%- endif -%}
+{%- endmacro %}
+
+{# Bloc image/icone reutilisable pour une carte de transport #}
+{% macro vignette_transport(t) -%}
+{% if t.image_url %}
+<div class="tc-icon tc-icon-img"><img src="{{ t.image_url }}" alt="{{ t.nom }}" loading="lazy"></div>
+{% else %}
+<div class="tc-icon"><i class="fa-solid {{ icone_transport(t.nom) }}"></i></div>
+{% endif %}
+{%- endmacro %}

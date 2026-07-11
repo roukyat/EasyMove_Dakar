@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # EasyMove Sénégal — Version full-stack (SQL + Python + Carte interactive)
 
 Ce dossier contient la version complète du projet, avec une vraie architecture
@@ -60,7 +59,7 @@ relance `python app.py`.
 | Table              | Rôle |
 |--------------------|------|
 | `lieux`            | Tous les points sur la carte (quartiers, villes, aéroport...) |
-| `moyens_transport` | Taxi, DDD, Car rapide, Jakarta, TER, Sept-places, Avion, Ferry |
+| `moyens_transport` | Taxi, DDD, Car rapide, Minibus Tata (AFTU), Jakarta, TER, BRT |
 | `lignes_bus`       | Les lignes précises (ex: Ligne 14 Plateau–UCAD) |
 | `arrets`           | Les arrêts physiques, reliés à un lieu |
 | `ligne_arrets`     | Association ligne ↔ arrêts (avec ordre de passage) |
@@ -106,6 +105,3 @@ navigateur (pour charger les tuiles de la carte et la librairie Leaflet).
 - Ajouter une table `utilisateurs` + formulaire de contact avec enregistrement
   en base.
 - Ajouter une page d'administration pour éditer les trajets sans toucher au SQL.
-=======
-# EasyMove_Dakar
->>>>>>> 59472e4bf97fc64a5bf94d09b8283ada9a3cf783

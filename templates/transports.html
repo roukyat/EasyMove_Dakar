@@ -1,14 +1,16 @@
 {% extends "base.html" %}
+{% from "_icons.html" import vignette_transport %}
 {% block title %}Transports — EasyMove Sénégal{% endblock %}
 
 {% block content %}
 
     <div class="page-header">
         <div class="container">
-            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Transports</div>
-            <h1> Les moyens de transport</h1>
-            <p>Tout ce qu'il faut savoir sur les différents transports disponibles à Dakar et au Sénégal — données
-                issues directement de la base SQL.</p>
+            <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> > Transports</div>
+            <h1>Les moyens de transport</h1>
+            <p>Tout ce qu'il faut savoir sur les différents
+                 transports disponibles à Dakar et au Sénégal.
+                </p>
         </div>
     </div>
 
@@ -18,7 +20,7 @@
                 {% for t in transports %}
                 <div class="transport-card">
                     <div class="tc-header">
-                        <div class="tc-emoji">{{ t.icone }}</div>
+                        {{ vignette_transport(t) }}
                         <div>
                             <div class="tc-name">{{ t.nom }}</div>
                             <div class="tc-desc">{{ t.description }}</div>
@@ -26,12 +28,12 @@
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">
-                            <span class="tc-prix-label"> Prix estimé</span>
+                            <span class="tc-prix-label">Prix estimé</span>
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
                         </div>
                         <div class="pros-cons">
                             <div>
-                                <div class="pros-cons-title">✓ Avantages</div>
+                                <div class="pros-cons-title"><i class="fa-solid fa-check" style="color: var(--accent-vert); margin-right: 4px;"></i> Avantages</div>
                                 <ul class="pro-list">
                                     {% for a in t.avantages.split(',') %}
                                     <li>{{ a.strip() }}</li>
@@ -39,7 +41,7 @@
                                 </ul>
                             </div>
                             <div>
-                                <div class="pros-cons-title">✕ Inconvénients</div>
+                                <div class="pros-cons-title"><i class="fa-solid fa-xmark" style="color: var(--accent-rouge); margin-right: 4px;"></i> Inconvénients</div>
                                 <ul class="con-list">
                                     {% for i in t.inconvenients.split(',') %}
                                     <li>{{ i.strip() }}</li>
@@ -48,8 +50,8 @@
                             </div>
                         </div>
                         <div style="margin-top:12px;">
-                            <span class="badge badge-jaune"> Confort : {{ t.niveau_confort }}</span>
-                            <span class="badge badge-vert" style="margin-left:6px;"> {{ t.disponibilite }}</span>
+                            <span class="badge badge-jaune">Confort : {{ t.niveau_confort }}</span>
+                            <span class="badge badge-vert" style="margin-left:6px;">{{ t.disponibilite }}</span>
                         </div>
                     </div>
                 </div>
@@ -72,16 +74,16 @@
                     <thead>
                         <tr>
                             <th>Transport</th>
-                            <th> Prix min</th>
-                            <th> Prix max</th>
-                            <th> Confort</th>
-                            <th> Disponibilité</th>
+                            <th>Prix min</th>
+                            <th>Prix max</th>
+                            <th>Confort</th>
+                            <th>Disponibilité</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for t in transports %}
                         <tr>
-                            <td><span class="transport-name">{{ t.icone }} {{ t.nom }}</span></td>
+                            <td><span class="transport-name">{{ t.nom }}</span></td>
                             <td>{{ t.cout_min }} FCFA</td>
                             <td>{{ t.cout_max }} FCFA</td>
                             <td>

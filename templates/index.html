@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import vignette_transport, icone_transport %}
 {% block title %}EasyMove Dakar — Voyager sans stress{% endblock %}
 
 {% block content %}
@@ -26,7 +27,7 @@
                     {% for t in transports_apercu %}
                     <div class="hero-card-mini">
                         <div class="hcm-icon">
-                            <i class="fa-solid {% if 'Bus' in t.nom or 'Tata' in t.nom or 'AFTU' in t.nom %}fa-bus{% elif 'TER' in t.nom or 'Brt' in t.nom %}fa-train-subway{% elif 'Taxi' in t.nom %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
+                            <i class="fa-solid {{ icone_transport(t.nom) }}"></i>
                         </div>
                         <div class="hcm-title">{{ t.nom }}</div>
                         <div class="hcm-sub">{{ t.description|truncate(45) }}</div>
@@ -87,9 +88,7 @@
                 {% for t in transports_apercu %}
                 <div class="transport-card">
                     <div class="tc-header">
-                        <div class="tc-emoji" style="display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid {% if 'Bus' in t.nom or 'Tata' in t.nom or 'AFTU' in t.nom %}fa-bus{% elif 'TER' in t.nom or 'Brt' in t.nom %}fa-train-subway{% elif 'Taxi' in t.nom %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
-                        </div>
+                        {{ vignette_transport(t) }}
                         <div>
                             <div class="tc-name">{{ t.nom }}</div>
                             <div class="tc-desc">{{ t.description }}</div>

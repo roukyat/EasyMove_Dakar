@@ -2,50 +2,258 @@
 {% block title %}À propos — EasyMove Dakar{% endblock %}
 
 {% block content %}
-<div class="container" style="padding: 60px 0;">
-    
-    <!-- En-tête de page -->
-    <div style="max-width: 800px; margin-bottom: 60px;">
-        <h1 style="font-size: 3rem; margin-bottom: 20px;">À propos d'EasyMove Dakar</h1>
-        <p style="font-size: 1.2rem; color: var(--text-muted); line-height: 1.7;">
-            EasyMove Dakar est né d'un constat simple : la mobilité urbaine à Dakar est complexe. Notre mission est d'offrir une plateforme intuitive pour simplifier les déplacements de chaque résident et visiteur.
-        </p>
-    </div>
 
-    <!-- Grille de contenu -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px;">
-        
-        
-        <div class="bento-card" style="padding: 40px; background: #0B1120;">
-            <h2 style="font-size: 1.5rem; margin-bottom: 20px; color: var(--blue-primary);">Notre Vision</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">
-                Nous croyons que la technologie doit être au service du citoyen. En centralisant les informations sur les réseaux de transports (Tata, BRT, TER, Dakar Dem Dikk), nous réduisons le stress lié aux trajets quotidiens.
-            </p>
-            <ul style="list-style: none; color: #FFF; line-height: 2.2;">
-                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Transparence des itinéraires</li>
-                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Accessibilité pour tous</li>
-                <li><i class="fa-solid fa-check" style="color: var(--blue-primary); margin-right: 10px;"></i> Mise à jour des données en temps réel</li>
-            </ul>
-        </div>
+    <section class="about-hero">
+        <div class="container">
+            <div class="about-hero-inner">
+                <div>
+                    <div class="about-hero-eyebrow">
+                        <i class="fa-solid fa-location-dot"></i> Mobilité urbaine — Dakar
+                    </div>
+                    <h1>Toute la mobilité de Dakar sur une seule plateforme.</h1>
+                    <p class="lead">
+                        Ne perdez plus de temps à chercher les informations.
+                        EasyMove réunit les trajets, les tarifs, les correspondances et les lignes
+                        Tata dans une plateforme unique, pensée pour simplifier tous vos déplacements à Dakar.
+                    </p>
+                    <div class="hero-btns">
+                        <a href="{{ url_for('trajets') }}" class="btn-primary">
+                            <i class="fa-solid fa-route" style="margin-right: 6px;"></i> Découvrir les trajets
+                        </a>
+                        <a href="{{ url_for('minibus') }}" class="btn-secondary">
+                            <i class="fa-solid fa-map-location-dot" style="margin-right: 6px;"></i> Voir la carte
+                        </a>
+                    </div>
+                </div>
 
-       
-        <div class="bento-card" style="padding: 40px; border: 1px solid var(--border);">
-            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">Support & Contact</h2>
-            <p style="color: var(--text-muted); margin-bottom: 30px;">
-                Une suggestion, une erreur sur une ligne de bus ou besoin d'aide ? Notre équipe est à votre écoute pour améliorer l'expérience EasyMove.
-            </p>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-                <a href="mailto:contact@easymove-dakar.sn" style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #111827; border-radius: var(--radius);">
-                    <i class="fa-solid fa-envelope" style="color: var(--blue-primary); font-size: 1.2rem;"></i>
-                    <span>contact@easymove-dakar.sn</span>
-                </a>
-                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #111827; border-radius: var(--radius);">
-                    <i class="fa-solid fa-location-dot" style="color: var(--blue-primary); font-size: 1.2rem;"></i>
-                    <span>Plateau, Dakar, Sénégal</span>
+                <div class="about-mockup reveal" aria-hidden="true">
+                    <span class="about-mockup-badge">100% gratuit</span>
+                    <div class="about-mockup-dots"><span></span><span></span><span></span></div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Plateau</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> Almadies</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata Ligne 47 · 150-300 FCFA</div>
+                    <div class="about-mockup-cta"><i class="fa-solid fa-magnifying-glass" style="margin-right: 6px;"></i>Rechercher un trajet</div>
                 </div>
             </div>
         </div>
+    </section>
 
-    </div>
-</div>
+    {# ============================================================
+       2. POURQUOI EASYMOVE EXISTE — storytelling probleme -> reponse
+       ============================================================ #}
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="eyebrow">Le constat</div>
+                <h2>Se déplacer à Dakar ne devrait pas être une enquête.</h2>
+                <p>Chaque jour, résidents, étudiants et visiteurs perdent du temps à deviner plutôt qu'à voyager.</p>
+            </div>
+
+            <div class="problem-grid reveal">
+                <div class="problem-item">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>Trouver la bonne ligne Tata demande souvent de demander autour de soi</span>
+                </div>
+                <div class="problem-item">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Les informations sont dispersées et souvent difficiles à vérifier.</span>
+                </div>
+                <div class="problem-item">
+                    <i class="fa-solid fa-shuffle"></i>
+                    <span>Passer du Tata au BRT ou au TER reste compliqué sans une vue d'ensemble.</span>
+                </div>
+                <div class="problem-item">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>Les prix ne sont presque jamais affichés à l'avance, surtout dans le réseau informel.</span>
+                </div>
+                <div class="problem-item">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                    <span>Résultat : du temps perdu avant même de monter dans un véhicule.</span>
+                </div>
+            </div>
+
+            <div class="resolution-banner reveal">
+                <i class="fa-solid fa-bolt"></i>
+                <p>Avec EasyMove, toutes les informations utiles pour se déplacer à Dakar sont réunies au même endroit.
+                     Plus besoin de deviner : recherchez, comparez et partez en toute confiance.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="eyebrow">La plateforme</div>
+                <h2>Quatre choses, un seul endroit.</h2>
+            </div>
+            <div class="feature-grid reveal">
+                <a href="{{ url_for('trajets') }}" class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-route"></i></div>
+                    <h3>Trouver un trajet</h3>
+                    <p>Sélectionnez un départ et une arrivée, obtenez les options disponibles instantanément.</p>
+                </a>
+                <a href="{{ url_for('transports') }}" class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <h3>Comparer les itinéraires</h3>
+                    <p>Confrontez prix, durée et confort entre taxi, Tata, DDD, BRT ou TER avant de choisir.</p>
+                </a>
+                <a href="{{ url_for('prix') }}" class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-tags"></i></div>
+                    <h3>Consulter les prix</h3>
+                    <p>Des fourchettes tarifaires réalistes pour éviter les mauvaises surprises et les négociations à l'aveugle.</p>
+                </a>
+                <a href="{{ url_for('minibus') }}" class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                    <h3>Explorer les lignes</h3>
+                    <p>Visualisez le réseau Tata/AFTU sur une carte interactive, arrêt par arrêt.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section stats-band">
+        <div class="container">
+            <div class="stats-grid reveal">
+                <div>
+                    <div class="stat-number" data-count="{{ stats.transports }}">0</div>
+                    <div class="stat-label">Moyens de transport référencés</div>
+                </div>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.lignes }}">0</div>
+                    <div class="stat-label">Lignes cartographiées (dont {{ stats.lignes_tata }} Tata)</div>
+                </div>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.arrets }}">0</div>
+                    <div class="stat-label">Arrêts géolocalisés</div>
+                </div>
+                <div>
+                    <div class="stat-number" data-count="1">0</div>
+                    <div class="stat-label">Plateforme, au lieu de dix sources</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="eyebrow">Le principe</div>
+                <h2>Trois étapes, un trajet.</h2>
+            </div>
+            <div class="steps-row reveal">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <h4>Choisir le départ</h4>
+                    <p>Sélectionnez votre point de départ parmi les lieux référencés.</p>
+                </div>
+                <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <h4>Choisir la destination</h4>
+                    <p>Indiquez où vous voulez aller.</p>
+                </div>
+                <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <h4>Obtenir le meilleur trajet</h4>
+                    <p>Comparez les options et partez, avec le prix et la durée en tête.</p>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="{{ url_for('trajets') }}" class="btn-primary">
+                    Essayer maintenant <i class="fa-solid fa-arrow-right" style="margin-left: 6px;"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    {# ============================================================
+       12. CONTACT
+       ============================================================ #}
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="eyebrow">Contact</div>
+                <h2>Une question, une correction à proposer ?</h2>
+            </div>
+            <div class="contact-grid-modern reveal">
+                <a href="mailto:contact@easymove-dakar.sn" class="contact-item-modern">
+                    <div class="ci-icon"><i class="fa-solid fa-envelope"></i></div>
+                    <div>
+                        <div class="ci-label">Email</div>
+                        <div class="ci-value">support.easymovedakar@gmail.com</div>
+                    </div>
+                </a>
+                <div class="contact-item-modern">
+                    <div class="ci-icon"><i class="fa-solid fa-location-dot"></i></div>
+                    <div>
+                        <div class="ci-label">Adresse</div>
+                        <div class="ci-value">Dakar, Sénégal</div>
+                    </div>
+                </div>
+            </div>
+           
+        </div>
+    </section>
+
+{% endblock %}
+
+{#effet page a propos#}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Apparition progressive au scroll (IntersectionObserver, sans dependance)
+    var reveals = document.querySelectorAll(".reveal");
+    if ("IntersectionObserver" in window) {
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add("is-visible");
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15, rootMargin: "0px 0px -60px 0px" });
+        reveals.forEach(function (el) { observer.observe(el); });
+    } else {
+        reveals.forEach(function (el) { el.classList.add("is-visible"); });
+    }
+
+    // Compteurs animes pour les chiffres cles
+    var counters = document.querySelectorAll(".stat-number[data-count]");
+    var countersDone = false;
+    function animateCounters() {
+        if (countersDone) return;
+        countersDone = true;
+        counters.forEach(function (el) {
+            var target = parseInt(el.getAttribute("data-count"), 10) || 0;
+            var start = 0;
+            var duration = 900;
+            var startTime = null;
+            function step(ts) {
+                if (!startTime) startTime = ts;
+                var progress = Math.min((ts - startTime) / duration, 1);
+                el.textContent = Math.floor(progress * (target - start) + start);
+                if (progress < 1) requestAnimationFrame(step);
+                else el.textContent = target;
+            }
+            requestAnimationFrame(step);
+        });
+    }
+    var statsBand = document.querySelector(".stats-band");
+    if (statsBand && "IntersectionObserver" in window) {
+        var statsObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    animateCounters();
+                    statsObserver.disconnect();
+                }
+            });
+        }, { threshold: 0.3 });
+        statsObserver.observe(statsBand);
+    } else {
+        animateCounters();
+    }
+});
+</script>
 {% endblock %}

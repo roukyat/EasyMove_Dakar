@@ -157,6 +157,22 @@ def get_infos_utiles():
     return infos
 
 
+def get_nombre_arrets():
+    """Nombre total d'arrets cartographies, toutes lignes confondues."""
+    conn = get_connection()
+    n = conn.execute("SELECT COUNT(*) AS n FROM arrets").fetchone()["n"]
+    conn.close()
+    return n
+
+
+def get_nombre_lieux():
+    """Nombre total de lieux references (quartiers, villes, gares...)."""
+    conn = get_connection()
+    n = conn.execute("SELECT COUNT(*) AS n FROM lieux").fetchone()["n"]
+    conn.close()
+    return n
+
+
 # ---------------------------------------------------------------------
 # Gestion Spécifique des Lignes et Arrêts (Minibus )
 # ---------------------------------------------------------------------

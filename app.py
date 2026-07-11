@@ -18,11 +18,16 @@ database.init_db()
 
 def get_stats():
     """Chiffres clés affichés sur l'interface d'administration, l'accueil et à propos."""
+    lignes = database.get_toutes_les_lignes_bus()
     return {
         "transports": len(database.get_tous_les_transports()),
         "trajets": len(database.get_tous_les_trajets()),
         "phrases": len(database.get_toutes_les_phrases()),
         "conseils": len(database.get_tous_les_conseils()),
+        "lignes": len(lignes),
+        "lignes_tata": len([l for l in lignes if l["est_minibus"]]),
+        "arrets": database.get_nombre_arrets(),
+        "lieux": database.get_nombre_lieux(),
     }
 
 

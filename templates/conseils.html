@@ -6,7 +6,7 @@
     <div class="page-header">
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Conseils</div>
-            <h1>💡 Conseils pratiques</h1>
+            <h1>Conseils pratiques</h1>
             <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie, stockés dans la base de
                 données.</p>
         </div>
@@ -16,7 +16,12 @@
         <div class="container">
             {% for categorie, liste in conseils_par_categorie.items() %}
             <div style="margin-bottom:40px;">
-                <h2 style="font-size:1.4rem; margin-bottom:16px; color:var(--vert);">{{ categorie }}</h2>
+                <h2 style="font-size:1.4rem; margin-bottom:16px; color:var(--accent-vert, var(--vert)); display:flex; align-items:center; gap:10px;">
+                    <span style="width:34px; height:34px; border-radius:8px; background:var(--bg-primary, #0F172A); border:1px solid var(--border-color, #334155); display:inline-flex; align-items:center; justify-content:center; font-size:0.95rem;">
+                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                    </span>
+                    {{ categorie }}
+                </h2>
                 <div class="grid-2">
                     {% for c in liste %}
                     <div class="transport-card" style="padding:20px;">
@@ -35,12 +40,14 @@
         <div class="container">
             <div class="section-header">
                 <div class="eyebrow">Sécurité</div>
-                <h2>🆘 Numéros d'urgence</h2>
+                <h2>Numéros d'urgence</h2>
             </div>
             <div class="urgence-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
                 {% for info in infos_urgence %}
                 <div class="urgence-card">
-                    <div class="emoji">{{ '🚔' if 'Police' in info.libelle else '🚑' if 'SAMU' in info.libelle else '🚒' if 'Sapeurs' in info.libelle else '🪖' }}</div>
+                    <div class="tc-icon" style="width:44px; height:44px; margin:0 auto 10px; font-size:1.2rem;">
+                        <i class="fa-solid {% if 'Police' in info.libelle %}fa-shield-halved{% elif 'SAMU' in info.libelle %}fa-truck-medical{% elif 'Sapeurs' in info.libelle %}fa-fire-extinguisher{% else %}fa-user-shield{% endif %}"></i>
+                    </div>
                     <div class="num">{{ info.valeur }}</div>
                     <div class="label">{{ info.libelle }}</div>
                 </div>
@@ -54,12 +61,18 @@
             <div class="section-header">
                 <div class="eyebrow">À emporter</div>
                 <h2 style="font-size:1.4rem;">Ce qu'il faut avoir sur soi</h2>
+                <p>La check-list minimale avant de sortir, quel que soit le moyen de transport choisi.</p>
             </div>
-            <ul class="pro-list" style="max-width:480px; margin:0 auto;">
+            <div class="grid-3" style="max-width:900px; margin:0 auto;">
                 {% for info in infos_emporter %}
-                <li>{{ info.valeur }}</li>
+                <div class="transport-card" style="padding:20px; display:flex; align-items:center; gap:14px;">
+                    <div class="tc-icon" style="width:44px; height:44px; font-size:1.1rem;">
+                        <i class="fa-solid {% if 'monnaie' in info.valeur|lower %}fa-coins{% elif 'chapeau' in info.valeur|lower or 'casquette' in info.valeur|lower %}fa-umbrella-beach{% elif 'eau' in info.valeur|lower %}fa-bottle-water{% elif 'papiers' in info.valeur|lower or 'identité' in info.valeur|lower %}fa-id-card{% else %}fa-check{% endif %}"></i>
+                    </div>
+                    <span style="font-size:0.95rem;">{{ info.valeur }}</span>
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
         </div>
     </section>
 
