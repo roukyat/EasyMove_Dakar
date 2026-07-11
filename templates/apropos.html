@@ -2,7 +2,9 @@
 {% block title %}À propos — EasyMove Dakar{% endblock %}
 
 {% block content %}
-
+     {# ============================================================
+       1. HERO
+       ============================================================ #}
     <section class="about-hero">
         <div class="container">
             <div class="about-hero-inner">
@@ -10,13 +12,9 @@
                     <div class="about-hero-eyebrow">
                         <i class="fa-solid fa-location-dot"></i> Mobilité urbaine — Dakar
                     </div>
-                    <h1>Toute la mobilité de Dakar sur une seule plateforme.</h1>
+                    <h1>Choisissez votre destination, EasyMove s'occupe du reste.</h1>
                     <p class="lead">
-                        Ne perdez plus de temps à chercher les informations.
-                        EasyMove réunit les trajets, les tarifs, les correspondances, les lignes
-                        Tata ainsi que les quartiers et sites touristiques de Dakar jusqu'au lexique
-                        wolof pour échanger avec les chauffeurs, dans une plateforme unique, pensée
-                        pour simplifier tous vos déplacements.
+                        Comparez les trajets, les prix et les temps de parcours en quelques secondes.
                     </p>
                     <div class="hero-btns">
                         <a href="{{ url_for('trajets') }}" class="btn-primary">
@@ -25,15 +23,16 @@
                         <a href="{{ url_for('minibus') }}" class="btn-secondary">
                             <i class="fa-solid fa-map-location-dot" style="margin-right: 6px;"></i> Voir la carte
                         </a>
+                        
                     </div>
                 </div>
 
                 <div class="about-mockup reveal" aria-hidden="true">
                     <span class="about-mockup-badge">100% gratuit</span>
                     <div class="about-mockup-dots"><span></span><span></span><span></span></div>
-                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Plateau</div>
-                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> Almadies</div>
-                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata Ligne 47 · 150-300 FCFA</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Sonatel</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> Foire</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata Ligne 4 · 200 FCFA</div>
                     <div class="about-mockup-cta"><i class="fa-solid fa-magnifying-glass" style="margin-right: 6px;"></i>Rechercher un trajet</div>
                 </div>
             </div>
@@ -47,31 +46,29 @@
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">Le constat</div>
-                <h2>Se déplacer à Dakar ne devrait pas être une enquête.</h2>
-                <p>Chaque jour, résidents, étudiants et visiteurs perdent du temps à deviner plutôt qu'à voyager.</p>
+                <h2>Se déplacer à Dakar reste un défi.</h2>
+                <p>Malgré la diversité des moyens de transport,
+                trouver rapidement le bon itinéraire reste souvent compliqué.</p>
             </div>
 
             <div class="problem-grid reveal">
                 <div class="problem-item">
                     <i class="fa-solid fa-circle-question"></i>
-                    <span>Trouver la bonne ligne Tata demande souvent de demander autour de soi</span>
+                    <span>Trouver la bonne ligne reste difficile.</span>
                 </div>
                 <div class="problem-item">
                     <i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>Les informations sont dispersées et souvent difficiles à vérifier.</span>
+                    <span>Les informations sont dispersées.</span>
                 </div>
                 <div class="problem-item">
                     <i class="fa-solid fa-shuffle"></i>
-                    <span>Passer du Tata au BRT ou au TER reste compliqué sans une vue d'ensemble.</span>
+                    <span>Passer du Tata au BRT ou au TER reste compliqué.</span>
                 </div>
                 <div class="problem-item">
                     <i class="fa-solid fa-tag"></i>
-                    <span>Les prix ne sont presque jamais affichés à l'avance, surtout dans le réseau informel.</span>
+                    <span>Les tarifs sont rarement connus à l'avance.</span>
                 </div>
-                <div class="problem-item">
-                    <i class="fa-solid fa-hourglass-half"></i>
-                    <span>Résultat : du temps perdu avant même de monter dans un véhicule.</span>
-                </div>
+               
             </div>
 
             <div class="resolution-banner reveal">
@@ -86,32 +83,32 @@
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">La plateforme</div>
-                <h2>Cinq choses, un seul endroit.</h2>
+                <h2>Tout ce dont vous avez besoin pour voyager.</h2>
             </div>
             <div class="feature-grid reveal">
                 <a href="{{ url_for('trajets') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-route"></i></div>
-                    <h3>Trouver un trajet</h3>
+                    <h3>Trouvez rapidement le meilleur itinéraire.</h3>
                     <p>Sélectionnez un départ et une arrivée, obtenez les options disponibles instantanément.</p>
                 </a>
                 <a href="{{ url_for('transports') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-                    <h3>Comparer les itinéraires</h3>
+                    <h3>Comparez durée, coût et confort.</h3>
                     <p>Confrontez prix, durée et confort entre taxi, Tata, DDD, BRT ou TER avant de choisir.</p>
                 </a>
                 <a href="{{ url_for('prix') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-tags"></i></div>
-                    <h3>Consulter les prix</h3>
+                    <h3>Estimez votre budget avant de partir.</h3>
                     <p>Des fourchettes tarifaires réalistes pour éviter les mauvaises surprises et les négociations à l'aveugle.</p>
                 </a>
                 <a href="{{ url_for('minibus') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                    <h3>Explorer les lignes</h3>
+                    <h3>Parcourez le réseau Tata sur une carte interactive.</h3>
                     <p>Visualisez le réseau Tata/AFTU sur une carte interactive, arrêt par arrêt.</p>
                 </a>
                 <a href="{{ url_for('wolof') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-comments"></i></div>
-                    <h3>Parler avec les chauffeurs</h3>
+                    <h3>Communiquez plus facilement pendant vos déplacements.</h3>
                     <p>Un lexique wolof pratique pour négocier un prix, indiquer une destination ou simplement saluer.</p>
                 </a>
             </div>
@@ -182,20 +179,23 @@
             <div class="section-header reveal">
                 <div class="eyebrow">Contact</div>
                 <h2>Une question, une correction à proposer ?</h2>
+                <p>Nous sommes à votre écoute pour améliorer continuellement EasyMove.</p>
             </div>
             <div class="contact-grid-modern reveal">
-                <a href="mailto:contact@easymove-dakar.sn" class="contact-item-modern">
-                    <div class="ci-icon"><i class="fa-solid fa-envelope"></i></div>
+                <div class="contact-item-modern">
+                    <div class="ci-icon">
+                        <i class="fa-solid fa-envelope"></i>
+                    </div>
                     <div>
                         <div class="ci-label">Email</div>
                         <div class="ci-value">support.easymovedakar@gmail.com</div>
                     </div>
-                </a>
-                <div class="contact-item-modern">
-                    <div class="ci-icon"><i class="fa-solid fa-location-dot"></i></div>
-                    <div>
+                    </div>
+                        <div class="contact-item-modern">
+                        <div class="ci-icon"><i class="fa-solid fa-location-dot"></i></div>
+                        <div>
                         <div class="ci-label">Adresse</div>
-                        <div class="ci-value">Dakar, Sénégal</div>
+                    <div class="ci-value">Dakar, Sénégal</div>
                     </div>
                 </div>
             </div>
