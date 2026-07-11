@@ -113,6 +113,61 @@
         color: var(--accent-cyan);
         font-weight: 600;
     }
+
+    /* Bouton "Arrêt le plus proche" sur les options bus / minibus / car rapide */
+    .option-arret-proche {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .btn-arret-proche {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(6, 182, 212, 0.1);
+        border: 1px solid rgba(6, 182, 212, 0.35);
+        color: var(--accent-cyan);
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: var(--transition-douce);
+    }
+
+    .btn-arret-proche:hover {
+        background: rgba(6, 182, 212, 0.18);
+        border-color: var(--accent-cyan);
+    }
+
+    .btn-arret-proche:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .arret-proche-resultat {
+        margin-top: 12px;
+        font-size: 0.85rem;
+        color: var(--texte-muted);
+    }
+
+    .arret-proche-resultat .arret-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--fond-sombre);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #FFF;
+    }
+
+    .arret-proche-resultat .arret-distance {
+        color: var(--accent-vert);
+        font-weight: 700;
+    }
 </style>
 {% endblock %}
 
@@ -194,6 +249,19 @@
                     </div>
                     {% endfor %}
                 </div>
+
+                {% if opt.embarquement_nom %}
+                <div class="option-arret-proche">
+                    <button type="button" class="btn-arret-proche"
+                            data-lat="{{ opt.embarquement_lat }}"
+                            data-lng="{{ opt.embarquement_lng }}"
+                            data-nom="{{ opt.embarquement_nom }}">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        Voir l'arrêt d'embarquement le plus proche de moi
+                    </button>
+                    <div class="arret-proche-resultat"></div>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
 
@@ -340,6 +408,92 @@
             { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
     }
+
+    // 4. "Voir l'arrêt d'embarquement le plus proche de moi" : au clic sur
+    // une option bus / minibus / car rapide, géolocalise l'utilisateur,
+    // affiche la distance jusqu'à l'arrêt de montée de cette ligne et
+    // trace l'itinéraire piéton correspondant sur la carte ci-dessus.
+    function distanceKmVersArret(lat1, lng1, lat2, lng2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    let arretRoutingControl = null;
+
+    document.querySelectorAll('.btn-arret-proche').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                showToast("La géolocalisation n'est pas supportée par votre appareil.", 'error');
+                return;
+            }
+
+            const arretLat = parseFloat(btn.getAttribute('data-lat'));
+            const arretLng = parseFloat(btn.getAttribute('data-lng'));
+            const arretNom = btn.getAttribute('data-nom');
+            const resultatEl = btn.nextElementSibling;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Localisation en cours...';
+
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                const uLat = pos.coords.latitude;
+                const uLng = pos.coords.longitude;
+                const distance = distanceKmVersArret(uLat, uLng, arretLat, arretLng);
+
+                resultatEl.innerHTML = `
+                    <div class="arret-badge">
+                        <i class="fa-solid fa-person-walking" style="color: var(--accent-cyan);"></i>
+                        <span><strong>${arretNom}</strong> — <span class="arret-distance">${distance.toFixed(2)} km</span> à pied</span>
+                    </div>
+                `;
+
+                if (arretRoutingControl) {
+                    map.removeControl(arretRoutingControl);
+                }
+
+                const iconArret = L.divIcon({
+                    html: '<div class="custom-map-marker" style="background:#10B981;">🚏</div>',
+                    className: '',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                arretRoutingControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(uLat, uLng),
+                        L.latLng(arretLat, arretLng)
+                    ],
+                    router: L.Routing.osrmv1({ language: 'fr', profile: 'foot' }),
+                    lineOptions: { styles: [{ color: '#10B981', weight: 5, opacity: 0.85 }] },
+                    createMarker: function (i, waypoint) {
+                        if (i === 0) return L.marker(waypoint.latLng).bindPopup("Vous êtes ici");
+                        return L.marker(waypoint.latLng, { icon: iconArret }).bindPopup(`<strong>Arrêt d'embarquement :</strong> ${arretNom}`);
+                    },
+                    show: true,
+                    collapsible: true
+                }).addTo(map);
+
+                arretRoutingControl.on('routesfound', function (e) {
+                    const bounds = L.latLngBounds(e.routes[0].coordinates);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                });
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Arrêt localisé';
+                setTimeout(() => { btn.innerHTML = originalHtml; }, 2500);
+
+            }, function (error) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                showToast("Position GPS refusée ou indisponible.", 'error');
+                console.error(error);
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        });
+    });
         } catch (err) {
         console.error("Erreur d'exécution cartographique :", err);
     }

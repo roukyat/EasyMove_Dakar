@@ -225,6 +225,158 @@ NOUVELLES_LIGNES_MINIBUS = [
     },
 ]
 
+# ---------------------------------------------------------------------
+# Deuxième vague d'enrichissement du réseau Minibus Tata (AFTU) : le
+# réseau est le moyen de transport en commun le moins cher de Dakar et le
+# plus adapté au budget étudiant, mais restait sous-représenté par rapport
+# au nombre réel de lignes AFTU. On densifie ici la couverture de quartiers
+# déjà référencés dans `lieux` mais encore mal desservis par une ligne
+# directe (Hann Maristes, Sicap Liberté, Rufisque profond, etc.).
+# ---------------------------------------------------------------------
+NOUVELLES_LIGNES_MINIBUS_2 = [
+    {
+        "numero_ligne": "Ligne 81", "nom_ligne": "Petersen - Hann Maristes",
+        "description": "Minibus Tata (AFTU) reliant Petersen à Hann Maristes via Hann, Hann Bel-Air",
+        "arrets": ["Petersen", "Hann", "Hann Bel-Air", "Hann Maristes"],
+    },
+    {
+        "numero_ligne": "Ligne 82", "nom_ligne": "Sandaga - Sicap Liberté",
+        "description": "Minibus Tata (AFTU) reliant Sandaga à Sicap Liberté via Colobane, HLM, Liberté 1",
+        "arrets": ["Sandaga", "Colobane", "HLM", "Liberté 1", "Sicap Liberté"],
+    },
+    {
+        "numero_ligne": "Ligne 83", "nom_ligne": "Médina - Fenêtre Mermoz",
+        "description": "Minibus Tata (AFTU) reliant Médina à Fenêtre Mermoz via Fass, Point E, Amitié",
+        "arrets": ["Médina", "Fass", "Point E", "Amitié", "Fenêtre Mermoz"],
+    },
+    {
+        "numero_ligne": "Ligne 84", "nom_ligne": "Grand Yoff - Cité Assemblée",
+        "description": "Minibus Tata (AFTU) reliant Grand Yoff à Cité Assemblée via Zone de Captage",
+        "arrets": ["Grand Yoff", "Zone de Captage", "Cité Assemblée"],
+    },
+    {
+        "numero_ligne": "Ligne 85", "nom_ligne": "Colobane - Yarakh",
+        "description": "Minibus Tata (AFTU) reliant Colobane à Yarakh via Hann",
+        "arrets": ["Colobane", "Hann", "Yarakh"],
+    },
+    {
+        "numero_ligne": "Ligne 86", "nom_ligne": "Petersen - Cité Comico",
+        "description": "Minibus Tata (AFTU) reliant Petersen à Cité Comico via Grand Dakar, Dieuppeul",
+        "arrets": ["Petersen", "Grand Dakar", "Dieuppeul", "Cité Comico"],
+    },
+    {
+        "numero_ligne": "Ligne 87", "nom_ligne": "Pikine - Cité Aliou Sow",
+        "description": "Minibus Tata (AFTU) reliant Pikine à Cité Aliou Sow via Thiaroye Gare",
+        "arrets": ["Pikine", "Thiaroye Gare", "Cité Aliou Sow"],
+    },
+    {
+        "numero_ligne": "Ligne 88", "nom_ligne": "Mbao - Cité Millionnaire",
+        "description": "Minibus Tata (AFTU) reliant Mbao à Cité Millionnaire via Petit Mbao",
+        "arrets": ["Mbao", "Petit Mbao", "Cité Millionnaire"],
+    },
+    {
+        "numero_ligne": "Ligne 89", "nom_ligne": "Rufisque - Diokoul",
+        "description": "Minibus Tata (AFTU) reliant Rufisque à Diokoul via Rufisque Nord",
+        "arrets": ["Rufisque", "Rufisque Nord", "Diokoul"],
+    },
+    {
+        "numero_ligne": "Ligne 90", "nom_ligne": "Rufisque - Arafat",
+        "description": "Minibus Tata (AFTU) reliant Rufisque à Arafat via Rufisque Est",
+        "arrets": ["Rufisque", "Rufisque Est", "Arafat"],
+    },
+]
+
+# ---------------------------------------------------------------------
+# Enrichissement massif du réseau Car Rapide : à budget étudiant égal, le
+# car rapide reste le moyen de transport le moins cher de Dakar (100-200
+# FCFA la course) mais n'était couvert que par 4 lignes (CR-1 à CR-4),
+# très en retrait par rapport au réseau minibus Tata. On porte le réseau
+# à 20 lignes pour refléter la densité réelle du car rapide sur les grands
+# axes de la capitale et de la banlieue.
+# ---------------------------------------------------------------------
+NOUVELLES_LIGNES_CAR_RAPIDE = [
+    {
+        "numero_ligne": "CR-5", "nom_ligne": "Colobane - Guédiawaye (Car rapide)",
+        "description": "Car rapide reliant Colobane à Guédiawaye via Grand Dakar, HLM, Front de Terre, Parcelles Assainies, Golf",
+        "arrets": ["Colobane", "Grand Dakar", "HLM", "Front de Terre", "Parcelles Assainies", "Golf"],
+    },
+    {
+        "numero_ligne": "CR-6", "nom_ligne": "Petersen - Yoff (Car rapide)",
+        "description": "Car rapide reliant Petersen à Yoff via Bopp, Fann, Ouakam, Ngor",
+        "arrets": ["Petersen", "Bopp", "Fann", "Ouakam", "Ngor", "Yoff"],
+    },
+    {
+        "numero_ligne": "CR-7", "nom_ligne": "Sandaga - Keur Massar (Car rapide)",
+        "description": "Car rapide reliant Sandaga à Keur Massar via Colobane, Pikine, Thiaroye, Yeumbeul",
+        "arrets": ["Sandaga", "Colobane", "Pikine", "Thiaroye", "Yeumbeul", "Keur Massar"],
+    },
+    {
+        "numero_ligne": "CR-8", "nom_ligne": "Médina - Almadies (Car rapide)",
+        "description": "Car rapide reliant Médina à Almadies via Fass, Point E, Mermoz, Ngor",
+        "arrets": ["Médina", "Fass", "Point E", "Mermoz", "Ngor", "Almadies"],
+    },
+    {
+        "numero_ligne": "CR-9", "nom_ligne": "Plateau - Rufisque (Car rapide)",
+        "description": "Car rapide reliant Plateau à Rufisque via Hann Bel-Air, Thiaroye sur Mer, Rufisque Nord",
+        "arrets": ["Plateau", "Hann Bel-Air", "Thiaroye sur Mer", "Rufisque Nord", "Rufisque"],
+    },
+    {
+        "numero_ligne": "CR-10", "nom_ligne": "Colobane - Malika (Car rapide)",
+        "description": "Car rapide reliant Colobane à Malika via Cambérène, Thiaroye sur Mer",
+        "arrets": ["Colobane", "Cambérène", "Thiaroye sur Mer", "Malika"],
+    },
+    {
+        "numero_ligne": "CR-11", "nom_ligne": "Petersen - Diamniadio (Car rapide)",
+        "description": "Car rapide reliant Petersen à Diamniadio via Grand Mbao, Bargny",
+        "arrets": ["Petersen", "Grand Mbao", "Bargny", "Diamniadio"],
+    },
+    {
+        "numero_ligne": "CR-12", "nom_ligne": "Sandaga - Golf (Car rapide)",
+        "description": "Car rapide reliant Sandaga à Golf via HLM, Patte d'Oie, Parcelles Assainies",
+        "arrets": ["Sandaga", "HLM", "Patte d'Oie", "Parcelles Assainies", "Golf"],
+    },
+    {
+        "numero_ligne": "CR-13", "nom_ligne": "Médina - Sicap Baobab (Car rapide)",
+        "description": "Car rapide reliant Médina à Sicap Baobab via Fass, Liberté 2, Sicap Karack",
+        "arrets": ["Médina", "Fass", "Liberté 2", "Sicap Karack", "Sicap Baobab"],
+    },
+    {
+        "numero_ligne": "CR-14", "nom_ligne": "Petersen - Front de Terre (Car rapide)",
+        "description": "Car rapide reliant Petersen à Front de Terre via Grand Dakar, Biscuiterie, HLM",
+        "arrets": ["Petersen", "Grand Dakar", "Biscuiterie", "HLM", "Front de Terre"],
+    },
+    {
+        "numero_ligne": "CR-15", "nom_ligne": "Colobane - Yeumbeul (Car rapide)",
+        "description": "Car rapide reliant Colobane à Yeumbeul via Dalifort, Pikine, Guinaw Rail",
+        "arrets": ["Colobane", "Dalifort", "Pikine", "Guinaw Rail", "Yeumbeul"],
+    },
+    {
+        "numero_ligne": "CR-16", "nom_ligne": "Sandaga - Ouest Foire (Car rapide)",
+        "description": "Car rapide reliant Sandaga à Ouest Foire via Grand Dakar, Grand Yoff, Zone de Captage",
+        "arrets": ["Sandaga", "Grand Dakar", "Grand Yoff", "Zone de Captage", "Ouest Foire"],
+    },
+    {
+        "numero_ligne": "CR-17", "nom_ligne": "Petersen - Cambérène (Car rapide)",
+        "description": "Car rapide reliant Petersen à Cambérène via Grand Yoff, Grand Médine, Parcelles Assainies",
+        "arrets": ["Petersen", "Grand Yoff", "Grand Médine", "Parcelles Assainies", "Cambérène"],
+    },
+    {
+        "numero_ligne": "CR-18", "nom_ligne": "Rufisque - Diamniadio (Car rapide)",
+        "description": "Car rapide reliant Rufisque à Diamniadio via Rufisque Est, Bargny",
+        "arrets": ["Rufisque", "Rufisque Est", "Bargny", "Diamniadio"],
+    },
+    {
+        "numero_ligne": "CR-19", "nom_ligne": "Guédiawaye - Keur Massar (Car rapide)",
+        "description": "Car rapide reliant Guédiawaye à Keur Massar via Wakhinane, Médina Gounass",
+        "arrets": ["Guédiawaye", "Wakhinane", "Médina Gounass", "Keur Massar"],
+    },
+    {
+        "numero_ligne": "CR-20", "nom_ligne": "Petersen - Mbao (Car rapide)",
+        "description": "Car rapide reliant Petersen à Mbao via Hann, Hann Bel-Air, Petit Mbao",
+        "arrets": ["Petersen", "Hann", "Hann Bel-Air", "Petit Mbao", "Mbao"],
+    },
+]
+
 
 def _enrichir_reseau_et_lexique(cursor):
     """Ajoute de nouveaux quartiers/sites, phrases wolof et lignes minibus
@@ -251,40 +403,53 @@ def _enrichir_reseau_et_lexique(cursor):
     ligne_transport = cursor.execute(
         "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
     ).fetchone()
+    ligne_transport_cr = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom = 'Car rapide'"
+    ).fetchone()
     if not ligne_transport:
         return
     id_transport_tata = ligne_transport[0]
+    id_transport_car_rapide = ligne_transport_cr[0] if ligne_transport_cr else None
 
-    for ligne in NOUVELLES_LIGNES_MINIBUS:
-        existe = cursor.execute(
-            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
-        ).fetchone()
-        if existe:
-            continue
+    # Regroupe les 3 vagues d'enrichissement (Tata historique + Tata
+    # densification + Car rapide) : chaque lot est associé à l'id_transport
+    # correspondant, avec est_minibus=1 dans tous les cas (réseau minibus
+    # au sens large = Tata + Car rapide, le duo le moins cher de Dakar).
+    lots = [(NOUVELLES_LIGNES_MINIBUS, id_transport_tata), (NOUVELLES_LIGNES_MINIBUS_2, id_transport_tata)]
+    if id_transport_car_rapide:
+        lots.append((NOUVELLES_LIGNES_CAR_RAPIDE, id_transport_car_rapide))
 
-        cursor.execute(
-            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
-            "VALUES (?, ?, ?, 1, ?)",
-            (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_tata, ligne["description"])
-        )
-        id_ligne = cursor.lastrowid
-
-        for ordre, nom_lieu in enumerate(ligne["arrets"], start=1):
-            lieu_row = cursor.execute(
-                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_lieu,)
+    for lignes, id_transport_lot in lots:
+        for ligne in lignes:
+            existe = cursor.execute(
+                "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
             ).fetchone()
-            if not lieu_row:
+            if existe:
                 continue
-            id_lieu, lat, lng = lieu_row
+
             cursor.execute(
-                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
-                (f"Arrêt {nom_lieu}", id_lieu, lat, lng)
+                "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+                "VALUES (?, ?, ?, 1, ?)",
+                (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_lot, ligne["description"])
             )
-            id_arret = cursor.lastrowid
-            cursor.execute(
-                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
-                (id_ligne, id_arret, ordre)
-            )
+            id_ligne = cursor.lastrowid
+
+            for ordre, nom_lieu in enumerate(ligne["arrets"], start=1):
+                lieu_row = cursor.execute(
+                    "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_lieu,)
+                ).fetchone()
+                if not lieu_row:
+                    continue
+                id_lieu, lat, lng = lieu_row
+                cursor.execute(
+                    "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                    (f"Arrêt {nom_lieu} ({ligne['numero_ligne']})", id_lieu, lat, lng)
+                )
+                id_arret = cursor.lastrowid
+                cursor.execute(
+                    "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                    (id_ligne, id_arret, ordre)
+                )
 
 
 def init_db(force=False):

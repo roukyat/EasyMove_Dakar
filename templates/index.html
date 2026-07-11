@@ -95,12 +95,10 @@
             <div class="grid-3">
                 {% for t in transports_apercu %}
                 <div class="transport-card">
+                    {{ vignette_transport(t) }}
                     <div class="tc-header">
-                        {{ vignette_transport(t) }}
-                        <div>
-                            <div class="tc-name">{{ t.nom }}</div>
-                            <div class="tc-desc">{{ t.description }}</div>
-                        </div>
+                        <div class="tc-name">{{ t.nom }}</div>
+                        <div class="tc-desc">{{ t.description }}</div>
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">

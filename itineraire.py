@@ -300,6 +300,17 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
     nom_transport = " + ".join(transports_utilises)
     numero_ligne = " puis ".join(dict.fromkeys(lignes_utilisees))
 
+    # Arrêt d'embarquement (départ de la 1ère ligne empruntée) : exposé pour
+    # permettre au front-end de géolocaliser l'utilisateur et d'afficher
+    # directement la distance/l'itinéraire piéton jusqu'à ce point de
+    # montée précis, sans repasser par une recherche d'arrêt générique.
+    embarquement_nom = embarquement_lat = embarquement_lng = None
+    if premiere_ligne_meta:
+        arret_embarquement = graphe.arrets[premiere_ligne_meta["depart"]]
+        embarquement_nom = arret_embarquement["nom"]
+        embarquement_lat = arret_embarquement["lat"]
+        embarquement_lng = arret_embarquement["lon"]
+
     return {
         "nom_transport": nom_transport,
         "image_url": premiere_ligne_meta["image_url"] if premiere_ligne_meta else "",
@@ -313,6 +324,9 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
         "etapes": " | ".join(etapes),
         "recommande": 0,
         "nb_correspondances": nb_correspondances,
+        "embarquement_nom": embarquement_nom,
+        "embarquement_lat": embarquement_lat,
+        "embarquement_lng": embarquement_lng,
     }
 
 
