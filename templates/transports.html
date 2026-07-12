@@ -8,9 +8,7 @@
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> > Transports</div>
             <h1>Les moyens de transport</h1>
-            <p>Tout ce qu'il faut savoir sur les différents
-                 transports disponibles à Dakar et au Sénégal.
-                </p>
+            <p>Taxi, clando, Tata, BRT, TER... chacun a ses forces. De quoi choisir le bon réflexe selon votre trajet.</p>
         </div>
     </div>
 
@@ -52,12 +50,9 @@
                                 </ul>
                             </div>
                         </div>
-                        <div style="margin-top:12px;">
+                        <div class="tc-badges">
                             <span class="badge badge-jaune">Confort : {{ t.niveau_confort }}</span>
-                            <span class="badge badge-vert" style="margin-left:6px;">{{ t.disponibilite }}</span>
-                            {% if t.capacite_max %}
-                            <span class="badge badge-bleu" style="margin-left:6px;"><i class="fa-solid fa-user-group" style="margin-right:4px;"></i>{{ t.capacite_max }} passager{{ 's' if t.capacite_max > 1 }} max</span>
-                            {% endif %}
+                            <span class="badge badge-vert">{{ t.disponibilite }}</span>
                         </div>
                     </div>
                 </div>
@@ -72,7 +67,7 @@
             <div class="section-header reveal">
                 <div class="eyebrow">Comparatif</div>
                 <h2>Quel transport choisir ?</h2>
-                <p>Comparaison générée depuis la base de données</p>
+                <p>Prix, confort et disponibilité, côte à côte, pour trancher en un coup d'œil.</p>
             </div>
 
             <div style="overflow-x: auto;">

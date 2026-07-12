@@ -98,6 +98,12 @@ def verifier_et_mettre_a_jour_schema():
     # valeur déjà personnalisée.
     _completer_images_transport_manquantes(cursor)
 
+    # Nettoyage éditorial de la page /conseils (retrait de conseils jugés
+    # redondants/anecdotiques) + correction du numéro national du SAMU
+    # (1515, et non 15 qui est le numéro français) : idempotent, sûr à
+    # rejouer sur une base déjà à jour.
+    _purger_conseils_obsoletes(cursor)
+
     conn.commit()
     conn.close()
 
@@ -189,6 +195,29 @@ def _migrer_taxi_et_clando(cursor):
         )
 
 
+CONSEILS_RETIRES = (
+    'Vêtements adaptés',
+    'Climatisation non garantie',
+    'Se protéger du soleil',
+    'Affluence pendant les vacances',
+    'Prévoir du temps en saison des pluies',
+)
+
+
+def _purger_conseils_obsoletes(cursor):
+    """Retire quelques conseils jugés redondants ou trop anecdotiques pour
+    alléger la page /conseils, et corrige le numéro national du SAMU
+    (1515 au Sénégal, à ne pas confondre avec le 15 français)."""
+    cursor.executemany(
+        "DELETE FROM conseils WHERE titre = ?",
+        [(titre,) for titre in CONSEILS_RETIRES]
+    )
+    cursor.execute(
+        "UPDATE infos_utiles SET valeur = '1515' "
+        "WHERE categorie = 'Urgence' AND libelle LIKE '%SAMU%' AND valeur != '1515'"
+    )
+
+
 def _reseeder_donnees_manquantes(cursor):
     """Réinsère les conseils / infos utiles si les tables correspondantes
     sont vides (base créée avant l'ajout de ces données)."""
@@ -197,18 +226,13 @@ def _reseeder_donnees_manquantes(cursor):
             "INSERT INTO conseils (categorie, titre, contenu, periode) VALUES (?, ?, ?, ?)",
             [
                 ('Avant de partir', 'Prévoir de la monnaie', "Ayez toujours des petites coupures : les chauffeurs n'ont pas toujours la monnaie sur un gros billet.", "Toute l'année"),
-                ('Avant de partir', 'Vêtements adaptés', 'Porter des vêtements légers mais couvrants, par respect culturel.', "Toute l'année"),
                 ('Dans le transport', 'Négocier avant de monter', 'Pour les taxis et les clandos, toujours fixer le prix avant de monter, jamais après.', "Toute l'année"),
                 ('Dans le transport', 'Vérifier la destination', 'Confirmer la destination avec le chauffeur avant de partir pour éviter tout malentendu.', "Toute l'année"),
-                ('Confort et bien-être', 'Climatisation non garantie', "La climatisation n'est pas garantie dans tous les taxis ni dans les cars rapides.", "Toute l'année"),
-                ('Confort et bien-être', 'Se protéger du soleil', "Utiliser un chapeau ou un parasol en cas de fort ensoleillement.", "Toute l'année"),
                 ('Argent et paiement', 'Montant fixe pour le DDD et le BRT', 'Le bus Dakar Dem Dikk et le BRT appliquent un tarif fixe, pas de négociation nécessaire.', "Toute l'année"),
                 ('Argent et paiement', "Éviter de montrer trop d'argent", 'Sortez uniquement la somme nécessaire au moment de payer.', "Toute l'année"),
-                ('Saisons et météo', 'Prévoir du temps en saison des pluies', 'Les jours de pluie (juillet à octobre), prévoyez le double du temps de trajet habituel.', 'Météo'),
                 ('Saisons et météo', 'Circulation dense le vendredi', 'La circulation peut être très dense le vendredi après-midi, lors du retour du travail et de la prière.', 'Heures de pointe'),
                 ('Saisons et météo', 'Éviter les heures de pointe', 'Les heures de pointe sont 7h-9h le matin et 17h-20h le soir : prévoir une marge.', 'Heures de pointe'),
                 ('Pour les femmes', 'Privilégier les transports connus', 'Privilégier le TER, le BRT ou le DDD en soirée plutôt que un taxi inconnu.', "Toute l'année"),
-                ('Périodes', 'Affluence pendant les vacances', 'Pendant les vacances scolaires et les grands événements religieux (Magal, Tabaski), les gares routières sont bondées : réserver ou partir tôt.', 'Vacances'),
             ]
         )
 
@@ -217,7 +241,7 @@ def _reseeder_donnees_manquantes(cursor):
             "INSERT INTO infos_utiles (categorie, libelle, valeur) VALUES (?, ?, ?)",
             [
                 ('Urgence', 'Police nationale', '17'),
-                ('Urgence', 'SAMU (urgences médicales)', '15'),
+                ('Urgence', 'SAMU (urgences médicales)', '1515'),
                 ('Urgence', 'Sapeurs-pompiers', '18'),
                 ('Urgence', 'Gendarmerie nationale', '800 00 20 20'),
                 ('À emporter', 'Objet recommandé', 'Petite monnaie en FCFA'),

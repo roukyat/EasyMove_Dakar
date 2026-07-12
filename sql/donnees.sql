@@ -108,13 +108,13 @@ INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES
 -- MOYENS_TRANSPORT
 -- ---------------------------------------------------------------------
 INSERT INTO moyens_transport (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients, capacite_max) VALUES
-('Taxi', '/static/img/taxi.jpg', 'Taxi officiel de Dakar : véhicule réglementé et identifiable (jaune et noir), course individuelle ou en petit groupe, prix à négocier avant de monter', 1000, 3500, 'Moyen', '24h/24', 'Rapide, disponible partout, trajet direct porte-à-porte, véhicule identifiable et réglementé', 'Prix à négocier, confort variable, pas de compteur systématique', 4),
+('Taxi', '/static/img/taxi.jpg', 'Taxi officiel de Dakar : véhicule réglementé et identifiable (jaune et noir), course individuelle ou en petit groupe, prix à négocier avant de monter', 1000, 4000, 'Moyen', '24h/24', 'Rapide, disponible partout, trajet direct porte-à-porte, véhicule identifiable et réglementé', 'Prix à négocier, confort variable, pas de compteur systématique', 4),
 ('Clando', '/static/img/clando.jpg', 'Taxi clandestin : voiture particulière (souvent une berline sans signe distinctif officiel) faisant du transport collectif informel le long des grands axes et dans les quartiers périphériques, contre paiement partagé entre passagers', 100, 500, 'Faible', '24h/24', 'Très économique car partagé, dense dans les quartiers périphériques, facile à héler aux points de rassemblement informels', 'Aucun signe distinctif officiel, prix variable selon le trajet et les pratiques locales, confort limité, pas toujours sécurisant', 6),
 ('Dakar Dem Dikk', '/static/img/DDD.jpg', 'Bus officiel de la ville de Dakar (DDD), lignes numérotées et tarif fixe — opérateur public, distinct du réseau Tata/AFTU', 150, 300, 'Moyen', '6h - 22h', 'Prix fixe et abordable, réseau étendu', 'Peut être bondé aux heures de pointe, moins flexible', 80),
-('Car rapide', '/static/img/Car_rapide.jpg', 'Minibus artisanal coloré, emblème populaire du transport à Dakar', 100, 200, 'Faible', 'Selon affluence', 'Très bon marché, expérience authentique', 'Confort limité, pas d''horaires fixes', 20),
-('Minibus Tata (AFTU)', '/static/img/mini_bus.jpg', 'Réseau de minibus numérotés géré par l''AFTU, dessert la quasi-totalité des communes de Dakar (une soixantaine de lignes)', 100, 500, 'Faible', 'Tôt le matin - tard le soir, selon affluence', 'Très bon marché, réseau très dense, dessert presque tous les quartiers', 'Bondé aux heures de pointe, pas d''horaires fixes, numéros parfois difficiles à repérer', 35),
-('Jakarta (moto-taxi)', '/static/img/moto.jpg', 'Moto-taxi rapide pour se faufiler dans les embouteillages', 300, 1500, 'Faible', '24h/24', 'Très rapide en cas d''embouteillages, économique', 'Moins sécurisant, casque pas toujours fourni', 1),
-('TER', '/static/img/TER.jpg', 'Train Express Régional reliant Dakar à Diamniadio et à l''aéroport AIBD (extension vers Thiès prévue pour 2027-2028)', 500, 2500, 'Élevé', '5h30 - 22h30', 'Rapide, climatisé, ponctuel, prix fixe', 'Dessert un nombre limité de gares', 300),
+('Car rapide', '/static/img/Car_rapide.jpg', 'Minibus artisanal coloré, emblème populaire du transport à Dakar', 100, 300, 'Faible', 'Selon affluence', 'Très bon marché, expérience authentique', 'Confort limité, pas d''horaires fixes', 20),
+('Minibus Tata (AFTU)', '/static/img/mini_bus.jpg', 'Réseau de minibus numérotés géré par l''AFTU, dessert la quasi-totalité des communes de Dakar (une soixantaine de lignes)', 150, 500, 'Faible', 'Tôt le matin - tard le soir, selon affluence', 'Très bon marché, réseau très dense, dessert presque tous les quartiers', 'Bondé aux heures de pointe, pas d''horaires fixes, numéros parfois difficiles à repérer', 35),
+('Jakarta (moto-taxi)', '/static/img/moto.jpg', 'Moto-taxi rapide pour se faufiler dans les embouteillages', 1000, 5000, 'Faible', '24h/24', 'Très rapide en cas d''embouteillages, économique', 'Moins sécurisant, casque pas toujours fourni', 1),
+('TER', '/static/img/TER.jpg', 'Train Express Régional reliant Dakar à Diamniadio et à l''aéroport AIBD (extension vers Thiès prévue pour 2027-2028)', 1000, 2500, 'Élevé', '5h30 - 22h30', 'Rapide, climatisé, ponctuel, prix fixe', 'Dessert un nombre limité de gares', 300),
 ('BRT (Bus Rapid Transit)', '/static/img/BRT.jpg', 'Bus électrique à haut niveau de service en site propre, reliant Petersen à la préfecture de Guédiawaye (lignes B1 et B2), mis en service en 2024', 400, 500, 'Élevé', '6h - 21h (7j/7)', 'Ponctuel, climatisé, fréquence de 6 minutes, embarquement au niveau du quai', 'Couvre pour l''instant un seul axe (Petersen - Guédiawaye)', 150);
 
 -- ---------------------------------------------------------------------
@@ -677,25 +677,20 @@ INSERT INTO phrases_wolof (wolof, francais, phonetique, situation) VALUES
 -- ---------------------------------------------------------------------
 INSERT INTO conseils (categorie, titre, contenu, periode) VALUES
 ('Avant de partir',     'Prévoir de la monnaie',            'Ayez toujours des petites coupures : les chauffeurs n''ont pas toujours la monnaie sur un gros billet.', 'Toute l''année'),
-('Avant de partir',     'Vêtements adaptés',                'Porter des vêtements légers mais couvrants, par respect culturel.', 'Toute l''année'),
 ('Dans le transport',   'Négocier avant de monter',         'Pour les taxis et les clandos, toujours fixer le prix avant de monter, jamais après.', 'Toute l''année'),
 ('Dans le transport',   'Vérifier la destination',          'Confirmer la destination avec le chauffeur avant de partir pour éviter tout malentendu.', 'Toute l''année'),
-('Confort et bien-être','Climatisation non garantie',       'La climatisation n''est pas garantie dans tous les taxis ni dans les cars rapides.', 'Toute l''année'),
-('Confort et bien-être','Se protéger du soleil',            'Utiliser un chapeau ou un parasol en cas de fort ensoleillement.', 'Toute l''année'),
 ('Argent et paiement',  'Montant fixe pour le DDD et le BRT', 'Le bus Dakar Dem Dikk et le BRT appliquent un tarif fixe, pas de négociation nécessaire.', 'Toute l''année'),
 ('Argent et paiement',  'Éviter de montrer trop d''argent',  'Sortez uniquement la somme nécessaire au moment de payer.', 'Toute l''année'),
-('Saisons et météo',    'Prévoir du temps en saison des pluies', 'Les jours de pluie (juillet à octobre), prévoyez le double du temps de trajet habituel.', 'Météo'),
 ('Saisons et météo',    'Circulation dense le vendredi',    'La circulation peut être très dense le vendredi après-midi, lors du retour du travail et de la prière.', 'Heures de pointe'),
 ('Saisons et météo',    'Éviter les heures de pointe',      'Les heures de pointe sont 7h-9h le matin et 17h-20h le soir : prévoir une marge.', 'Heures de pointe'),
-('Pour les femmes',     'Privilégier les transports connus', 'Privilégier le TER, le BRT ou le DDD en soirée plutôt qu''un taxi inconnu.', 'Toute l''année'),
-('Périodes',            'Affluence pendant les vacances',    'Pendant les vacances scolaires et les grands événements religieux (Magal, Tabaski), les gares routières sont bondées : réserver ou partir tôt.', 'Vacances');
+('Pour les femmes',     'Privilégier les transports connus', 'Privilégier le TER, le BRT ou le DDD en soirée plutôt qu''un taxi inconnu.', 'Toute l''année');
 
 -- ---------------------------------------------------------------------
 -- INFOS UTILES 
 -- ---------------------------------------------------------------------
 INSERT INTO infos_utiles (categorie, libelle, valeur) VALUES
 ('Urgence', 'Police nationale',       '17'),
-('Urgence', 'SAMU (urgences médicales)', '15'),
+('Urgence', 'SAMU (urgences médicales)', '1515'),
 ('Urgence', 'Sapeurs-pompiers',       '18'),
 ('Urgence', 'Gendarmerie nationale',  '800 00 20 20'),
 ('À emporter', 'Objet recommandé',    'Petite monnaie en FCFA'),

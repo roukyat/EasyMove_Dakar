@@ -69,6 +69,27 @@ def _arrondi_prix(x, base=50):
     return int(round(x / base) * base)
 
 
+# Car rapide / Minibus Tata (AFTU) : les tarifs enregistrés dans
+# moyens_transport (cout_min/cout_max) correspondent à un tronçon court
+# (~3 km, le cas le plus fréquent du réseau). Sans ajustement, un trajet
+# direct de 15-20 km sur une seule ligne affichait exactement le même prix
+# qu'un saut de 2 arrêts, ce qui ne reflète pas la réalité (le tarif réel
+# augmente avec la distance parcourue, dans la limite d'un plafond réaliste
+# pour ce type de transport artisanal/informel).
+MINIBUS_REF_KM = 3.0
+MINIBUS_RATE_MIN_PAR_KM = 12
+MINIBUS_RATE_MAX_PAR_KM = 22
+MINIBUS_PLAFOND_MIN = 450
+MINIBUS_PLAFOND_MAX = 700
+
+
+def _tarif_echelle_minibus(cout_min, cout_max, distance_km):
+    supplement_km = max(0.0, distance_km - MINIBUS_REF_KM)
+    tarif_min = min(MINIBUS_PLAFOND_MIN, _arrondi_prix(cout_min + supplement_km * MINIBUS_RATE_MIN_PAR_KM))
+    tarif_max = min(MINIBUS_PLAFOND_MAX, _arrondi_prix(cout_max + supplement_km * MINIBUS_RATE_MAX_PAR_KM))
+    return max(tarif_min, cout_min), max(tarif_max, cout_max)
+
+
 # =====================================================================
 # Construction du graphe
 # =====================================================================
@@ -253,7 +274,7 @@ def _grouper_en_etapes(graphe, chemin):
                     "numero_ligne": meta["numero_ligne"], "nom_ligne": meta["nom_ligne"],
                     "id_transport": meta["id_transport"], "nom_transport": meta["nom_transport"],
                     "image_url": meta["image_url"], "cout_min": meta["cout_min"], "cout_max": meta["cout_max"],
-                    "capacite_max": meta["capacite_max"],
+                    "capacite_max": meta["capacite_max"], "est_minibus": bool(meta.get("est_minibus")),
                     "depart": a1, "arrivee": a2,
                     "distance_km": meta["distance_km"],
                     "duree_min": (meta["distance_km"] / VITESSE_BUS_KMH) * 60 + TEMPS_ARRET_MIN,
@@ -310,8 +331,12 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
                 f"{verbe} la {leg['numero_ligne']} ({leg['nom_transport']}) à « {arret_dep} » "
                 f"et descendre à « {arret_arr} »"
             )
-            prix_min += leg["cout_min"]
-            prix_max += leg["cout_max"]
+            if leg.get("est_minibus"):
+                leg_cout_min, leg_cout_max = _tarif_echelle_minibus(leg["cout_min"], leg["cout_max"], leg["distance_km"])
+            else:
+                leg_cout_min, leg_cout_max = leg["cout_min"], leg["cout_max"]
+            prix_min += leg_cout_min
+            prix_max += leg_cout_max
             duree_min += leg["duree_min"] * 0.85
             duree_max += leg["duree_min"] * 1.35
             if i > 0 and legs[i - 1]["type"] == "ligne":

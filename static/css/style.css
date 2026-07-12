@@ -273,7 +273,14 @@ h1, h2, h3, h4 {
 }
 
 .hero p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 32px; max-width: 520px; }
-.hero-btns { display: flex; gap: 14px; }
+.hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* Bandeau de confiance sous les CTA du hero (accueil) : quelques chiffres
+   concrets pour rassurer dès la première impression, sans attendre la
+   section "chiffres clés" plus bas dans la page. */
+.hero-trust { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 28px; }
+.hero-trust span { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+.hero-trust i { color: var(--accent-cyan); }
 
 /* Boutons */
 .btn-primary, .btn-secondary {
@@ -324,6 +331,37 @@ h1, h2, h3, h4 {
 .hcm-icon { color: var(--accent-cyan); font-size: 1.2rem; }
 .hcm-title { font-size: 0.95rem; margin-top: 8px; font-weight: 600; }
 .hcm-sub { color: var(--text-muted); font-size: 0.8rem; margin-top: 2px; }
+
+/* Hero accueil : vraie mini-carte Leaflet (memes tuiles CartoDB Voyager
+   que /minibus), avec le formulaire de recherche accroché en bas —
+   pas une maquette, pas un bloc décoratif isolé du reste du site. Le
+   badge flottant est placé sur un wrapper SANS overflow:hidden pour ne
+   pas être rogné par les coins arrondis de la carte. */
+.hero-map-outer { position: relative; }
+.hero-map-card {
+    background: var(--fond-carte);
+    border: 1px solid var(--border-color);
+    border-radius: calc(var(--radius) + 6px);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.hero-map { width: 100%; height: 260px; background: #F4F4F6; }
+.hero-map-search {
+    padding: 22px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+}
+.hero-map-search .route-picker-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+.hero-map-search .route-picker-grid button[type="submit"] {
+    grid-column: 1 / -1;
+    justify-content: center;
+}
+@media (max-width: 768px) {
+    .hero-map { height: 200px; }
+}
+@media (max-width: 480px) {
+    .hero-map-search .route-picker-grid { grid-template-columns: 1fr; }
+}
 
 /* Sections standards */
 .section, .page-content { padding: 80px 0; max-width: 1200px; margin: 0 auto; }
@@ -670,8 +708,12 @@ h1, h2, h3, h4 {
     transform: scale(1) translateY(0);
 }
 .tc-name, .card-details-static h3 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
-.tc-body { padding: 20px 24px 24px; }
+.tc-body { padding: 20px 24px 24px; display: flex; flex-direction: column; flex: 1; }
 .tc-desc, .card-details-static .desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; min-height: 40px; }
+/* Pousse systématiquement les badges (confort/disponibilité) en bas de la
+   carte, quelle que soit la longueur des listes avantages/inconvénients
+   au-dessus : les cartes d'une même rangée restent visuellement alignées. */
+.tc-badges { margin-top: auto; padding-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
 
 .tc-prix {
     display: flex; align-items: center; justify-content: space-between;
@@ -804,25 +846,60 @@ details[open] summary::after { transform: rotate(180deg); color: var(--accent-cy
 /* Lexique Wolof & Urgence */
 .wolof-phrase { color: var(--text-main); font-weight: 600; font-size: 0.95rem; }
 .wolof-pronon { color: var(--accent-cyan); font-size: 0.75rem; display: block; margin-top: 2px; font-style: italic; }
-.urgence-card { background: var(--fond-carte); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 24px; text-align: center; box-shadow: var(--shadow); }
+.urgence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.urgence-card { background: var(--fond-carte); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 26px 20px; text-align: center; box-shadow: var(--shadow); transition: var(--transition); }
+.urgence-card:hover { border-color: var(--accent-rouge); transform: translateY(-3px); }
+.urgence-card-icon {
+    width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem; color: var(--accent-rouge);
+}
 .urgence-card .num { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--accent-rouge); margin-top: 4px; }
+.urgence-card .label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
 
 /* ==========================================================================
    FOOTER STRUCTURES
    ========================================================================== */
-footer { 
-    background: var(--bg-secondary); 
-    padding: 60px 0 30px; 
-    border-top: 1px solid var(--border-color); 
-    color: var(--text-muted); 
-    font-size: 0.85rem; 
+footer {
+    position: relative;
+    background: var(--bg-secondary);
+    padding: 64px 0 28px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    overflow: hidden;
 }
-.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 48px; }
-.footer-brand p { font-size: 0.8rem; margin-top: 12px; line-height: 1.5; }
-.footer-col h4 { font-size: 0.75rem; text-transform: uppercase; color: var(--text-main); margin-bottom: 14px; letter-spacing: 0.05em; }
-.footer-col a { display: block; font-size: 0.8rem; margin-bottom: 6px; color: var(--text-muted); }
-.footer-col a:hover { color: var(--text-main); }
-.footer-bottom { border-top: 1px solid var(--border-color); padding-top: 20px; text-align: center; font-size: 0.75rem; }
+/* Fine ligne d'accent en dégradé, cohérente avec les autres blocs de marque
+   (logo, boutons primaires) plutôt qu'une simple bordure plate. */
+footer::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-bleu), var(--accent-cyan), transparent);
+}
+.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 44px; }
+.footer-brand p { font-size: 0.85rem; margin-top: 14px; line-height: 1.6; max-width: 320px; }
+.footer-col h4 { font-size: 0.72rem; text-transform: uppercase; color: var(--text-main); margin-bottom: 16px; letter-spacing: 0.08em; }
+.footer-col a { display: block; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-muted); }
+.footer-col a:hover { color: var(--accent-cyan); }
+.footer-bottom {
+    border-top: 1px solid var(--border-color);
+    padding-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.78rem;
+}
+.footer-bottom-links { display: flex; gap: 18px; }
+.footer-bottom-links a { color: var(--text-muted); }
+.footer-bottom-links a:hover { color: var(--accent-cyan); }
+@media (max-width: 640px) {
+    .footer-bottom { flex-direction: column; text-align: center; justify-content: center; }
+}
 
 /* ==========================================================================
    PAGE A PROPOS — Experience premium (hero, storytelling, preuve sociale)
@@ -971,6 +1048,18 @@ a.feature-card { color: inherit; }
 .feature-card h3 { font-size: 1.05rem; margin-bottom: 8px; }
 .feature-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.55; margin: 0; }
 
+/* --- Bandeau CTA final (accueil) --- */
+.cta-banner {
+    background: linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan));
+    border-radius: calc(var(--radius) + 8px);
+    padding: 56px 40px;
+    text-align: center;
+}
+.cta-banner h2 { color: #fff; margin-bottom: 12px; font-size: clamp(1.6rem, 3vw, 2.1rem); }
+.cta-banner p { color: rgba(255, 255, 255, 0.9); max-width: 520px; margin: 0 auto 28px; font-size: 1rem; }
+.cta-banner .btn-primary { background: #fff; color: var(--accent-bleu); }
+.cta-banner .btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
+
 /* --- Chiffres --- */
 .stats-band {
     background:
@@ -1086,41 +1175,8 @@ a.feature-card { color: inherit; }
 }
 
 /* ==========================================================================
-   TRAJETS — cartes de trajets prédéfinis (page /trajets)
+   TRAJETS — favoris (page /trajets) + bouton "enregistrer" (résultat)
    ========================================================================== */
-.trajet-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 24px;
-    transition: var(--transition);
-    position: relative;
-    overflow: hidden;
-}
-.trajet-card:hover { border-color: var(--border-active); transform: translateY(-2px); }
-
-.trajet-route { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.trajet-point { font-weight: 700; font-size: 1rem; color: var(--text-main); white-space: nowrap; }
-.trajet-arrow {
-    flex: 1;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent-cyan), rgba(255,255,255,0.05));
-    position: relative;
-}
-.trajet-arrow::after {
-    content: '\f061';
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    position: absolute;
-    right: -2px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-cyan);
-    font-size: 0.7rem;
-}
-
-.trajet-etapes { border-top: 1px solid var(--border-color); padding-top: 14px; }
-.trajet-etapes .etape { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
 .etape-num {
     width: 36px; height: 36px;
     border-radius: 50%;
@@ -1131,6 +1187,64 @@ a.feature-card { color: inherit; }
     flex-shrink: 0;
     overflow: hidden;
 }
+
+/* Etat vide : aucun favori enregistré pour l'instant */
+.favoris-empty {
+    display: flex; align-items: center; gap: 20px;
+    background: var(--bg-secondary); border: 1px dashed var(--border-color);
+    border-radius: var(--radius); padding: 28px;
+}
+.favoris-empty-icon {
+    width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+    background: rgba(245, 166, 35, 0.1); color: var(--accent-jaune);
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+}
+.favoris-empty-titre { font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 4px; }
+.favoris-empty p { color: var(--text-muted); font-size: 0.88rem; margin: 0; max-width: 520px; }
+
+/* Grille de favoris enregistrés */
+.favoris-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.favori-card {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 6px 6px 6px 4px;
+    transition: var(--transition);
+}
+.favori-card:hover { border-color: var(--accent-jaune); transform: translateY(-2px); }
+.favori-card-link {
+    display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 8px;
+}
+.favori-card-icon {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(245, 166, 35, 0.12); color: var(--accent-jaune);
+    display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.favori-card-route {
+    font-size: 0.88rem; font-weight: 500; color: var(--text-main);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+}
+.favori-card-route i { font-size: 0.7rem; color: var(--text-muted); flex-shrink: 0; }
+.favori-remove {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+    border: none; background: transparent; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: var(--transition);
+}
+.favori-remove:hover { background: rgba(239, 68, 68, 0.1); color: var(--accent-rouge); }
+
+/* Bouton "Enregistrer ce trajet" sur la page de résultat de recherche */
+.btn-favori-resultat {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 20px; border-radius: var(--radius);
+    border: 1px solid var(--border-color); background: var(--bg-secondary);
+    color: var(--text-main); font-weight: 600; font-size: 0.88rem;
+    cursor: pointer; transition: var(--transition); white-space: nowrap;
+}
+.btn-favori-resultat i { color: var(--accent-jaune); }
+.btn-favori-resultat:hover { border-color: var(--accent-jaune); }
+.btn-favori-resultat.active { background: rgba(245, 166, 35, 0.1); border-color: var(--accent-jaune); }
+.btn-favori-resultat:disabled { opacity: 0.7; cursor: wait; }
 
 /* ==========================================================================
    CONSEILS — mise en page compacte avec filtres par catégorie
@@ -1160,45 +1274,37 @@ a.feature-card { color: inherit; }
 
 .conseils-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
 }
 
 .conseil-card {
     border-radius: var(--radius);
     border: 1px solid var(--border-color);
     background: var(--bg-secondary);
-    overflow: hidden;
+    padding: 22px;
     transition: var(--transition);
-}
-.conseil-card:hover { border-color: var(--border-active); transform: translateY(-2px); }
-
-.conseil-card-visuel {
-    height: 56px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-    color: #fff;
+    flex-direction: column;
+}
+.conseil-card:hover { border-color: var(--accent-cyan); transform: translateY(-3px); box-shadow: var(--shadow); }
+
+.conseil-card-icon {
+    width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1rem; margin-bottom: 16px;
 }
 
-.conseil-card-body { padding: 14px 16px 16px; }
-.conseil-card-body .cc-titre {
-    font-weight: 700;
-    font-size: 0.9rem;
-    margin-bottom: 6px;
-    color: var(--text-main);
-}
+.conseil-card-body { display: flex; flex-direction: column; gap: 2px; }
+.cc-categorie { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-cyan); font-weight: 700; }
+.conseil-card-body .cc-titre { font-weight: 700; font-size: 0.98rem; color: var(--text-main); margin: 3px 0 6px; }
 .conseil-card-body .cc-texte {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.55;
 }
-.conseil-card-body .badge { margin-top: 10px; font-size: 0.6rem; }
+.conseil-card-body .badge { margin-top: 12px; align-self: flex-start; }
 
 /* ==========================================================================
    MINIBUS — explorateur (panneau lignes/arrets + carte), page /minibus
@@ -1226,6 +1332,17 @@ a.feature-card { color: inherit; }
 }
 .historique-main { display: flex; align-items: flex-start; gap: 20px; min-width: 0; }
 .historique-main > div:last-child { min-width: 0; }
+
+/* Carte générique utilisée sur /historique (et réutilisable ailleurs) :
+   n'était pas stylée auparavant, ce qui laissait ces blocs sans fond ni
+   bordure (rendu "brut", incohérent avec le reste du site). */
+.bento-card {
+    background: var(--fond-carte);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+.bento-card.historique-item:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
 
 /* ==========================================================================
    RESPONSIVE

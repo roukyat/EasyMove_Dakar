@@ -64,7 +64,7 @@ def accueil():
     # Prise en compte du nom réel de votre index ('index.html' ou 'accueil.html')
     return render_template(
         "index.html",
-        transports_apercu=transports[:3],
+        transports_apercu=transports,
         phrases_apercu=phrases[:3],
         lieux=lieux,
         historique_apercu=historique,
@@ -86,7 +86,6 @@ def transports():
 def trajets():
     return render_template(
         "trajets.html",
-        trajets=database.get_tous_les_trajets(),
         lieux=database.get_tous_les_lieux(),
         favoris=database.get_tous_les_favoris(),
         active_page="trajets",
@@ -107,6 +106,8 @@ def resultat_trajet():
         if data and data["trouve"]:
             t = data["trajet"]
             resultat = {
+                "id_lieu_depart": t["id_lieu_depart"],
+                "id_lieu_arrivee": t["id_lieu_arrivee"],
                 "depart_nom": t["nom_depart"],
                 "depart_lat": t["lat_depart"],
                 "depart_lng": t["lng_depart"],
@@ -116,6 +117,7 @@ def resultat_trajet():
                 "distance_km": t["distance_km"],
                 "niveau_difficulte": t["niveau_difficulte"],
                 "options": data["options"],
+                "est_favori": database.favori_existe(t["id_lieu_depart"], t["id_lieu_arrivee"]),
             }
 
     return render_template(
@@ -182,7 +184,6 @@ def conseils():
         "conseils.html",
         conseils_par_categorie=grouper_par(tous_conseils, "categorie"),
         infos_urgence=[dict(i) for i in infos if i["categorie"] == "Urgence"],
-        infos_emporter=[dict(i) for i in infos if i["categorie"] == "À emporter"],
         active_page="conseils",
     )
 

@@ -9,15 +9,15 @@
                 <a href="{{ url_for('accueil') }}">Accueil</a> <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Trajets
             </div>
             <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Calculateur d'itinéraires</h1>
-            <p style="color: var(--text-muted); max-width: 600px;">Planifiez vos déplacements entre les nœuds névralgiques de Dakar et comparez en temps réel les alternatives de transport.</p>
+            <p style="color: var(--text-muted); max-width: 600px;">Deux points sur la carte, toutes les options de transport entre les deux — prix, durée et correspondances comparés en un instant.</p>
         </div>
     </div>
 
     <section class="section search-section">
         <div class="container">
-            <h2 style="margin-bottom: 8px; font-size: 1.6rem;">Trouver une ligne ou un trajet</h2>
-            <p style="color: var(--text-muted); margin-bottom: 24px;">Sélectionnez vos points de repère pour générer votre tracé cartographique :</p>
-            
+            <h2 style="margin-bottom: 8px; font-size: 1.6rem;">Où allez-vous ?</h2>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Choisissez un départ et une arrivée pour lancer la recherche :</p>
+
             <form action="{{ url_for('resultat_trajet') }}" method="GET" class="search-form">
                 <div id="donnees-lieux-data" style="display:none;">
                     {% for lieu in lieux %}
@@ -52,28 +52,36 @@
         </div>
     </section>
 
-    <section class="section" style="padding-top: 0;">
+    <section class="section">
         <div class="container">
             <div class="section-header reveal" style="margin-bottom: 20px;">
                 <div class="eyebrow">Vos raccourcis</div>
                 <h2 style="display:flex; align-items:center; gap:10px;">
                     <i class="fa-solid fa-star" style="color: var(--accent-jaune); font-size: 1.2rem;"></i>
-                    Mes trajets favoris
+                    Trajets favoris
                 </h2>
+                <p>Retrouvez ici les trajets que vous enregistrez depuis une page de résultat.</p>
             </div>
 
             {% if favoris|length == 0 %}
-            <div class="bento-card" style="padding: 24px; color: var(--text-muted); font-size: 0.9rem;">
-                <i class="fa-regular fa-star" style="margin-right: 8px;"></i>
-                Vous n'avez pas encore de trajet favori. Cliquez sur l'étoile d'un trajet ci-dessous pour l'enregistrer ici.
+            <div class="favoris-empty reveal">
+                <div class="favoris-empty-icon"><i class="fa-regular fa-star"></i></div>
+                <div>
+                    <div class="favoris-empty-titre">Aucun trajet favori pour l'instant</div>
+                    <p>Lancez une recherche ci-dessus, puis cliquez sur l'étoile affichée avec le résultat pour le retrouver ici la prochaine fois.</p>
+                </div>
             </div>
             {% else %}
-            <div id="listeFavoris" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px;">
+            <div class="favoris-grid" id="listeFavoris">
                 {% for f in favoris %}
-                <div class="favori-item" data-id-favori="{{ f.id_favori }}">
-                    <a href="{{ url_for('resultat_trajet', depart=f.id_lieu_depart, arrivee=f.id_lieu_arrivee) }}" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-                        <i class="fa-solid fa-star" style="color: var(--accent-jaune); flex-shrink:0;"></i>
-                        <span style="font-size:0.88rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ f.nom_depart }} <i class="fa-solid fa-arrow-right" style="font-size:0.7rem; margin:0 4px; color:var(--text-muted);"></i> {{ f.nom_arrivee }}</span>
+                <div class="favori-card reveal" data-id-favori="{{ f.id_favori }}">
+                    <a href="{{ url_for('resultat_trajet', depart=f.id_lieu_depart, arrivee=f.id_lieu_arrivee) }}" class="favori-card-link">
+                        <div class="favori-card-icon"><i class="fa-solid fa-star"></i></div>
+                        <div class="favori-card-route">
+                            <span>{{ f.nom_depart }}</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                            <span>{{ f.nom_arrivee }}</span>
+                        </div>
                     </a>
                     <button class="favori-remove" data-id-favori="{{ f.id_favori }}" title="Retirer des favoris">
                         <i class="fa-solid fa-trash-can"></i>
@@ -85,180 +93,18 @@
         </div>
     </section>
 
-    <section style="padding: 40px 0 0;">
-        <div class="container">
-            <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 24px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="badge badge-vert">Facile</span>
-                    <span style="font-size: 0.85rem; color: var(--text-muted)">Lignes directes, idéal pour les nouveaux arrivants</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="badge badge-jaune">Moyen</span>
-                    <span style="font-size: 0.85rem; color: var(--text-muted)">Nécessite un changement ou une tarification à la volée</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="badge badge-rouge">Complexe</span>
-                    <span style="font-size: 0.85rem; color: var(--text-muted)">Négociation requise ou réseau informel dense</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="container">
-            <div class="section-header reveal">
-                <div class="eyebrow">Réseau Métropolitain</div>
-                <h2>Trajets enregistrés en base</h2>
-                <p>{{ trajets|length }} liaisons stratégiques configurées avec options multimodales.</p>
-            </div>
-
-            <div class="grid-2">
-                {% for item in trajets %}
-                {% set t = item.trajet %}
-                <div class="trajet-card reveal">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <div>
-                            {% if t.niveau_difficulte == 'Facile' %}
-                            <span class="badge badge-vert">Facile</span>
-                            {% elif t.niveau_difficulte == 'Moyen' %}
-                            <span class="badge badge-jaune">Moyen</span>
-                            {% else %}
-                            <span class="badge badge-rouge">Complexe</span>
-                            {% endif %}
-                        </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button class="btn-favori" 
-                                    data-id-depart="{{ t.id_lieu_depart }}" 
-                                    data-id-arrivee="{{ t.id_lieu_arrivee }}" 
-                                    data-nom-trajet="{{ t.nom_depart }} - {{ t.nom_arrivee }}"
-                                    title="Ajouter aux favoris">
-                                <i class="fa-regular fa-star"></i>
-                            </button>
-                            <a href="{{ url_for('resultat_trajet', depart=t.id_lieu_depart, arrivee=t.id_lieu_arrivee) }}" class="badge badge-vert" style="padding: 6px 12px;">
-                                <i class="fa-solid fa-map-location-dot" style="margin-right: 4px;"></i> Cartographie
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="trajet-route">
-                        <div class="trajet-point">{{ t.nom_depart }}</div>
-                        <div class="trajet-arrow"></div>
-                        <div class="trajet-point">{{ t.nom_arrivee }}</div>
-                    </div>
-
-                    <div class="trajet-meta" style="margin-bottom: 16px;">
-                        {% set best = item.options[0] %}
-                        {% if best %}
-                        <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 16px;">
-                            <i class="fa-regular fa-clock"></i> {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min
-                        </span>
-                        <span style="display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-coins"></i> {% if best.prix_libre %}Fixé avec le chauffeur{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}
-                        </span>
-                        {% endif %}
-                    </div>
-
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">{{ t.description }}</p>
-                    
-                    <div class="trajet-etapes">
-                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
-                            Modes de transport disponibles ({{ item.options|length }})
-                        </div>
-                        {% for opt in item.options %}
-                        <div class="etape">
-                            {% if opt.image_url %}
-                            <div class="etape-num tc-icon-img" title="Voir en grand">
-                                <img src="{{ opt.image_url }}" alt="{{ opt.nom_transport }}" loading="lazy">
-                                <img class="tc-zoom-overlay" src="{{ opt.image_url }}" alt="{{ opt.nom_transport }} — aperçu agrandi" loading="lazy">
-                            </div>
-                            {% else %}
-                            <div class="etape-num">
-                                <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Clando' in opt.nom_transport %}fa-car-side{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% elif 'Jakarta' in opt.nom_transport %}fa-motorcycle{% else %}fa-route{% endif %}"></i>
-                            </div>
-                            {% endif %}
-                            <div style="flex: 1;">
-                                <span style="color: #FFF; font-weight: 500;">{{ opt.nom_transport }}{% if opt.numero_ligne %} (Ligne {{ opt.numero_ligne }}){% endif %}</span>
-                                <span style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-                                    {% if opt.prix_libre %}Prix fixé avec le chauffeur{% else %}{{ opt.prix_min }}-{{ opt.prix_max }} FCFA{% endif %} <bull style="margin: 0 4px;">•</bull> {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
-                                </span>
-                            </div>
-                            {% if opt.recommande %}
-                            <span class="badge badge-vert" style="align-self: center; font-size: 0.65rem;">Optimal</span>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 // ---------------------------------------------------------------------
-// 1. Ajout aux favoris (avec retour visuel + toast)
-// ---------------------------------------------------------------------
-document.querySelectorAll('.btn-favori').forEach(button => {
-    button.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (button.disabled) return;
-
-        const icon = this.querySelector('i');
-        button.disabled = true;
-        button.classList.add('loading');
-        icon.className = 'fa-solid fa-circle-notch';
-
-        const payload = {
-            nom_trajet: this.getAttribute('data-nom-trajet'),
-            id_depart: parseInt(this.getAttribute('data-id-depart')),
-            id_arrivee: parseInt(this.getAttribute('data-id-arrivee'))
-        };
-
-        fetch('/api/favoris', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then(data => {
-            button.classList.remove('loading');
-            if (data.statut === 'success') {
-                this.classList.add('active');
-                icon.className = 'fa-solid fa-star';
-                showToast(`"${payload.nom_trajet}" ajouté aux favoris.`, 'success');
-                setTimeout(() => location.reload(), 900); // rafraîchit la liste "Mes favoris"
-            } else if (data.statut === 'existe_deja') {
-                this.classList.add('active');
-                icon.className = 'fa-solid fa-star';
-                button.disabled = true;
-                showToast(data.message, 'info');
-            } else {
-                button.disabled = false;
-                icon.className = 'fa-regular fa-star';
-                showToast(data.erreur || "Erreur lors de l'ajout aux favoris", 'error');
-            }
-        })
-        .catch(err => {
-            button.disabled = false;
-            button.classList.remove('loading');
-            icon.className = 'fa-regular fa-star';
-            showToast("Impossible de contacter le serveur.", 'error');
-            console.error("Erreur Favoris:", err);
-        });
-    });
-});
-
-// ---------------------------------------------------------------------
-// 2. Suppression d'un favori
+// Suppression d'un favori
 // ---------------------------------------------------------------------
 document.querySelectorAll('.favori-remove').forEach(button => {
     button.addEventListener('click', function(e) {
         e.preventDefault();
         const idFavori = this.getAttribute('data-id-favori');
-        const carte = this.closest('.favori-item');
+        const carte = this.closest('.favori-card');
 
         fetch(`/api/favoris/${idFavori}`, { method: 'DELETE' })
             .then(res => res.json())
@@ -272,8 +118,8 @@ document.querySelectorAll('.favori-remove').forEach(button => {
 });
 
 // ---------------------------------------------------------------------
-// 3. "Partir de ma position GPS actuelle" : détecte le lieu enregistré
-//    le plus proche de l'utilisateur et le présélectionne comme départ.
+// "Partir de ma position GPS actuelle" : détecte le lieu enregistré
+// le plus proche de l'utilisateur et le présélectionne comme départ.
 // ---------------------------------------------------------------------
 const lieuxGPS = [];
 document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {

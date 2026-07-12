@@ -13,12 +13,6 @@
                 Retrouvez vos itinéraires récents et relancez vos trajets fréquents dans Dakar en un clic.
             </p>
         </div>
-        
-        {% if historique|length > 0 %}
-        <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); font-weight: 600; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; border: 1px solid rgba(6, 182, 212, 0.2);">
-            {{ historique|length }} requêtes enregistrées
-        </span>
-        {% endif %}
     </div>
 
     {% if historique|length == 0 %}

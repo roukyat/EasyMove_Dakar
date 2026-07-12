@@ -10,7 +10,7 @@
     .result-map-wrapper {
         width: 100%;
         height: 450px;
-        background: var(--fond-sombre);
+        background: var(--bg-secondary);
         border: 1px solid var(--border-light);
         border-radius: var(--radius);
         overflow: hidden;
@@ -53,7 +53,7 @@
         border-radius: var(--radius);
         padding: 24px;
         margin-bottom: 20px;
-        transition: var(--transition-douce);
+        transition: var(--transition);
         position: relative;
         overflow: hidden;
     }
@@ -86,7 +86,7 @@
         gap: 20px;
         flex-wrap: wrap;
         font-size: 0.9rem;
-        color: var(--texte-muted);
+        color: var(--text-muted);
         margin-bottom: 20px;
         border-bottom: 1px solid var(--border-light);
         padding-bottom: 14px;
@@ -106,7 +106,7 @@
         display: flex;
         gap: 12px;
         margin-bottom: 8px;
-        color: var(--texte-muted);
+        color: var(--text-muted);
     }
 
     .etape-idx {
@@ -134,7 +134,7 @@
         padding: 10px 16px;
         border-radius: 8px;
         cursor: pointer;
-        transition: var(--transition-douce);
+        transition: var(--transition);
     }
 
     .btn-arret-proche:hover {
@@ -150,14 +150,14 @@
     .arret-proche-resultat {
         margin-top: 12px;
         font-size: 0.85rem;
-        color: var(--texte-muted);
+        color: var(--text-muted);
     }
 
     .arret-proche-resultat .arret-badge {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        background: var(--fond-sombre);
+        background: var(--bg-secondary);
         border: 1px solid var(--border-light);
         border-radius: 8px;
         padding: 10px 14px;
@@ -174,23 +174,33 @@
 {% block content %}
 <div class="page-header" style="padding: 60px 0 30px; border-bottom: 1px solid var(--border-light);">
     <div class="container">
-        <div class="breadcrumb" style="font-size: 0.85rem; color: var(--texte-muted); margin-bottom: 12px;">
+        <div class="breadcrumb" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
             <a href="{{ url_for('accueil') }}">Accueil</a>
             <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i>
             <a href="{{ url_for('trajets') }}">Trajets</a>
             <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Résultat
         </div>
         {% if resultat %}
-        <h1 style="font-size: 2.3rem; margin-bottom: 8px;">
-            {{ resultat.depart_nom }} <i class="fa-solid fa-arrow-right-long"
-                style="font-size: 1.3rem; color: var(--accent-cyan); margin: 0 12px; vertical-align: middle;"></i> {{
-            resultat.arrivee_nom }}
-        </h1>
-        <p style="color: var(--texte-muted);">Visualisation cartographique de votre liaison et comparatif des réseaux de
-            transit dakarois.</p>
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <h1 style="font-size: 2.3rem; margin-bottom: 8px;">
+                    {{ resultat.depart_nom }} <i class="fa-solid fa-arrow-right-long"
+                        style="font-size: 1.3rem; color: var(--accent-cyan); margin: 0 12px; vertical-align: middle;"></i> {{
+                    resultat.arrivee_nom }}
+                </h1>
+                <p style="color: var(--text-muted);">La carte de votre liaison et toutes les options de transport comparées.</p>
+            </div>
+            <button type="button" id="btnFavoriResultat" class="btn-favori-resultat {{ 'active' if resultat.est_favori }}"
+                    data-id-depart="{{ resultat.id_lieu_depart }}"
+                    data-id-arrivee="{{ resultat.id_lieu_arrivee }}"
+                    data-nom-trajet="{{ resultat.depart_nom }} - {{ resultat.arrivee_nom }}">
+                <i class="fa-{{ 'solid' if resultat.est_favori else 'regular' }} fa-star"></i>
+                <span>{{ 'Dans vos favoris' if resultat.est_favori else 'Enregistrer ce trajet' }}</span>
+            </button>
+        </div>
         {% else %}
         <h1 style="font-size: 2.3rem; margin-bottom: 8px;">Aucun résultat trouvé</h1>
-        <p style="color: var(--texte-muted);">Le formulaire soumis n'a renvoyé aucune concordance exploitable.</p>
+        <p style="color: var(--text-muted);">Le formulaire soumis n'a renvoyé aucune concordance exploitable.</p>
         {% endif %}
     </div>
 </div>
@@ -274,13 +284,10 @@
 
             {% else %}
             <div class="option-card" style="border-left: 3px solid var(--accent-jaune);">
-                <p style="color: var(--texte-muted);">Aucune option de transport en commun prédéfinie n'est actuellement
-                    liée à cette combinaison dans notre base de données.</p>
-                <p style="margin-top: 12px; font-size: 0.9rem;">Vous pouvez néanmoins situer les deux repères
-                    géographiques sur la carte ci-dessus ou soumettre une autre requête depuis le <a
+                <p style="color: var(--text-muted);">Départ et arrivée semblent être le même endroit — pas de trajet à calculer ici.</p>
+                <p style="margin-top: 12px; font-size: 0.9rem;">Vous pouvez situer les deux repères sur la carte ci-dessus, ou <a
                         href="{{ url_for('trajets') }}"
-                        style="color: var(--accent-cyan); font-weight: 500; text-decoration: underline;">catalogue des
-                        trajets</a>.</p>
+                        style="color: var(--accent-cyan); font-weight: 500; text-decoration: underline;">lancer une nouvelle recherche</a>.</p>
             </div>
             {% endif %}
         </div>
@@ -321,6 +328,59 @@
         }
     }
 </style>
+
+<script>
+// ---------------------------------------------------------------------
+// Enregistrer / retirer ce trajet des favoris depuis la page de résultat
+// (remplace l'ancienne liste de trajets prédéfinis : on ne sauvegarde plus
+// que ce que l'utilisateur a réellement recherché).
+// ---------------------------------------------------------------------
+(function () {
+    const btn = document.getElementById('btnFavoriResultat');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        const icon = btn.querySelector('i');
+        const label = btn.querySelector('span');
+
+        if (btn.classList.contains('active')) {
+            showToast("Ce trajet est déjà dans vos favoris.", 'info');
+            return;
+        }
+
+        btn.disabled = true;
+        icon.className = 'fa-solid fa-circle-notch fa-spin';
+
+        fetch('/api/favoris', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nom_trajet: btn.getAttribute('data-nom-trajet'),
+                id_depart: parseInt(btn.getAttribute('data-id-depart')),
+                id_arrivee: parseInt(btn.getAttribute('data-id-arrivee'))
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.statut === 'success' || data.statut === 'existe_deja') {
+                btn.classList.add('active');
+                icon.className = 'fa-solid fa-star';
+                label.textContent = 'Dans vos favoris';
+                showToast(data.statut === 'success' ? 'Trajet enregistré dans vos favoris.' : data.message, data.statut === 'success' ? 'success' : 'info');
+            } else {
+                icon.className = 'fa-regular fa-star';
+                showToast(data.erreur || "Erreur lors de l'ajout aux favoris", 'error');
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            icon.className = 'fa-regular fa-star';
+            showToast("Impossible de contacter le serveur.", 'error');
+        });
+    });
+})();
+</script>
 
 <script>
     window.addEventListener("load", function () {

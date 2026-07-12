@@ -69,13 +69,12 @@
                         <div class="logo-icon"><i class="fa-solid fa-route"></i></div>
                         Easy<em>Move</em>
                     </div>
-                    <p>Guide de mobilité urbaine pour les résidents, touristes et étudiants à Dakar. Naviguez
-                        sereinement à travers le réseau routier sénégalais grâce à notre calculateur d'itinéraires et
-                        nos données synchronisées.</p>
+                    <p>Le calculateur de trajets qui parle aussi le langage du taxi, du clando et du car rapide —
+                        pour se déplacer à Dakar sans deviner.</p>
                 </div>
                 <div class="footer-col">
                     <h4>Réseaux</h4>
-                    <a href="{{ url_for('transports') }}">Moyens de Transport</a>
+                    <a href="{{ url_for('transports') }}">Moyens de transport</a>
                     <a href="{{ url_for('minibus') }}">Réseau Minibus Tata</a>
                     <a href="{{ url_for('transports') }}">Dakar Dem Dikk &amp; BRT</a>
                     <a href="{{ url_for('transports') }}">Train TER Dakar</a>
@@ -88,13 +87,18 @@
                 </div>
                 <div class="footer-col">
                     <h4>Ressources</h4>
-                    <a href="{{ url_for('conseils') }}">Conseils de sécurité</a>
-                    <a href="{{ url_for('wolof') }}">Lexique Wolof pratique</a>
-                    <a href="{{ url_for('apropos') }}">À propos de l'application</a>
+                    <a href="{{ url_for('conseils') }}">Conseils pratiques</a>
+                    <a href="{{ url_for('wolof') }}">Lexique Wolof</a>
+                    <a href="{{ url_for('apropos') }}">À propos</a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <span>&copy; 2026 EasyMove Dakar — Tous droits réservés.</span>
+                <span>EasyMove Dakar © 2026 — Conçu pour simplifier vos trajets, pas pour les compliquer.</span>
+                <div class="footer-bottom-links">
+                    <a href="{{ url_for('conseils') }}">Conseils</a>
+                    <a href="{{ url_for('wolof') }}">Wolof</a>
+                    <a href="{{ url_for('apropos') }}">À propos</a>
+                </div>
             </div>
         </div>
     </footer>

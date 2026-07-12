@@ -7,50 +7,36 @@
         <div class="container">
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Conseils</div>
             <h1>Conseils pratiques</h1>
-            <p>Avant, pendant et après votre trajet — conseils regroupés par catégorie.
-            </p>
+            <p>Ce que l'on aurait aimé savoir avant notre premier trajet à Dakar — trié par situation.</p>
         </div>
     </div>
 
-    <section class="section" style="padding-bottom:24px;">
+    <section class="section" style="padding-bottom:32px;">
         <div class="container">
-            <div class="section-header reveal" style="margin-bottom:20px;">
-                <div class="eyebrow">{{ conseils_par_categorie.values()|map('length')|sum }} conseils</div>
-                <h2 style="font-size:1.6rem;">Filtrez par catégorie</h2>
-            </div>
-
             <div class="conseils-filters">
                 <button type="button" class="conseil-filtre actif" data-filtre="tous">
-                    <i class="fa-solid fa-layer-group"></i> Tous
+                    <i class="fa-solid fa-layer-group"></i> Tous ({{ conseils_par_categorie.values()|map('length')|sum }})
                 </button>
-                {% for categorie in conseils_par_categorie.keys() %}
+                {% for categorie, liste in conseils_par_categorie.items() %}
                 <button type="button" class="conseil-filtre" data-filtre="{{ categorie }}">
                     <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
-                    {{ categorie }}
+                    {{ categorie }} ({{ liste|length }})
                 </button>
                 {% endfor %}
             </div>
 
             <div class="conseils-grid" id="conseilsGrid">
-                {% set gradients = [
-                    'linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan))',
-                    'linear-gradient(135deg, var(--accent-cyan), var(--accent-vert))',
-                    'linear-gradient(135deg, var(--accent-vert), var(--accent-jaune))',
-                    'linear-gradient(135deg, var(--accent-jaune), var(--accent-rouge))',
-                    'linear-gradient(135deg, var(--accent-rouge), var(--accent-bleu))'
-                ] %}
-                {% set ns = namespace(i=0) %}
                 {% for categorie, liste in conseils_par_categorie.items() %}
                 {% for c in liste %}
-                {% set ns.i = ns.i + 1 %}
                 <div class="conseil-card reveal" data-categorie="{{ categorie }}">
-                    <div class="conseil-card-visuel" style="background:{{ gradients[ns.i % 5] }};">
+                    <div class="conseil-card-icon">
                         <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     </div>
                     <div class="conseil-card-body">
+                        <span class="cc-categorie">{{ categorie }}</span>
                         <div class="cc-titre">{{ c.titre }}</div>
                         <p class="cc-texte">{{ c.contenu }}</p>
-                        {% if c.periode %}<span class="badge badge-jaune">{{ c.periode }}</span>{% endif %}
+                        {% if c.periode and c.periode != "Toute l'année" %}<span class="badge badge-jaune">{{ c.periode }}</span>{% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -80,36 +66,17 @@
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">Sécurité</div>
-                <h2>Numéros d'urgence</h2>
+                <h2>Les numéros à garder sur soi</h2>
+                <p>Gratuits depuis n'importe quel téléphone, même sans crédit.</p>
             </div>
-            <div class="urgence-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px;">
+            <div class="urgence-grid">
                 {% for info in infos_urgence %}
                 <div class="urgence-card">
-                    <div class="tc-icon" style="width:44px; height:44px; margin:0 auto 10px; font-size:1.2rem;">
+                    <div class="urgence-card-icon">
                         <i class="fa-solid {% if 'Police' in info.libelle %}fa-shield-halved{% elif 'SAMU' in info.libelle %}fa-truck-medical{% elif 'Sapeurs' in info.libelle %}fa-fire-extinguisher{% else %}fa-user-shield{% endif %}"></i>
                     </div>
                     <div class="num">{{ info.valeur }}</div>
                     <div class="label">{{ info.libelle }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
-
-    <section class="section" style="padding-top:0;">
-        <div class="container">
-            <div class="section-header reveal" style="margin-bottom:16px;">
-                <div class="eyebrow">À emporter</div>
-                <h2 style="font-size:1.4rem;">Ce qu'il faut avoir sur soi</h2>
-                <p>La check-list minimale avant de sortir, quel que soit le moyen de transport choisi.</p>
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; max-width:900px; margin:0 auto;">
-                {% for info in infos_emporter %}
-                <div style="display:inline-flex; align-items:center; gap:8px; background:var(--fond-carte); border:1px solid var(--border-color); border-radius:999px; padding:8px 16px 8px 10px;">
-                    <span style="width:26px; height:26px; border-radius:50%; background:var(--bg-primary); display:inline-flex; align-items:center; justify-content:center; font-size:0.8rem; color:var(--accent-cyan); flex-shrink:0;">
-                        <i class="fa-solid {% if 'monnaie' in info.valeur|lower %}fa-coins{% elif 'chapeau' in info.valeur|lower or 'casquette' in info.valeur|lower %}fa-umbrella-beach{% elif 'eau' in info.valeur|lower %}fa-bottle-water{% elif 'papiers' in info.valeur|lower or 'identité' in info.valeur|lower %}fa-id-card{% elif 'téléphone' in info.valeur|lower or 'batterie' in info.valeur|lower %}fa-mobile-screen-button{% elif 'crème' in info.valeur|lower or 'solaire' in info.valeur|lower %}fa-sun{% elif 'lingette' in info.valeur|lower or 'mouchoir' in info.valeur|lower %}fa-hand-sparkles{% elif 'sac' in info.valeur|lower %}fa-bag-shopping{% elif 'plan' in info.valeur|lower or 'application' in info.valeur|lower or 'carto' in info.valeur|lower %}fa-map-location-dot{% else %}fa-check{% endif %}"></i>
-                    </span>
-                    <span style="font-size:0.85rem; white-space:nowrap;">{{ info.valeur }}</span>
                 </div>
                 {% endfor %}
             </div>
