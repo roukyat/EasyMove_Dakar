@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS moyens_transport (
     niveau_confort  TEXT,             -- 'Faible', 'Moyen', 'Élevé'
     disponibilite   TEXT,             -- ex: '24h/24', 'Heures de bureau'
     avantages       TEXT,
-    inconvenients   TEXT
+    inconvenients   TEXT,
+    capacite_max    INTEGER           -- nombre max de passagers (ex: 4 pour un taxi, 6 pour un clando partagé)
 );
 
 -- ---------------------------------------------------------------------

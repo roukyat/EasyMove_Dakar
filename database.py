@@ -46,8 +46,10 @@ def verifier_et_mettre_a_jour_schema():
         cursor.execute("ALTER TABLE moyens_transport ADD COLUMN avantages TEXT DEFAULT ''")
     if "inconvenients" not in colonnes_transport:
         cursor.execute("ALTER TABLE moyens_transport ADD COLUMN inconvenients TEXT DEFAULT ''")
-        
-    
+    if "capacite_max" not in colonnes_transport:
+        cursor.execute("ALTER TABLE moyens_transport ADD COLUMN capacite_max INTEGER")
+
+
     cursor.execute("PRAGMA table_info(lignes_bus)")
     colonnes_lignes = [row["name"] for row in cursor.fetchall()]
     
@@ -71,6 +73,13 @@ def verifier_et_mettre_a_jour_schema():
                 date_recherche TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+    # Le Taxi et le Clando étaient historiquement fusionnés dans une seule
+    # ligne 'Taxi clando' : on les sépare ici en deux moyens de transport
+    # distincts (taxi officiel réglementé vs taxi clandestin/collectif
+    # informel), de façon idempotente pour ne jamais dupliquer sur une base
+    # déjà migrée.
+    _migrer_taxi_et_clando(cursor)
 
     # Certaines bases existantes ont été créées avant l'ajout des tables
     # `conseils` / `infos_utiles` à donnees.sql : comme init_db() ne rejoue
@@ -109,6 +118,77 @@ def _completer_images_transport_manquantes(cursor):
         )
 
 
+CAPACITES_PAR_DEFAUT = {
+    "Taxi": 4,
+    "Clando": 6,
+    "Dakar Dem Dikk": 80,
+    "Car rapide": 20,
+    "Minibus Tata (AFTU)": 35,
+    "Jakarta (moto-taxi)": 1,
+    "TER": 300,
+    "BRT (Bus Rapid Transit)": 150,
+}
+
+
+def _migrer_taxi_et_clando(cursor):
+    """Le taxi (officiel, réglementé) et le clando (taxi clandestin,
+    informel et collectif) étaient historiquement regroupés dans une seule
+    ligne 'Taxi clando' de `moyens_transport`. On les traite désormais comme
+    deux moyens de transport distincts et synchronisés avec le reste de la
+    base (mêmes colonnes, mêmes conventions).
+
+    Migration idempotente :
+    - si 'Taxi clando' existe encore, on la renomme en 'Taxi' (on conserve
+      son id_transport pour ne rien casser côté relations existantes) ;
+    - si 'Clando' n'existe pas encore, on l'insère avec ses propres tarifs,
+      photo et capacité.
+    """
+    ancien = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom = 'Taxi clando'"
+    ).fetchone()
+    if ancien:
+        cursor.execute(
+            """UPDATE moyens_transport SET
+                   nom = 'Taxi',
+                   image_url = '/static/img/taxi.jpg',
+                   description = 'Taxi officiel de Dakar : véhicule réglementé et identifiable (jaune et noir), course individuelle ou en petit groupe, prix à négocier avant de monter',
+                   cout_min = 1000,
+                   cout_max = 3500,
+                   avantages = 'Rapide, disponible partout, trajet direct porte-à-porte, véhicule identifiable et réglementé',
+                   inconvenients = 'Prix à négocier, confort variable, pas de compteur systématique',
+                   capacite_max = 4
+               WHERE id_transport = ?""",
+            (ancien["id_transport"],)
+        )
+
+    existe_clando = cursor.execute(
+        "SELECT 1 FROM moyens_transport WHERE nom = 'Clando'"
+    ).fetchone()
+    if not existe_clando:
+        cursor.execute(
+            """INSERT INTO moyens_transport
+                   (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients, capacite_max)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "Clando", "/static/img/clando.jpg",
+                "Taxi clandestin : voiture particulière (souvent une berline sans signe distinctif officiel) faisant du transport collectif informel le long des grands axes et dans les quartiers périphériques, contre paiement partagé entre passagers",
+                100, 500, "Faible", "24h/24",
+                "Très économique car partagé, dense dans les quartiers périphériques, facile à héler aux points de rassemblement informels",
+                "Aucun signe distinctif officiel, prix variable selon le trajet et les pratiques locales, confort limité, pas toujours sécurisant",
+                6,
+            )
+        )
+
+    # Complète la capacité par défaut pour tous les moyens de transport qui
+    # n'en ont pas encore (bases migrées depuis une version antérieure à la
+    # colonne capacite_max).
+    for nom, capacite in CAPACITES_PAR_DEFAUT.items():
+        cursor.execute(
+            "UPDATE moyens_transport SET capacite_max = ? WHERE nom = ? AND capacite_max IS NULL",
+            (capacite, nom)
+        )
+
+
 def _reseeder_donnees_manquantes(cursor):
     """Réinsère les conseils / infos utiles si les tables correspondantes
     sont vides (base créée avant l'ajout de ces données)."""
@@ -118,7 +198,7 @@ def _reseeder_donnees_manquantes(cursor):
             [
                 ('Avant de partir', 'Prévoir de la monnaie', "Ayez toujours des petites coupures : les chauffeurs n'ont pas toujours la monnaie sur un gros billet.", "Toute l'année"),
                 ('Avant de partir', 'Vêtements adaptés', 'Porter des vêtements légers mais couvrants, par respect culturel.', "Toute l'année"),
-                ('Dans le transport', 'Négocier avant de monter', 'Pour les taxis clando, toujours fixer le prix avant de monter, jamais après.', "Toute l'année"),
+                ('Dans le transport', 'Négocier avant de monter', 'Pour les taxis et les clandos, toujours fixer le prix avant de monter, jamais après.', "Toute l'année"),
                 ('Dans le transport', 'Vérifier la destination', 'Confirmer la destination avec le chauffeur avant de partir pour éviter tout malentendu.', "Toute l'année"),
                 ('Confort et bien-être', 'Climatisation non garantie', "La climatisation n'est pas garantie dans tous les taxis ni dans les cars rapides.", "Toute l'année"),
                 ('Confort et bien-être', 'Se protéger du soleil', "Utiliser un chapeau ou un parasol en cas de fort ensoleillement.", "Toute l'année"),
@@ -692,7 +772,7 @@ def _niveau_difficulte(options):
     qui peut être un taxi/Jakarta simplement plus rapide)."""
     meilleur_transit = None
     for o in options:
-        if o["nom_transport"] not in ("Taxi clando", "Jakarta (moto-taxi)", "À pied"):
+        if o["nom_transport"] not in ("Taxi", "Clando", "Jakarta (moto-taxi)", "À pied"):
             meilleur_transit = o
             break
     if meilleur_transit is None:

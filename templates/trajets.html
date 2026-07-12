@@ -54,7 +54,7 @@
 
     <section class="section" style="padding-top: 0;">
         <div class="container">
-            <div class="section-header" style="margin-bottom: 20px;">
+            <div class="section-header reveal" style="margin-bottom: 20px;">
                 <div class="eyebrow">Vos raccourcis</div>
                 <h2 style="display:flex; align-items:center; gap:10px;">
                     <i class="fa-solid fa-star" style="color: var(--accent-jaune); font-size: 1.2rem;"></i>
@@ -106,7 +106,7 @@
 
     <section class="section">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="eyebrow">Réseau Métropolitain</div>
                 <h2>Trajets enregistrés en base</h2>
                 <p>{{ trajets|length }} liaisons stratégiques configurées avec options multimodales.</p>
@@ -115,7 +115,7 @@
             <div class="grid-2">
                 {% for item in trajets %}
                 {% set t = item.trajet %}
-                <div class="trajet-card">
+                <div class="trajet-card reveal">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <div>
                             {% if t.niveau_difficulte == 'Facile' %}
@@ -153,7 +153,7 @@
                             <i class="fa-regular fa-clock"></i> {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min
                         </span>
                         <span style="display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-coins"></i> {{ best.prix_min }} – {{ best.prix_max }} FCFA
+                            <i class="fa-solid fa-coins"></i> {% if best.prix_libre %}Fixé avec le chauffeur{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}
                         </span>
                         {% endif %}
                     </div>
@@ -173,13 +173,13 @@
                             </div>
                             {% else %}
                             <div class="etape-num">
-                                <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}"></i>
+                                <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Clando' in opt.nom_transport %}fa-car-side{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% elif 'Jakarta' in opt.nom_transport %}fa-motorcycle{% else %}fa-route{% endif %}"></i>
                             </div>
                             {% endif %}
                             <div style="flex: 1;">
                                 <span style="color: #FFF; font-weight: 500;">{{ opt.nom_transport }}{% if opt.numero_ligne %} (Ligne {{ opt.numero_ligne }}){% endif %}</span>
                                 <span style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
-                                    {{ opt.prix_min }}-{{ opt.prix_max }} FCFA <bull style="margin: 0 4px;">•</bull> {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
+                                    {% if opt.prix_libre %}Prix fixé avec le chauffeur{% else %}{{ opt.prix_min }}-{{ opt.prix_max }} FCFA{% endif %} <bull style="margin: 0 4px;">•</bull> {{ opt.duree_min_minutes }}-{{ opt.duree_max_minutes }} min
                                 </span>
                             </div>
                             {% if opt.recommande %}

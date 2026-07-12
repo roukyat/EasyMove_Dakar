@@ -28,15 +28,30 @@ TEMPS_ARRET_MIN = 1.0         # temps perdu à chaque arrêt intermédiaire
 TEMPS_CORRESPONDANCE_MIN = 5.0  # attente moyenne lors d'un changement de ligne
 RAYON_CORRESPONDANCE_KM = 0.6   # distance max à pied considérée comme "même pôle"
 
+# Taxi : course privée/individuelle dans un véhicule réglementé et
+# identifiable (jaune et noir), prix négocié directement avec le chauffeur.
 TAXI_BASE = 500
 TAXI_PAR_KM_MIN = 120
 TAXI_PAR_KM_MAX = 220
 TAXI_VITESSE_KMH = 20.0
+TAXI_CAPACITE = 4
+
+# Clando (taxi clandestin) : voiture particulière sans signe distinctif
+# officiel, fonctionnant sur un principe de transport collectif partagé
+# (plusieurs passagers montent dans le même véhicule le long d'un axe), d'où
+# un tarif par personne nettement plus proche de celui d'un car rapide/Tata
+# que d'une course de taxi privée.
+CLANDO_BASE = 100
+CLANDO_PAR_KM_MIN = 40
+CLANDO_PAR_KM_MAX = 90
+CLANDO_VITESSE_KMH = 18.0
+CLANDO_CAPACITE = 6
 
 JAKARTA_BASE = 300
 JAKARTA_PAR_KM_MIN = 80
 JAKARTA_PAR_KM_MAX = 150
 JAKARTA_VITESSE_KMH = 26.0
+JAKARTA_CAPACITE = 1
 
 SEUIL_MARCHE_A_PIED_KM = 1.0  # en dessous, on propose aussi "à pied"
 
@@ -84,9 +99,20 @@ class Graphe:
             l["id_ligne"]: dict(l)
             for l in conn.execute("""
                 SELECT lb.id_ligne, lb.numero_ligne, lb.nom_ligne, lb.id_transport, lb.est_minibus,
-                       mt.nom AS nom_transport, mt.image_url, mt.cout_min, mt.cout_max
+                       mt.nom AS nom_transport, mt.image_url, mt.cout_min, mt.cout_max, mt.capacite_max
                 FROM lignes_bus lb JOIN moyens_transport mt ON lb.id_transport = mt.id_transport
             """)
+        }
+
+        # Métadonnées (id_transport, image, capacité...) des moyens de
+        # transport hors-ligne (Taxi, Clando, Jakarta) : chargées une seule
+        # fois depuis `moyens_transport` pour rester synchronisées avec la
+        # base plutôt que de dupliquer ces valeurs en dur dans le code.
+        self.transports_meta = {
+            row["nom"]: dict(row)
+            for row in conn.execute(
+                "SELECT * FROM moyens_transport WHERE nom IN ('Taxi', 'Clando', 'Jakarta (moto-taxi)')"
+            )
         }
         par_ligne = defaultdict(list)
         for la in conn.execute("SELECT id_ligne, id_arret, ordre FROM ligne_arrets ORDER BY id_ligne, ordre"):
@@ -108,6 +134,7 @@ class Graphe:
                     "nom_ligne": info["nom_ligne"], "id_transport": info["id_transport"],
                     "nom_transport": info["nom_transport"], "image_url": info["image_url"],
                     "cout_min": info["cout_min"], "cout_max": info["cout_max"],
+                    "capacite_max": info["capacite_max"],
                     "distance_km": d, "est_minibus": bool(info["est_minibus"]),
                 }
                 self.adj[a1].append((a2, poids, "ligne", meta))
@@ -226,6 +253,7 @@ def _grouper_en_etapes(graphe, chemin):
                     "numero_ligne": meta["numero_ligne"], "nom_ligne": meta["nom_ligne"],
                     "id_transport": meta["id_transport"], "nom_transport": meta["nom_transport"],
                     "image_url": meta["image_url"], "cout_min": meta["cout_min"], "cout_max": meta["cout_max"],
+                    "capacite_max": meta["capacite_max"],
                     "depart": a1, "arrivee": a2,
                     "distance_km": meta["distance_km"],
                     "duree_min": (meta["distance_km"] / VITESSE_BUS_KMH) * 60 + TEMPS_ARRET_MIN,
@@ -315,6 +343,7 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
         "nom_transport": nom_transport,
         "image_url": premiere_ligne_meta["image_url"] if premiere_ligne_meta else "",
         "id_transport": premiere_ligne_meta["id_transport"] if premiere_ligne_meta else None,
+        "capacite_max": premiere_ligne_meta["capacite_max"] if premiere_ligne_meta else None,
         "numero_ligne": numero_ligne,
         "nom_ligne": premiere_ligne_meta["nom_ligne"] if premiere_ligne_meta else "",
         "prix_min": prix_min, "prix_max": prix_max,
@@ -330,28 +359,70 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
     }
 
 
-def _option_taxi(distance_km):
+def _option_taxi(distance_km, meta=None):
+    """Taxi officiel : course privée/individuelle, prix négocié directement
+    avec le chauffeur pour l'ensemble du véhicule (pas de partage du tarif
+    entre passagers, contrairement au Clando)."""
+    meta = meta or {}
     duree = distance_km / TAXI_VITESSE_KMH * 60 + 6
     prix_min = _arrondi_prix(TAXI_BASE + distance_km * TAXI_PAR_KM_MIN)
     prix_max = _arrondi_prix(TAXI_BASE + distance_km * TAXI_PAR_KM_MAX)
     return {
-        "nom_transport": "Taxi clando", "image_url": "/static/img/taxi.jpg", "id_transport": None,
+        "nom_transport": "Taxi",
+        "image_url": meta.get("image_url") or "/static/img/taxi.jpg",
+        "id_transport": meta.get("id_transport"),
+        "capacite_max": meta.get("capacite_max", TAXI_CAPACITE),
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 200),
         "duree_min_minutes": max(3, int(round(duree * 0.8))),
         "duree_max_minutes": max(5, int(round(duree * 1.3))),
         "correspondances": "Aucune",
-        "etapes": f"Héler un taxi et négocier le prix avant de monter | Trajet direct de {distance_km:.1f} km",
+        "etapes": f"Héler un taxi officiel (jaune et noir) et négocier le prix de la course avant de monter | Trajet direct de {distance_km:.1f} km",
         "recommande": 0,
     }
 
 
-def _option_jakarta(distance_km):
+def _option_clando(distance_km, meta=None):
+    """Clando (taxi clandestin) : voiture particulière sans signe distinctif
+    officiel, fonctionnant en transport collectif partagé. Contrairement au
+    taxi ou au Jakarta, il n'y a pas de tarif affiché ni de formule fiable :
+    c'est le chauffeur qui fixe le prix sur place, au cas par cas. On
+    n'affiche donc aucune estimation chiffrée (prix_min/prix_max = None),
+    seulement un repère de durée et une indication que le prix se négocie
+    avec le chauffeur. Un ordre de grandeur interne (_prix_score) reste
+    utilisé en coulisses pour classer cette option parmi les autres, sans
+    jamais être montré à l'utilisateur."""
+    meta = meta or {}
+    duree = distance_km / CLANDO_VITESSE_KMH * 60 + 5
+    prix_score_min = _arrondi_prix(CLANDO_BASE + distance_km * CLANDO_PAR_KM_MIN)
+    prix_score_max = _arrondi_prix(CLANDO_BASE + distance_km * CLANDO_PAR_KM_MAX)
+    return {
+        "nom_transport": "Clando",
+        "image_url": meta.get("image_url") or "/static/img/clando.jpg",
+        "id_transport": meta.get("id_transport"),
+        "capacite_max": meta.get("capacite_max", CLANDO_CAPACITE),
+        "numero_ligne": "", "nom_ligne": "",
+        "prix_min": None, "prix_max": None,
+        "prix_libre": True,
+        "_prix_score": (prix_score_min + prix_score_max) / 2,
+        "duree_min_minutes": max(3, int(round(duree * 0.85))),
+        "duree_max_minutes": max(5, int(round(duree * 1.35))),
+        "correspondances": "Aucune",
+        "etapes": "Héler un clando à un point de rassemblement informel | Prix fixé directement avec le chauffeur",
+        "recommande": 0,
+    }
+
+
+def _option_jakarta(distance_km, meta=None):
+    meta = meta or {}
     duree = distance_km / JAKARTA_VITESSE_KMH * 60 + 3
     prix_min = _arrondi_prix(JAKARTA_BASE + distance_km * JAKARTA_PAR_KM_MIN)
     prix_max = _arrondi_prix(JAKARTA_BASE + distance_km * JAKARTA_PAR_KM_MAX)
     return {
-        "nom_transport": "Jakarta (moto-taxi)", "image_url": "", "id_transport": None,
+        "nom_transport": "Jakarta (moto-taxi)",
+        "image_url": meta.get("image_url") or "",
+        "id_transport": meta.get("id_transport"),
+        "capacite_max": meta.get("capacite_max", JAKARTA_CAPACITE),
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 100),
         "duree_min_minutes": max(2, int(round(duree * 0.75))),
@@ -365,7 +436,7 @@ def _option_jakarta(distance_km):
 def _option_a_pied(distance_km):
     duree = distance_km / VITESSE_MARCHE_KMH * 60
     return {
-        "nom_transport": "À pied", "image_url": "", "id_transport": None,
+        "nom_transport": "À pied", "image_url": "", "id_transport": None, "capacite_max": None,
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": 0, "prix_max": 0,
         "duree_min_minutes": max(1, int(round(duree * 0.9))),
@@ -429,8 +500,10 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
                 options.append(opt_mini)
 
     if id_ld != id_la:
-        options.append(_option_taxi(distance_directe))
-        options.append(_option_jakarta(distance_directe))
+        transports_meta = getattr(graphe, "transports_meta", {})
+        options.append(_option_taxi(distance_directe, transports_meta.get("Taxi")))
+        options.append(_option_clando(distance_directe, transports_meta.get("Clando")))
+        options.append(_option_jakarta(distance_directe, transports_meta.get("Jakarta (moto-taxi)")))
         if distance_directe <= SEUIL_MARCHE_A_PIED_KM:
             options.append(_option_a_pied(distance_directe))
 
@@ -438,7 +511,13 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
     if options:
         def score(o):
             correspondances_penalite = o.get("nb_correspondances", 0) * 12
-            prix_moyen = (o["prix_min"] + o["prix_max"]) / 2
+            # Le Clando n'a pas de prix affiché (fixé par le chauffeur) : on
+            # utilise son ordre de grandeur interne (_prix_score) uniquement
+            # pour le classement, jamais montré à l'utilisateur.
+            if o["prix_min"] is not None:
+                prix_moyen = (o["prix_min"] + o["prix_max"]) / 2
+            else:
+                prix_moyen = o.get("_prix_score", 0)
             duree_moyenne = (o["duree_min_minutes"] + o["duree_max_minutes"]) / 2
             return duree_moyenne + correspondances_penalite + prix_moyen / 40
 
@@ -450,5 +529,6 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
 
     for o in options:
         o.pop("nb_correspondances", None)
+        o.pop("_prix_score", None)
 
     return options, distance_directe

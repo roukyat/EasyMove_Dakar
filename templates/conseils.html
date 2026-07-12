@@ -14,7 +14,7 @@
 
     <section class="section" style="padding-bottom:24px;">
         <div class="container">
-            <div class="section-header" style="margin-bottom:20px;">
+            <div class="section-header reveal" style="margin-bottom:20px;">
                 <div class="eyebrow">{{ conseils_par_categorie.values()|map('length')|sum }} conseils</div>
                 <h2 style="font-size:1.6rem;">Filtrez par catégorie</h2>
             </div>
@@ -43,7 +43,7 @@
                 {% for categorie, liste in conseils_par_categorie.items() %}
                 {% for c in liste %}
                 {% set ns.i = ns.i + 1 %}
-                <div class="conseil-card" data-categorie="{{ categorie }}">
+                <div class="conseil-card reveal" data-categorie="{{ categorie }}">
                     <div class="conseil-card-visuel" style="background:{{ gradients[ns.i % 5] }};">
                         <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     </div>
@@ -78,7 +78,7 @@
 
     <section class="section section-alt">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="eyebrow">Sécurité</div>
                 <h2>Numéros d'urgence</h2>
             </div>
@@ -98,7 +98,7 @@
 
     <section class="section" style="padding-top:0;">
         <div class="container">
-            <div class="section-header" style="margin-bottom:16px;">
+            <div class="section-header reveal" style="margin-bottom:16px;">
                 <div class="eyebrow">À emporter</div>
                 <h2 style="font-size:1.4rem;">Ce qu'il faut avoir sur soi</h2>
                 <p>La check-list minimale avant de sortir, quel que soit le moyen de transport choisi.</p>

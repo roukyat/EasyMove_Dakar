@@ -31,7 +31,7 @@
                         </div>
                         <div class="hcm-title">{{ t.nom }}</div>
                         <div class="hcm-sub">{{ t.description|truncate(45) }}</div>
-                        <div class="hcm-prix">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</div>
+                        <div class="hcm-prix">{% if t.nom == 'Clando' %}Fixé avec le chauffeur{% else %}{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA{% endif %}</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -43,7 +43,7 @@
     <!-- CALCULATEUR DE TRAJETS SYNC -> DB -->
     <section class="section search-section">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="eyebrow">Calculateur d'itinéraires</div>
                 <h2>Où souhaitez-vous aller ?</h2>
                 <p>Sélectionnez vos hubs urbains pour croiser les réseaux de transit disponibles et afficher le tracé cartographique.</p>
@@ -86,13 +86,13 @@
     <!-- APERÇU DES MODES DE TRANSPORT -->
     <section class="section">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="eyebrow">Modes de transport</div>
                 <h2>Se déplacer dans l'agglomération</h2>
                 <p>Des alternatives multimodales adaptées à tous les budgets et impératifs de temps.</p>
             </div>
             
-            <div class="grid-3">
+            <div class="grid-3 reveal">
                 {% for t in transports_apercu %}
                 <div class="transport-card">
                     {{ vignette_transport(t) }}
@@ -103,7 +103,11 @@
                     <div class="tc-body">
                         <div class="tc-prix">
                             <span class="tc-prix-label"><i class="fa-solid fa-coins" style="margin-right: 4px; font-size: 0.8rem;"></i> Tarifs</span>
+                            {% if t.nom == 'Clando' %}
+                            <span class="tc-prix-value">Fixé avec le chauffeur</span>
+                            {% else %}
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
+                            {% endif %}
                         </div>
                         <span class="badge badge-jaune">{{ t.disponibilite }}</span>
                     </div>
@@ -122,7 +126,7 @@
     <!-- ACCROCHE LEXIQUE WOLOF -->
     <section class="section section-alt" style="border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);">
         <div class="container">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 48px; align-items: center;">
+            <div class="reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 48px; align-items: center;">
                 <div>
                     <div class="eyebrow" style="color: var(--accent-cyan); margin-bottom: 12px;">Échanges de courtoisie</div>
                     <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 16px; font-family: 'Syne', sans-serif;">Communiquer en <span style="color: var(--accent-cyan)">Wolof</span></h2>

@@ -16,7 +16,7 @@
 
     <section class="section">
         <div class="container">
-            <div class="grid-3">
+            <div class="grid-3 reveal">
                 {% for t in transports %}
                 <div class="transport-card">
                     {{ vignette_transport(t) }}
@@ -26,8 +26,13 @@
                     </div>
                     <div class="tc-body">
                         <div class="tc-prix">
+                            {% if t.nom == 'Clando' %}
+                            <span class="tc-prix-label">Prix</span>
+                            <span class="tc-prix-value">Fixé avec le chauffeur</span>
+                            {% else %}
                             <span class="tc-prix-label">Prix estimé</span>
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
+                            {% endif %}
                         </div>
                         <div class="pros-cons">
                             <div>
@@ -50,6 +55,9 @@
                         <div style="margin-top:12px;">
                             <span class="badge badge-jaune">Confort : {{ t.niveau_confort }}</span>
                             <span class="badge badge-vert" style="margin-left:6px;">{{ t.disponibilite }}</span>
+                            {% if t.capacite_max %}
+                            <span class="badge badge-bleu" style="margin-left:6px;"><i class="fa-solid fa-user-group" style="margin-right:4px;"></i>{{ t.capacite_max }} passager{{ 's' if t.capacite_max > 1 }} max</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -61,7 +69,7 @@
     <!-- TABLEAU COMPARATIF -->
     <section class="section section-alt">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="eyebrow">Comparatif</div>
                 <h2>Quel transport choisir ?</h2>
                 <p>Comparaison générée depuis la base de données</p>
@@ -82,8 +90,12 @@
                         {% for t in transports %}
                         <tr>
                             <td><span class="transport-name">{{ t.nom }}</span></td>
+                            {% if t.nom == 'Clando' %}
+                            <td colspan="2">Fixé avec le chauffeur</td>
+                            {% else %}
                             <td>{{ t.cout_min }} FCFA</td>
                             <td>{{ t.cout_max }} FCFA</td>
+                            {% endif %}
                             <td>
                                 {% if t.niveau_confort == 'Élevé' %}<span class="badge badge-vert">Élevé</span>
                                 {% elif t.niveau_confort == 'Moyen' %}<span class="badge badge-jaune">Moyen</span>

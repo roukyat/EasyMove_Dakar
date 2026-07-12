@@ -205,7 +205,7 @@
 
         <div style="margin-top: 40px;">
             {% if resultat.options|length > 0 %}
-            <div class="section-header" style="margin-bottom: 32px;">
+            <div class="section-header reveal" style="margin-bottom: 32px;">
                 <div class="eyebrow">Options disponibles</div>
                 <h2>{{ resultat.options|length }} solution(s) de transport détectée(s)</h2>
             </div>
@@ -220,7 +220,7 @@
                             <img class="tc-zoom-overlay" src="{{ opt.image_url }}" alt="{{ opt.nom_transport }} — aperçu agrandi" loading="lazy">
                         </div>
                         {% else %}
-                        <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% else %}fa-motorcycle{% endif %}"
+                        <i class="fa-solid {% if 'Bus' in opt.nom_transport or 'Tata' in opt.nom_transport or 'AFTU' in opt.nom_transport %}fa-bus{% elif 'TER' in opt.nom_transport %}fa-train{% elif 'Clando' in opt.nom_transport %}fa-car-side{% elif 'Taxi' in opt.nom_transport %}fa-taxi{% elif 'Jakarta' in opt.nom_transport %}fa-motorcycle{% else %}fa-route{% endif %}"
                             style="color: var(--accent-cyan);"></i>
                         {% endif %}
                         {{ opt.nom_transport }}{% if opt.numero_ligne %} — Ligne {{ opt.numero_ligne }}{% endif %}
@@ -232,10 +232,17 @@
                 </div>
 
                 <div class="option-meta">
+                    {% if opt.prix_libre %}
+                    <span><i class="fa-solid fa-comments-dollar"></i> Prix fixé avec le chauffeur</span>
+                    {% else %}
                     <span><i class="fa-solid fa-coins"></i> {{ opt.prix_min }} – {{ opt.prix_max }} FCFA</span>
+                    {% endif %}
                     <span><i class="fa-regular fa-clock"></i> {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }}
                         min</span>
                     <span><i class="fa-solid fa-code-branch"></i> Correspondances : {{ opt.correspondances }}</span>
+                    {% if opt.capacite_max %}
+                    <span><i class="fa-solid fa-user-group"></i> Jusqu'à {{ opt.capacite_max }} passager{{ 's' if opt.capacite_max > 1 }}</span>
+                    {% endif %}
                 </div>
 
                 <div class="option-etapes">

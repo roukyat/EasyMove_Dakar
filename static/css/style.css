@@ -761,6 +761,7 @@ h1, h2, h3, h4 {
 .badge-vert { background: rgba(16, 185, 129, 0.1); color: var(--accent-vert); }
 .badge-jaune { background: rgba(245, 166, 35, 0.1); color: var(--accent-jaune); }
 .badge-rouge { background: rgba(239, 68, 68, 0.1); color: var(--accent-rouge); }
+.badge-bleu { background: rgba(37, 99, 235, 0.1); color: var(--accent-bleu); }
 
 /* ==========================================================================
    TIMELINES, COMPARAISONS & ÉLÉMENTS DYNAMIQUES
@@ -836,6 +837,46 @@ footer {
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
     .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* --- Entrée animée des bannières au chargement de page (hero / en-têtes) ---
+   Contrairement à .reveal (déclenchée au scroll), cette animation joue une
+   seule fois dès le chargement, puisque ces blocs sont toujours visibles
+   au-dessus de la ligne de flottaison. Effet sobre, cohérent avec les
+   standards des applications de mobilité pro (Uber, Bolt...). */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.hero, .page-header, .about-hero {
+    animation: fadeInUp 0.7s ease both;
+}
+.hero-visual .hero-card-mini {
+    animation: fadeInUp 0.6s ease both;
+}
+.hero-visual .hero-card-mini:nth-child(1) { animation-delay: 0.05s; }
+.hero-visual .hero-card-mini:nth-child(2) { animation-delay: 0.15s; }
+.hero-visual .hero-card-mini:nth-child(3) { animation-delay: 0.25s; }
+.hero-visual .hero-card-mini:nth-child(4) { animation-delay: 0.35s; }
+@media (prefers-reduced-motion: reduce) {
+    .hero, .page-header, .about-hero, .hero-visual .hero-card-mini { animation: none; }
+}
+
+/* Légère apparition en cascade pour les listes de type "trip history"
+   (historique de recherches, lignes minibus) : chaque ligne suit la
+   précédente de quelques dizaines de ms. */
+.stagger-item {
+    animation: fadeInUp 0.5s ease both;
+}
+.stagger-item:nth-child(1) { animation-delay: 0.02s; }
+.stagger-item:nth-child(2) { animation-delay: 0.06s; }
+.stagger-item:nth-child(3) { animation-delay: 0.10s; }
+.stagger-item:nth-child(4) { animation-delay: 0.14s; }
+.stagger-item:nth-child(5) { animation-delay: 0.18s; }
+.stagger-item:nth-child(6) { animation-delay: 0.22s; }
+.stagger-item:nth-child(n+7) { animation-delay: 0.26s; }
+@media (prefers-reduced-motion: reduce) {
+    .stagger-item { animation: none; }
 }
 
 /* --- Hero À propos --- */
