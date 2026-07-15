@@ -46,8 +46,8 @@ def verifier_et_mettre_a_jour_schema():
         cursor.execute("ALTER TABLE moyens_transport ADD COLUMN avantages TEXT DEFAULT ''")
     if "inconvenients" not in colonnes_transport:
         cursor.execute("ALTER TABLE moyens_transport ADD COLUMN inconvenients TEXT DEFAULT ''")
-    if "capacite_max" not in colonnes_transport:
-        cursor.execute("ALTER TABLE moyens_transport ADD COLUMN capacite_max INTEGER")
+    if "capacite_max" in colonnes_transport:
+        _supprimer_colonne_capacite_max(cursor)
 
 
     cursor.execute("PRAGMA table_info(lignes_bus)")
@@ -158,6 +158,42 @@ def verifier_et_mettre_a_jour_schema():
     conn.close()
 
 
+def _supprimer_colonne_capacite_max(cursor):
+    """Retire la colonne `capacite_max` de `moyens_transport` (le nombre
+    max de passagers n'est plus affiché ni utilisé nulle part dans le
+    site). Utilise DROP COLUMN (SQLite >= 3.35) ; si la version de SQLite
+    est trop ancienne pour le supporter, on reconstruit la table sans la
+    colonne plutôt que de planter. Idempotent : n'est appelée que si la
+    colonne existe encore (voir verifier_et_mettre_a_jour_schema)."""
+    try:
+        cursor.execute("ALTER TABLE moyens_transport DROP COLUMN capacite_max")
+        return
+    except sqlite3.OperationalError:
+        pass
+
+    # Repli pour SQLite < 3.35 : reconstruction manuelle de la table.
+    cursor.execute("PRAGMA table_info(moyens_transport)")
+    colonnes = [row["name"] for row in cursor.fetchall() if row["name"] != "capacite_max"]
+    colonnes_sql = ", ".join(colonnes)
+    cursor.execute(f"""
+        CREATE TABLE moyens_transport_tmp (
+            id_transport    INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom             TEXT NOT NULL,
+            image_url       TEXT,
+            description     TEXT,
+            cout_min        INTEGER,
+            cout_max        INTEGER,
+            niveau_confort  TEXT,
+            disponibilite   TEXT,
+            avantages       TEXT,
+            inconvenients   TEXT
+        )
+    """)
+    cursor.execute(f"INSERT INTO moyens_transport_tmp ({colonnes_sql}) SELECT {colonnes_sql} FROM moyens_transport")
+    cursor.execute("DROP TABLE moyens_transport")
+    cursor.execute("ALTER TABLE moyens_transport_tmp RENAME TO moyens_transport")
+
+
 def _completer_images_transport_manquantes(cursor):
     """Complète l'image de certains moyens de transport ajoutée après le
     lancement initial (photos DDD et TER uploadées dans static/img/).
@@ -183,12 +219,12 @@ def _completer_images_transport_manquantes(cursor):
 # ces tarifs.
 # ---------------------------------------------------------------------
 TARIFS_2026 = {
-    "Taxi": (1000, 3500),
+    "Taxi": (1000, 5000),
     "Clando": (200, 800),
     "Dakar Dem Dikk": (150, 350),
-    "Car rapide": (150, 350),
-    "Minibus Tata (AFTU)": (200, 500),
-    "Jakarta (moto-taxi)": (500, 2000),
+    "Car rapide": (100, 300),
+    "Minibus Tata (AFTU)": (150, 300),
+    "Jakarta (moto-taxi)": (1000, 3000),
     "TER": (1500, 2500),
     "BRT (Bus Rapid Transit)": (400, 500),
 }
@@ -229,18 +265,6 @@ def _naturaliser_descriptions_transport(cursor):
         )
 
 
-CAPACITES_PAR_DEFAUT = {
-    "Taxi": 4,
-    "Clando": 6,
-    "Dakar Dem Dikk": 80,
-    "Car rapide": 20,
-    "Minibus Tata (AFTU)": 35,
-    "Jakarta (moto-taxi)": 1,
-    "TER": 300,
-    "BRT (Bus Rapid Transit)": 150,
-}
-
-
 def _migrer_taxi_et_clando(cursor):
     """Le taxi (officiel, réglementé) et le clando (taxi clandestin,
     informel et collectif) étaient historiquement regroupés dans une seule
@@ -264,10 +288,9 @@ def _migrer_taxi_et_clando(cursor):
                    image_url = '/static/img/taxi.jpg',
                    description = 'Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.',
                    cout_min = 1000,
-                   cout_max = 3500,
+                   cout_max = 5000,
                    avantages = 'Rapide, disponible partout, trajet direct porte-à-porte, véhicule identifiable et réglementé',
-                   inconvenients = 'Prix à négocier, confort variable, pas de compteur systématique',
-                   capacite_max = 4
+                   inconvenients = 'Prix à négocier, confort variable, pas de compteur systématique'
                WHERE id_transport = ?""",
             (ancien["id_transport"],)
         )
@@ -278,25 +301,15 @@ def _migrer_taxi_et_clando(cursor):
     if not existe_clando:
         cursor.execute(
             """INSERT INTO moyens_transport
-                   (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients, capacite_max)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 "Clando", "/static/img/clando.jpg",
                 "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
                 200, 800, "Faible", "24h/24",
                 "Très économique car partagé, dense dans les quartiers périphériques, facile à héler aux points de rassemblement informels",
                 "Aucun signe distinctif officiel, prix variable selon le trajet et les pratiques locales, confort limité, pas toujours sécurisant",
-                6,
             )
-        )
-
-    # Complète la capacité par défaut pour tous les moyens de transport qui
-    # n'en ont pas encore (bases migrées depuis une version antérieure à la
-    # colonne capacite_max).
-    for nom, capacite in CAPACITES_PAR_DEFAUT.items():
-        cursor.execute(
-            "UPDATE moyens_transport SET capacite_max = ? WHERE nom = ? AND capacite_max IS NULL",
-            (capacite, nom)
         )
 
 

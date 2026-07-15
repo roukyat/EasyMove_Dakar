@@ -34,7 +34,6 @@ TAXI_BASE = 500
 TAXI_PAR_KM_MIN = 120
 TAXI_PAR_KM_MAX = 220
 TAXI_VITESSE_KMH = 20.0
-TAXI_CAPACITE = 4
 
 # Clando (taxi clandestin) : voiture particulière sans signe distinctif
 # officiel, fonctionnant sur un principe de transport collectif partagé
@@ -45,13 +44,11 @@ CLANDO_BASE = 100
 CLANDO_PAR_KM_MIN = 40
 CLANDO_PAR_KM_MAX = 90
 CLANDO_VITESSE_KMH = 18.0
-CLANDO_CAPACITE = 6
 
 JAKARTA_BASE = 300
 JAKARTA_PAR_KM_MIN = 80
 JAKARTA_PAR_KM_MAX = 150
 JAKARTA_VITESSE_KMH = 26.0
-JAKARTA_CAPACITE = 1
 
 SEUIL_MARCHE_A_PIED_KM = 1.0  # en dessous, on propose aussi "à pied"
 
@@ -120,7 +117,7 @@ class Graphe:
             l["id_ligne"]: dict(l)
             for l in conn.execute("""
                 SELECT lb.id_ligne, lb.numero_ligne, lb.nom_ligne, lb.id_transport, lb.est_minibus,
-                       mt.nom AS nom_transport, mt.image_url, mt.cout_min, mt.cout_max, mt.capacite_max
+                       mt.nom AS nom_transport, mt.image_url, mt.cout_min, mt.cout_max
                 FROM lignes_bus lb JOIN moyens_transport mt ON lb.id_transport = mt.id_transport
             """)
         }
@@ -155,7 +152,6 @@ class Graphe:
                     "nom_ligne": info["nom_ligne"], "id_transport": info["id_transport"],
                     "nom_transport": info["nom_transport"], "image_url": info["image_url"],
                     "cout_min": info["cout_min"], "cout_max": info["cout_max"],
-                    "capacite_max": info["capacite_max"],
                     "distance_km": d, "est_minibus": bool(info["est_minibus"]),
                 }
                 self.adj[a1].append((a2, poids, "ligne", meta))
@@ -274,7 +270,7 @@ def _grouper_en_etapes(graphe, chemin):
                     "numero_ligne": meta["numero_ligne"], "nom_ligne": meta["nom_ligne"],
                     "id_transport": meta["id_transport"], "nom_transport": meta["nom_transport"],
                     "image_url": meta["image_url"], "cout_min": meta["cout_min"], "cout_max": meta["cout_max"],
-                    "capacite_max": meta["capacite_max"], "est_minibus": bool(meta.get("est_minibus")),
+                    "est_minibus": bool(meta.get("est_minibus")),
                     "depart": a1, "arrivee": a2,
                     "distance_km": meta["distance_km"],
                     "duree_min": (meta["distance_km"] / VITESSE_BUS_KMH) * 60 + TEMPS_ARRET_MIN,
@@ -368,7 +364,6 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
         "nom_transport": nom_transport,
         "image_url": premiere_ligne_meta["image_url"] if premiere_ligne_meta else "",
         "id_transport": premiere_ligne_meta["id_transport"] if premiere_ligne_meta else None,
-        "capacite_max": premiere_ligne_meta["capacite_max"] if premiere_ligne_meta else None,
         "numero_ligne": numero_ligne,
         "nom_ligne": premiere_ligne_meta["nom_ligne"] if premiere_ligne_meta else "",
         "prix_min": prix_min, "prix_max": prix_max,
@@ -396,7 +391,6 @@ def _option_taxi(distance_km, meta=None):
         "nom_transport": "Taxi",
         "image_url": meta.get("image_url") or "/static/img/taxi.jpg",
         "id_transport": meta.get("id_transport"),
-        "capacite_max": meta.get("capacite_max", TAXI_CAPACITE),
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 200),
         "duree_min_minutes": max(3, int(round(duree * 0.8))),
@@ -425,7 +419,6 @@ def _option_clando(distance_km, meta=None):
         "nom_transport": "Clando",
         "image_url": meta.get("image_url") or "/static/img/clando.jpg",
         "id_transport": meta.get("id_transport"),
-        "capacite_max": meta.get("capacite_max", CLANDO_CAPACITE),
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": None, "prix_max": None,
         "prix_libre": True,
@@ -447,7 +440,6 @@ def _option_jakarta(distance_km, meta=None):
         "nom_transport": "Jakarta (moto-taxi)",
         "image_url": meta.get("image_url") or "",
         "id_transport": meta.get("id_transport"),
-        "capacite_max": meta.get("capacite_max", JAKARTA_CAPACITE),
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 100),
         "duree_min_minutes": max(2, int(round(duree * 0.75))),
@@ -461,7 +453,7 @@ def _option_jakarta(distance_km, meta=None):
 def _option_a_pied(distance_km):
     duree = distance_km / VITESSE_MARCHE_KMH * 60
     return {
-        "nom_transport": "À pied", "image_url": "", "id_transport": None, "capacite_max": None,
+        "nom_transport": "À pied", "image_url": "", "id_transport": None,
         "numero_ligne": "", "nom_ligne": "",
         "prix_min": 0, "prix_max": 0,
         "duree_min_minutes": max(1, int(round(duree * 0.9))),
