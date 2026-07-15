@@ -81,16 +81,44 @@ def verifier_et_mettre_a_jour_schema():
     # déjà migrée.
     _migrer_taxi_et_clando(cursor)
 
+    # Bug hérité de cette même scission Taxi/Clando : l'insertion de la
+    # nouvelle ligne 'Clando' juste après 'Taxi' a décalé d'un cran les
+    # id_transport de tous les moyens de transport suivants (Dakar Dem
+    # Dikk, Car rapide, Minibus Tata, Jakarta, TER, BRT), mais les lignes
+    # de bus de la donnée d'origine (donnees.sql) référençaient encore les
+    # anciens id_transport codés en dur — donc mal rattachées (les lignes
+    # Tata comptées comme Car rapide, etc.). Corrige les bases déjà créées
+    # avant ce correctif ; donnees.sql a aussi été corrigé pour les
+    # nouvelles bases. Idempotent (ne touche que ce qui est encore mal
+    # rattaché).
+    _corriger_id_transport_errones(cursor)
+
     # Certaines bases existantes ont été créées avant l'ajout des tables
     # `conseils` / `infos_utiles` à donnees.sql : comme init_db() ne rejoue
     # les INSERT que sur une base neuve, ces tables restaient vides (page
     # /conseils sans numéros d'urgence). On les réamorce ici si nécessaire.
     _reseeder_donnees_manquantes(cursor)
 
+    # Conseils "Cars rapides" et "Tata (bus)" ajoutés après le lancement
+    # initial : idempotent (vérification par titre), donc sûr à rejouer sur
+    # une base qui a déjà ces conseils.
+    _ajouter_conseils_cars_rapides_et_tata(cursor)
+
+    # Relecture éditoriale de quelques conseils trop longs pour une carte
+    # compacte : idempotent (UPDATE conditionné au contenu actuel), sûr à
+    # rejouer sur une base qui a déjà le texte raccourci.
+    _raccourcir_conseils_verbeux(cursor)
+
     # Enrichissement du réseau (quartiers, lignes minibus, lexique wolof) :
     # idempotent, vérifie l'existence par nom avant chaque insertion pour
     # ne jamais dupliquer sur les bases qui ont déjà ces données.
     _enrichir_reseau_et_lexique(cursor)
+
+    # Réseau minibus curé autour du pôle SONATEL (VDN) : lieu + lignes vers
+    # les quartiers où les étudiants sont les plus concentrés (UCAD,
+    # Ouakam, Liberté 5/6, Sacré-Cœur, Cité Keur Gorgui) plus deux
+    # destinations complémentaires (Ouest Foire, Ngor). Idempotent.
+    _ajouter_reseau_sonatel(cursor)
 
     # Photos de transport ajoutées après le lancement initial (DDD, TER) :
     # les bases déjà créées ont encore image_url = '' pour ces lignes, donc
@@ -103,6 +131,28 @@ def verifier_et_mettre_a_jour_schema():
     # (1515, et non 15 qui est le numéro français) : idempotent, sûr à
     # rejouer sur une base déjà à jour.
     _purger_conseils_obsoletes(cursor)
+
+    # Réactualisation des tarifs (2026) vers des fourchettes plus réalistes :
+    # idempotent (UPDATE conditionné au contenu actuel), sûr à rejouer sur
+    # une base déjà à jour.
+    _mettre_a_jour_tarifs_2026(cursor)
+
+    # Descriptions plus naturelles pour Taxi/Clando/Tata (accueil + page
+    # /transports) : idempotent, même logique que les tarifs ci-dessus.
+    _naturaliser_descriptions_transport(cursor)
+
+    # Retrait des lignes fictives 'DIT-1..5' créées lors d'une itération
+    # précédente (voir _retirer_lignes_dit_fictives). Idempotent.
+    _retirer_lignes_dit_fictives(cursor)
+
+    # Troisième vague d'enrichissement du réseau : nouveaux lieux et
+    # nouvelles lignes Tata/Car rapide couvrant l'ensemble de Dakar (voir
+    # _enrichir_reseau_vague_3). Idempotent.
+    _enrichir_reseau_vague_3(cursor)
+
+    # Quatrième vague d'enrichissement, centrée spécifiquement sur le
+    # réseau Tata (28 lignes supplémentaires + nouveaux lieux). Idempotent.
+    _enrichir_reseau_vague_4(cursor)
 
     conn.commit()
     conn.close()
@@ -121,6 +171,61 @@ def _completer_images_transport_manquantes(cursor):
         cursor.execute(
             "UPDATE moyens_transport SET image_url = ? WHERE nom = ? AND (image_url IS NULL OR image_url = '')",
             (chemin_image, nom)
+        )
+
+
+# ---------------------------------------------------------------------
+# Tarifs 2026 : fourchettes réajustées vers des valeurs plus réalistes
+# (recherche de tarifs actuels pour Dakar — taxi en ville, hausse des
+# tickets Tata/AFTU, tarif TER Dakar-Diamniadio, BRT à tarif fixe...).
+# Appliqué par UPDATE conditionné au contenu actuel (voir
+# _mettre_a_jour_tarifs_2026), donc sûr à rejouer sur une base qui a déjà
+# ces tarifs.
+# ---------------------------------------------------------------------
+TARIFS_2026 = {
+    "Taxi": (1000, 3500),
+    "Clando": (200, 800),
+    "Dakar Dem Dikk": (150, 350),
+    "Car rapide": (150, 350),
+    "Minibus Tata (AFTU)": (200, 500),
+    "Jakarta (moto-taxi)": (500, 2000),
+    "TER": (1500, 2500),
+    "BRT (Bus Rapid Transit)": (400, 500),
+}
+
+
+def _mettre_a_jour_tarifs_2026(cursor):
+    """Recale les fourchettes de prix de chaque moyen de transport vers des
+    valeurs 2026 plus réalistes. Fonctionne par UPDATE sur le nom, comme
+    _raccourcir_conseils_verbeux : met bien à jour les lignes déjà
+    présentes sur une base existante (pas seulement à la création)."""
+    for nom, (cout_min, cout_max) in TARIFS_2026.items():
+        cursor.execute(
+            "UPDATE moyens_transport SET cout_min = ?, cout_max = ? "
+            "WHERE nom = ? AND (cout_min != ? OR cout_max != ?)",
+            (cout_min, cout_max, nom, cout_min, cout_max)
+        )
+
+
+# Descriptions retravaillées pour les 3 transports mis en avant sur
+# l'accueil (Taxi, Clando, Minibus Tata) : les phrases d'origine, denses et
+# à rallonge, sont remplacées par un ton plus direct et parlé. Ce champ
+# étant partagé avec /transports, le bénéfice profite à tout le site.
+DESCRIPTIONS_NATURELLES = {
+    "Taxi": "Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.",
+    "Clando": "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
+    "Minibus Tata (AFTU)": "Le minibus qui dessert la quasi-totalité des quartiers de Dakar, à prix fixe et très abordable.",
+}
+
+
+def _naturaliser_descriptions_transport(cursor):
+    """Recale la description de quelques transports vers un ton plus
+    naturel et moins encyclopédique (UPDATE conditionné au contenu actuel,
+    donc sûr à rejouer sur une base déjà à jour)."""
+    for nom, description in DESCRIPTIONS_NATURELLES.items():
+        cursor.execute(
+            "UPDATE moyens_transport SET description = ? WHERE nom = ? AND description != ?",
+            (description, nom, description)
         )
 
 
@@ -157,7 +262,7 @@ def _migrer_taxi_et_clando(cursor):
             """UPDATE moyens_transport SET
                    nom = 'Taxi',
                    image_url = '/static/img/taxi.jpg',
-                   description = 'Taxi officiel de Dakar : véhicule réglementé et identifiable (jaune et noir), course individuelle ou en petit groupe, prix à négocier avant de monter',
+                   description = 'Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.',
                    cout_min = 1000,
                    cout_max = 3500,
                    avantages = 'Rapide, disponible partout, trajet direct porte-à-porte, véhicule identifiable et réglementé',
@@ -177,8 +282,8 @@ def _migrer_taxi_et_clando(cursor):
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 "Clando", "/static/img/clando.jpg",
-                "Taxi clandestin : voiture particulière (souvent une berline sans signe distinctif officiel) faisant du transport collectif informel le long des grands axes et dans les quartiers périphériques, contre paiement partagé entre passagers",
-                100, 500, "Faible", "24h/24",
+                "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
+                200, 800, "Faible", "24h/24",
                 "Très économique car partagé, dense dans les quartiers périphériques, facile à héler aux points de rassemblement informels",
                 "Aucun signe distinctif officiel, prix variable selon le trajet et les pratiques locales, confort limité, pas toujours sécurisant",
                 6,
@@ -192,6 +297,39 @@ def _migrer_taxi_et_clando(cursor):
         cursor.execute(
             "UPDATE moyens_transport SET capacite_max = ? WHERE nom = ? AND capacite_max IS NULL",
             (capacite, nom)
+        )
+
+
+def _corriger_id_transport_errones(cursor):
+    """Corrige un bug hérité de la scission Taxi/Clando : l'insertion de la
+    nouvelle ligne 'Clando' juste après 'Taxi' dans moyens_transport a
+    décalé d'un cran les id_transport de tous les moyens suivants (Dakar
+    Dem Dikk, Car rapide, Minibus Tata, Jakarta, TER, BRT), mais les lignes
+    de bus de la donnée d'origine référençaient encore les anciens
+    id_transport codés en dur. Résultat : des lignes Tata comptées comme
+    Car rapide, des lignes Car rapide comptées comme Dakar Dem Dikk, etc.
+
+    Corrige chaque ligne en se basant sur le texte de sa propre
+    description (qui, lui, a toujours été correct, ex. "Minibus Tata
+    (AFTU) reliant..."), plutôt que sur un décalage numérique supposé —
+    fonctionne donc quel que soit l'état exact de la base. Idempotent : ne
+    modifie que les lignes encore mal rattachées."""
+    corrections = [
+        ('Dakar Dem Dikk', 'Dakar Dem Dikk %'),
+        ('Car rapide', 'Car rapide %'),
+        ('Minibus Tata (AFTU)', 'Minibus Tata (AFTU) %'),
+        ('TER', 'TER %'),
+        ('BRT (Bus Rapid Transit)', 'BRT (Bus Rapid Transit) %'),
+    ]
+    for nom_transport, motif_description in corrections:
+        id_correct = cursor.execute(
+            "SELECT id_transport FROM moyens_transport WHERE nom = ?", (nom_transport,)
+        ).fetchone()
+        if not id_correct:
+            continue
+        cursor.execute(
+            "UPDATE lignes_bus SET id_transport = ? WHERE description LIKE ? AND id_transport != ?",
+            (id_correct[0], motif_description, id_correct[0])
         )
 
 
@@ -225,14 +363,14 @@ def _reseeder_donnees_manquantes(cursor):
         cursor.executemany(
             "INSERT INTO conseils (categorie, titre, contenu, periode) VALUES (?, ?, ?, ?)",
             [
-                ('Avant de partir', 'Prévoir de la monnaie', "Ayez toujours des petites coupures : les chauffeurs n'ont pas toujours la monnaie sur un gros billet.", "Toute l'année"),
-                ('Dans le transport', 'Négocier avant de monter', 'Pour les taxis et les clandos, toujours fixer le prix avant de monter, jamais après.', "Toute l'année"),
-                ('Dans le transport', 'Vérifier la destination', 'Confirmer la destination avec le chauffeur avant de partir pour éviter tout malentendu.', "Toute l'année"),
-                ('Argent et paiement', 'Montant fixe pour le DDD et le BRT', 'Le bus Dakar Dem Dikk et le BRT appliquent un tarif fixe, pas de négociation nécessaire.', "Toute l'année"),
-                ('Argent et paiement', "Éviter de montrer trop d'argent", 'Sortez uniquement la somme nécessaire au moment de payer.', "Toute l'année"),
-                ('Saisons et météo', 'Circulation dense le vendredi', 'La circulation peut être très dense le vendredi après-midi, lors du retour du travail et de la prière.', 'Heures de pointe'),
-                ('Saisons et météo', 'Éviter les heures de pointe', 'Les heures de pointe sont 7h-9h le matin et 17h-20h le soir : prévoir une marge.', 'Heures de pointe'),
-                ('Pour les femmes', 'Privilégier les transports connus', 'Privilégier le TER, le BRT ou le DDD en soirée plutôt que un taxi inconnu.', "Toute l'année"),
+                ('Avant de partir', 'Prévoir de la monnaie', "Gardez des petites coupures : les chauffeurs ont rarement la monnaie sur un gros billet.", "Toute l'année"),
+                ('Dans le transport', 'Négocier avant de monter', 'Taxis et clandos : fixez toujours le prix avant de monter.', "Toute l'année"),
+                ('Dans le transport', 'Vérifier la destination', 'Confirmez la destination avec le chauffeur avant de partir.', "Toute l'année"),
+                ('Argent et paiement', 'Montant fixe pour le DDD et le BRT', 'DDD et BRT appliquent un tarif fixe, sans négociation.', "Toute l'année"),
+                ('Argent et paiement', "Éviter de montrer trop d'argent", 'Ne sortez que la somme nécessaire au moment de payer.', "Toute l'année"),
+                ('Saisons et météo', 'Circulation dense le vendredi', 'Circulation très dense le vendredi après-midi (travail et prière).', 'Heures de pointe'),
+                ('Saisons et météo', 'Éviter les heures de pointe', 'Heures de pointe : 7h-9h et 17h-20h. Prévoyez une marge.', 'Heures de pointe'),
+                ('Pour les femmes', 'Privilégier les transports connus', 'Le soir, préférez le TER, le BRT ou le DDD à un taxi inconnu.', "Toute l'année"),
             ]
         )
 
@@ -254,6 +392,128 @@ def _reseeder_donnees_manquantes(cursor):
                 ('À emporter', 'Objet recommandé', 'Petit sac fermé, porté devant vous'),
                 ('À emporter', 'Objet recommandé', 'Plan hors-ligne ou application de cartographie téléchargée'),
             ]
+        )
+
+
+# ---------------------------------------------------------------------
+# Conseils "Cars rapides" et "Tata (bus)" : retours de terrain sur les
+# usages réels à bord (tarifs, rôle de l'apprenti, paiement, descente),
+# ajoutés après le lancement initial de la page /conseils.
+# ---------------------------------------------------------------------
+NOUVEAUX_CONSEILS_CARS_RAPIDES_ET_TATA = [
+    (
+        'Cars rapides', 'Le tarif de base tourne autour de 100 FCFA',
+        "Trajet court : comptez environ 100 FCFA, un bon repère contre les tarifs exagérés.",
+        "Toute l'année"
+    ),
+    (
+        'Cars rapides', 'Face à un tarif qui semble abusif',
+        "Tarif trop élevé ? Demandez une explication à l'apprenti ou descendez avant le départ.",
+        "Toute l'année"
+    ),
+    (
+        'Cars rapides', "Suivre les consignes de l'apprenti",
+        "L'apprenti donne les consignes à bord : suivez-les, même sans comprendre le wolof.",
+        "Toute l'année"
+    ),
+    (
+        'Cars rapides', 'Frapper la carrosserie pour signaler votre arrêt',
+        "Pour descendre, frappez doucement la carrosserie : c'est le signal habituel.",
+        "Toute l'année"
+    ),
+    (
+        'Cars rapides', 'Le remplissage varie selon les contrôles',
+        "Le remplissage et les arrêts respectés varient selon les contrôles routiers.",
+        "Toute l'année"
+    ),
+    (
+        'Tata (bus)', 'La chaîne de paiement entre passagers',
+        "L'argent circule parfois de main en main entre passagers. Restez discret si besoin.",
+        "Toute l'année"
+    ),
+    (
+        'Tata (bus)', "Conserver son ticket jusqu'à la fin du trajet",
+        "Gardez votre ticket jusqu'à la descente : un contrôle peut le demander.",
+        "Toute l'année"
+    ),
+    (
+        'Tata (bus)', 'Anticiper sa descente',
+        "Repérez les arrêts à l'avance pour ne pas dépasser votre destination.",
+        "Toute l'année"
+    ),
+]
+
+# Relecture éditoriale : version raccourcie de l'ensemble des conseils
+# (les 8 conseils de base + les 8 Cars rapides/Tata), jugés trop longs pour
+# une carte compacte. Appliquée via UPDATE (voir _raccourcir_conseils_verbeux)
+# pour couvrir aussi les bases déjà migrées, où les anciens textes verbeux
+# sont déjà en place.
+NOUVEAUX_CONSEILS_TEXTE_RACCOURCI = [
+    ('Prévoir de la monnaie', "Gardez des petites coupures : les chauffeurs ont rarement la monnaie sur un gros billet."),
+    ('Négocier avant de monter', "Taxis et clandos : fixez toujours le prix avant de monter."),
+    ('Vérifier la destination', "Confirmez la destination avec le chauffeur avant de partir."),
+    ('Montant fixe pour le DDD et le BRT', "DDD et BRT appliquent un tarif fixe, sans négociation."),
+    ("Éviter de montrer trop d'argent", "Ne sortez que la somme nécessaire au moment de payer."),
+    ('Circulation dense le vendredi', "Circulation très dense le vendredi après-midi (travail et prière)."),
+    ('Éviter les heures de pointe', "Heures de pointe : 7h-9h et 17h-20h. Prévoyez une marge."),
+    ('Privilégier les transports connus', "Le soir, préférez le TER, le BRT ou le DDD à un taxi inconnu."),
+    (
+        'Le tarif de base tourne autour de 100 FCFA',
+        "Trajet court : comptez environ 100 FCFA, un bon repère contre les tarifs exagérés."
+    ),
+    (
+        'Face à un tarif qui semble abusif',
+        "Tarif trop élevé ? Demandez une explication à l'apprenti ou descendez avant le départ."
+    ),
+    (
+        "Suivre les consignes de l'apprenti",
+        "L'apprenti donne les consignes à bord : suivez-les, même sans comprendre le wolof."
+    ),
+    (
+        'Frapper la carrosserie pour signaler votre arrêt',
+        "Pour descendre, frappez doucement la carrosserie : c'est le signal habituel."
+    ),
+    (
+        'Le remplissage varie selon les contrôles',
+        "Le remplissage et les arrêts respectés varient selon les contrôles routiers."
+    ),
+    (
+        'La chaîne de paiement entre passagers',
+        "L'argent circule parfois de main en main entre passagers. Restez discret si besoin."
+    ),
+    (
+        "Conserver son ticket jusqu'à la fin du trajet",
+        "Gardez votre ticket jusqu'à la descente : un contrôle peut le demander."
+    ),
+    (
+        'Anticiper sa descente',
+        "Repérez les arrêts à l'avance pour ne pas dépasser votre destination."
+    ),
+]
+
+
+def _ajouter_conseils_cars_rapides_et_tata(cursor):
+    """Ajoute les conseils Cars rapides / Tata s'ils n'existent pas déjà
+    (vérification par titre), sans jamais dupliquer sur une base déjà à jour."""
+    for categorie, titre, contenu, periode in NOUVEAUX_CONSEILS_CARS_RAPIDES_ET_TATA:
+        existe = cursor.execute("SELECT 1 FROM conseils WHERE titre = ?", (titre,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO conseils (categorie, titre, contenu, periode) VALUES (?, ?, ?, ?)",
+                (categorie, titre, contenu, periode)
+            )
+
+
+def _raccourcir_conseils_verbeux(cursor):
+    """Recale le texte de quelques conseils vers une version plus concise
+    (relecture éditoriale pour la soutenance). Fonctionne par UPDATE sur le
+    titre : contrairement à _ajouter_conseils_cars_rapides_et_tata (qui
+    n'insère que si le titre est absent), cette fonction met bien à jour le
+    contenu des lignes déjà présentes sur une base existante."""
+    for titre, contenu in NOUVEAUX_CONSEILS_TEXTE_RACCOURCI:
+        cursor.execute(
+            "UPDATE conseils SET contenu = ? WHERE titre = ? AND contenu != ?",
+            (contenu, titre, contenu)
         )
 
 
@@ -556,6 +816,366 @@ def _enrichir_reseau_et_lexique(cursor):
                 )
 
 
+# ---------------------------------------------------------------------
+# Réseau minibus curé autour du pôle SONATEL (siège social, sur la VDN
+# entre Ouest Foire, Sacré-Cœur et Cité Keur Gorgui). Remplace l'ancienne
+# liste générique de ~90 lignes Tata sur la page /minibus par une
+# sélection d'itinéraires réels, centrée sur les quartiers où les
+# étudiants sont les plus concentrés.
+# ---------------------------------------------------------------------
+LIEU_SONATEL = (
+    'SONATEL', 'entreprise', 14.7259, -17.4793,
+    "Siège social SONATEL / Orange, sur la Voie de Dégagement Nord (VDN) — repère central pour les minibus "
+    "vers les quartiers étudiants (UCAD, Sacré-Cœur, Liberté 5/6...)"
+)
+
+LIGNES_MINIBUS_SONATEL = [
+    {
+        "numero_ligne": "SN-1", "nom_ligne": "SONATEL - UCAD",
+        "description": "Minibus reliant le pôle SONATEL (VDN) à l'UCAD via Sacré-Cœur, Point E et Fann — l'un "
+                       "des trajets les plus empruntés par les étudiants domiciliés côté VDN.",
+        "arrets": ["SONATEL", "Sacré-Cœur", "Point E", "Fann", "UCAD"],
+    },
+    {
+        "numero_ligne": "SN-2", "nom_ligne": "SONATEL - Ouakam",
+        "description": "Minibus reliant SONATEL à Ouakam via Ouest Foire, sur un axe court et très fréquenté.",
+        "arrets": ["SONATEL", "Ouest Foire", "Ouakam"],
+    },
+    {
+        "numero_ligne": "SN-3", "nom_ligne": "SONATEL - Liberté 6",
+        "description": "Minibus reliant SONATEL à Liberté 6 via Sacré-Cœur et Liberté 6 Extension.",
+        "arrets": ["SONATEL", "Sacré-Cœur", "Liberté 6 Extension", "Liberté 6"],
+    },
+    {
+        "numero_ligne": "SN-4", "nom_ligne": "SONATEL - Liberté 5",
+        "description": "Minibus reliant SONATEL à Liberté 5 via Sacré-Cœur et Liberté 6.",
+        "arrets": ["SONATEL", "Sacré-Cœur", "Liberté 6", "Liberté 5"],
+    },
+    {
+        "numero_ligne": "SN-5", "nom_ligne": "SONATEL - Sacré-Cœur",
+        "description": "Minibus reliant SONATEL à Sacré-Cœur, trajet direct et rapide sur la VDN.",
+        "arrets": ["SONATEL", "Sacré-Cœur"],
+    },
+    {
+        "numero_ligne": "SN-6", "nom_ligne": "SONATEL - Cité Keur Gorgui",
+        "description": "Minibus reliant SONATEL à Cité Keur Gorgui via Ouest Foire, vers le pôle d'affaires "
+                       "proche de la VDN.",
+        "arrets": ["SONATEL", "Ouest Foire", "Cité Keur Gorgui"],
+    },
+    {
+        "numero_ligne": "SN-7", "nom_ligne": "SONATEL - Ouest Foire",
+        "description": "Minibus reliant SONATEL à Ouest Foire, quartier voisin et carrefour de correspondance "
+                       "vers plusieurs autres lignes.",
+        "arrets": ["SONATEL", "Ouest Foire"],
+    },
+    {
+        "numero_ligne": "SN-8", "nom_ligne": "SONATEL - Ngor",
+        "description": "Minibus reliant SONATEL à Ngor via Mermoz et Almadies, pour rejoindre la façade littorale.",
+        "arrets": ["SONATEL", "Mermoz", "Almadies", "Ngor"],
+    },
+]
+
+
+def _ajouter_reseau_sonatel(cursor):
+    """Ajoute le lieu SONATEL et les lignes minibus curées SN-1 à SN-8
+    s'ils n'existent pas déjà (vérification par nom / numéro de ligne),
+    en réutilisant le même schéma (arrets + ligne_arrets) que
+    `_enrichir_reseau_et_lexique`."""
+    nom_lieu, type_lieu, lat, lng, desc = LIEU_SONATEL
+    existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom_lieu,)).fetchone()
+    if not existe:
+        cursor.execute(
+            "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+            (nom_lieu, type_lieu, lat, lng, desc)
+        )
+
+    ligne_transport = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
+    ).fetchone()
+    if not ligne_transport:
+        return
+    id_transport_tata = ligne_transport[0]
+
+    for ligne in LIGNES_MINIBUS_SONATEL:
+        existe = cursor.execute(
+            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
+        ).fetchone()
+        if existe:
+            continue
+
+        cursor.execute(
+            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+            "VALUES (?, ?, ?, 1, ?)",
+            (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_tata, ligne["description"])
+        )
+        id_ligne = cursor.lastrowid
+
+        for ordre, nom_arret in enumerate(ligne["arrets"], start=1):
+            lieu_row = cursor.execute(
+                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_arret,)
+            ).fetchone()
+            if not lieu_row:
+                continue
+            id_lieu, lat_arret, lng_arret = lieu_row
+            cursor.execute(
+                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                (f"Arrêt {nom_arret} ({ligne['numero_ligne']})", id_lieu, lat_arret, lng_arret)
+            )
+            id_arret = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                (id_ligne, id_arret, ordre)
+            )
+
+
+def _retirer_lignes_dit_fictives(cursor):
+    """Retire les lignes 'DIT-1' à 'DIT-5' créées lors d'une itération
+    précédente du projet : c'étaient des lignes inventées pour l'occasion,
+    cloisonnées dans un onglet à part, plutôt que des lignes réellement
+    exploitées par le réseau Tata. Idempotent : ne fait rien si ces lignes
+    n'existent pas ou plus."""
+    lignes = cursor.execute(
+        "SELECT id_ligne FROM lignes_bus WHERE numero_ligne LIKE 'DIT-%'"
+    ).fetchall()
+    for row in lignes:
+        id_ligne = row[0]
+        arrets_a_supprimer = cursor.execute(
+            "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+        ).fetchall()
+        cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+        for arret_row in arrets_a_supprimer:
+            cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (arret_row[0],))
+        cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
+
+
+# ---------------------------------------------------------------------
+# Troisième vague d'enrichissement du réseau : nouveaux lieux (monuments,
+# hôpitaux, marchés, stades — des repères réels de Dakar encore absents de
+# la base) et nouvelles lignes Tata/Car rapide. Les numéros de ligne
+# utilisés ici (17, 35, 37, 54, 59, 62, 69, 71, 73, 74, 76, 77, 79, puis
+# 91+) ont été choisis pour ne JAMAIS entrer en collision avec les
+# numéros déjà pris par le reste du réseau (1-90 très majoritairement
+# occupés par la donnée d'origine et les deux premières vagues
+# d'enrichissement) — une précédente tentative avait réutilisé des
+# numéros déjà existants (Ligne 4, 42, 47, 67, 78), ce qui les faisait
+# silencieusement ignorer par la vérification d'idempotence. Ces lignes ne
+# reçoivent aucun traitement particulier : elles sont insérées exactement
+# comme toutes les autres, qu'elles passent ou non par le secteur VDN /
+# Sacré-Cœur / Cité Keur Gorgui.
+# ---------------------------------------------------------------------
+NOUVEAUX_LIEUX_3 = [
+    ('Stade Léopold Sédar Senghor', 'site_touristique', 14.7196, -17.4780, "Principal stade national du Sénégal, proche de Fenêtre Mermoz"),
+    ('Hôpital Principal de Dakar', 'site_touristique', 14.6819, -17.4342, "Grand hôpital militaire et civil du Plateau"),
+    ('Hôpital Dalal Jamm', 'site_touristique', 14.7825, -17.3872, "Hôpital de référence de la banlieue nord, à Guédiawaye"),
+    ('Grande Mosquée de Dakar', 'site_touristique', 14.6759, -17.4437, "Principale mosquée de la capitale, à la Médina"),
+    ('CICES', 'site_touristique', 14.7420, -17.4880, "Centre International du Commerce Extérieur du Sénégal, proche de Nord Foire"),
+    ("Place de l'Indépendance", 'site_touristique', 14.6690, -17.4290, "Place centrale du Plateau, cœur historique de Dakar"),
+    ('Cathédrale du Souvenir Africain', 'site_touristique', 14.6717, -17.4308, "Cathédrale du Plateau"),
+    ('Village Artisanal de Soumbédioune', 'site_touristique', 14.6839, -17.4611, "Marché d'art et d'artisanat en bord de Corniche"),
+    ('Marché Kermel', 'site_touristique', 14.6698, -17.4285, "Marché couvert historique du Plateau"),
+    ('Stade Iba Mar Diop', 'site_touristique', 14.6795, -17.4453, "Stade omnisports de la Médina"),
+    ('Cimetière de Yoff', 'quartier', 14.7490, -17.4720, "Repère du quartier de Yoff, proche de la Corniche nord"),
+    ('Corniche Ouest', 'quartier', 14.6850, -17.4750, "Route côtière reliant le Plateau à la pointe des Almadies"),
+]
+
+NOUVELLES_LIGNES_MINIBUS_3 = [
+    {"numero_ligne": "Ligne 17", "nom_ligne": "Sandaga - Grande Mosquée de Dakar", "description": "Minibus Tata (AFTU) reliant Sandaga à la Grande Mosquée de Dakar via Médina.", "arrets": ["Sandaga", "Médina", "Grande Mosquée de Dakar"]},
+    {"numero_ligne": "Ligne 35", "nom_ligne": "Ouakam - Almadies (via Route de l'Aéroport)", "description": "Minibus Tata (AFTU) reliant Ouakam à Almadies via Virage Ouakam et Mamelles.", "arrets": ["Ouakam", "Virage Ouakam", "Mamelles", "Almadies"]},
+    {"numero_ligne": "Ligne 37", "nom_ligne": "Guédiawaye - Golf", "description": "Minibus Tata (AFTU) reliant Guédiawaye à Golf via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Golf"]},
+    {"numero_ligne": "Ligne 54", "nom_ligne": "Pikine - Thiaroye sur Mer", "description": "Minibus Tata (AFTU) reliant Pikine à Thiaroye sur Mer via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Thiaroye sur Mer"]},
+    {"numero_ligne": "Ligne 59", "nom_ligne": "Wakhinane - Médina Gounass", "description": "Minibus Tata (AFTU) reliant Wakhinane à Médina Gounass, liaison locale de Guédiawaye.", "arrets": ["Wakhinane", "Médina Gounass"]},
+    {"numero_ligne": "Ligne 62", "nom_ligne": "Rufisque Nord - Bargny", "description": "Minibus Tata (AFTU) reliant Rufisque Nord à Bargny.", "arrets": ["Rufisque Nord", "Bargny"]},
+    {"numero_ligne": "Ligne 69", "nom_ligne": "Colobane - CICES", "description": "Minibus Tata (AFTU) reliant Colobane au CICES via Grand Dakar et Nord Foire.", "arrets": ["Colobane", "Grand Dakar", "Nord Foire", "CICES"]},
+    {"numero_ligne": "Ligne 71", "nom_ligne": "Gueule Tapée - Keur Massar (via Grand Dakar)", "description": "Minibus Tata (AFTU) reliant Gueule Tapée à Keur Massar via Grand Dakar, Pikine et Diacksao.", "arrets": ["Gueule Tapée", "Grand Dakar", "Pikine", "Diacksao", "Keur Massar"]},
+    {"numero_ligne": "Ligne 73", "nom_ligne": "Fann - Village Artisanal de Soumbédioune", "description": "Minibus Tata (AFTU) reliant Fann au Village Artisanal de Soumbédioune, le long de la Corniche.", "arrets": ["Fann", "Village Artisanal de Soumbédioune"]},
+    {"numero_ligne": "Ligne 74", "nom_ligne": "Médina - Stade Iba Mar Diop", "description": "Minibus Tata (AFTU) reliant Médina au Stade Iba Mar Diop via Tilène.", "arrets": ["Médina", "Tilène", "Stade Iba Mar Diop"]},
+    {"numero_ligne": "Ligne 76", "nom_ligne": "Liberté 6 - Sicap Baobab", "description": "Minibus Tata (AFTU) reliant Liberté 6 à Sicap Baobab.", "arrets": ["Liberté 6", "Sicap Baobab"]},
+    {"numero_ligne": "Ligne 77", "nom_ligne": "Grand Yoff - Stade Léopold Sédar Senghor", "description": "Minibus Tata (AFTU) reliant Grand Yoff au Stade Léopold Sédar Senghor via Zone de Captage et Fenêtre Mermoz.", "arrets": ["Grand Yoff", "Zone de Captage", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
+    {"numero_ligne": "Ligne 79", "nom_ligne": "Cambérène - Cimetière de Yoff", "description": "Minibus Tata (AFTU) reliant Cambérène au secteur du Cimetière de Yoff.", "arrets": ["Cambérène", "Cimetière de Yoff"]},
+    {"numero_ligne": "Ligne 91", "nom_ligne": "Plateau - Hôpital Principal de Dakar", "description": "Minibus Tata (AFTU) reliant le Plateau à l'Hôpital Principal de Dakar.", "arrets": ["Plateau", "Hôpital Principal de Dakar"]},
+    {"numero_ligne": "Ligne 92", "nom_ligne": "Petersen - Place de l'Indépendance", "description": "Minibus Tata (AFTU) reliant Petersen à la Place de l'Indépendance via le Plateau.", "arrets": ["Petersen", "Plateau", "Place de l'Indépendance"]},
+    {"numero_ligne": "Ligne 93", "nom_ligne": "Yoff - Cimetière de Yoff", "description": "Minibus Tata (AFTU), courte liaison locale du village de Yoff.", "arrets": ["Yoff", "Cimetière de Yoff"]},
+    {"numero_ligne": "Ligne 94", "nom_ligne": "Ouest Foire - CICES", "description": "Minibus Tata (AFTU) reliant Ouest Foire au CICES via Nord Foire.", "arrets": ["Ouest Foire", "Nord Foire", "CICES"]},
+    {"numero_ligne": "Ligne 95", "nom_ligne": "Sacré-Cœur - Stade Léopold Sédar Senghor", "description": "Minibus Tata (AFTU) reliant Sacré-Cœur au Stade Léopold Sédar Senghor via Fenêtre Mermoz.", "arrets": ["Sacré-Cœur", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
+    {"numero_ligne": "Ligne 96", "nom_ligne": "Rufisque - Sébikotane", "description": "Minibus Tata (AFTU) reliant Rufisque à Sébikotane via Rufisque Est et Bargny.", "arrets": ["Rufisque", "Rufisque Est", "Bargny", "Sébikotane"]},
+    {"numero_ligne": "Ligne 97", "nom_ligne": "Bargny - Diamniadio", "description": "Minibus Tata (AFTU) reliant Bargny à Diamniadio.", "arrets": ["Bargny", "Diamniadio"]},
+    {"numero_ligne": "Ligne 98", "nom_ligne": "Yenne - Bargny", "description": "Minibus Tata (AFTU) reliant Yenne à Bargny.", "arrets": ["Yenne", "Bargny"]},
+    {"numero_ligne": "Ligne 99", "nom_ligne": "Diamniadio - Sangalkam", "description": "Minibus Tata (AFTU) reliant Diamniadio à Sangalkam.", "arrets": ["Diamniadio", "Sangalkam"]},
+    {"numero_ligne": "Ligne 100", "nom_ligne": "Guédiawaye - Hôpital Dalal Jamm", "description": "Minibus Tata (AFTU) reliant Guédiawaye à l'Hôpital Dalal Jamm via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Hôpital Dalal Jamm"]},
+    {"numero_ligne": "Ligne 101", "nom_ligne": "Ngor - Village Artisanal de Soumbédioune", "description": "Minibus Tata (AFTU) reliant Ngor au Village Artisanal de Soumbédioune via la Corniche Ouest et Fann.", "arrets": ["Ngor", "Corniche Ouest", "Fann", "Village Artisanal de Soumbédioune"]},
+    {"numero_ligne": "Ligne 102", "nom_ligne": "Colobane - Grande Mosquée de Dakar", "description": "Minibus Tata (AFTU) reliant Colobane à la Grande Mosquée de Dakar via Médina.", "arrets": ["Colobane", "Médina", "Grande Mosquée de Dakar"]},
+]
+
+NOUVELLES_LIGNES_CAR_RAPIDE_2 = [
+    {"numero_ligne": "CR-21", "nom_ligne": "Plateau - Marché Kermel (Car rapide)", "description": "Car rapide reliant le Plateau au Marché Kermel.", "arrets": ["Plateau", "Marché Kermel"]},
+    {"numero_ligne": "CR-22", "nom_ligne": "Médina - Grande Mosquée de Dakar (Car rapide)", "description": "Car rapide reliant Médina à la Grande Mosquée de Dakar.", "arrets": ["Médina", "Grande Mosquée de Dakar"]},
+    {"numero_ligne": "CR-23", "nom_ligne": "Sandaga - CICES (Car rapide)", "description": "Car rapide reliant Sandaga au CICES via Grand Dakar et Nord Foire.", "arrets": ["Sandaga", "Grand Dakar", "Nord Foire", "CICES"]},
+    {"numero_ligne": "CR-24", "nom_ligne": "Rufisque - Sébikotane (Car rapide)", "description": "Car rapide reliant Rufisque à Sébikotane via Bargny et Diamniadio.", "arrets": ["Rufisque", "Bargny", "Diamniadio", "Sébikotane"]},
+    {"numero_ligne": "CR-25", "nom_ligne": "Guédiawaye - Hôpital Dalal Jamm (Car rapide)", "description": "Car rapide reliant Guédiawaye à l'Hôpital Dalal Jamm.", "arrets": ["Guédiawaye", "Hôpital Dalal Jamm"]},
+]
+
+
+def _enrichir_reseau_vague_3(cursor):
+    """Troisième vague d'enrichissement du réseau (lieux + lignes Tata et
+    Car rapide), avec les mêmes garanties d'idempotence que
+    `_enrichir_reseau_et_lexique` (vérification par nom / numéro de ligne
+    avant chaque insertion)."""
+    for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_3:
+        existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+                (nom, type_lieu, lat, lng, desc)
+            )
+
+    ligne_transport = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
+    ).fetchone()
+    ligne_transport_cr = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom = 'Car rapide'"
+    ).fetchone()
+    if not ligne_transport:
+        return
+    id_transport_tata = ligne_transport[0]
+    id_transport_car_rapide = ligne_transport_cr[0] if ligne_transport_cr else None
+
+    lots = [(NOUVELLES_LIGNES_MINIBUS_3, id_transport_tata)]
+    if id_transport_car_rapide:
+        lots.append((NOUVELLES_LIGNES_CAR_RAPIDE_2, id_transport_car_rapide))
+
+    for lignes, id_transport_lot in lots:
+        for ligne in lignes:
+            existe = cursor.execute(
+                "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
+            ).fetchone()
+            if existe:
+                continue
+
+            cursor.execute(
+                "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+                "VALUES (?, ?, ?, 1, ?)",
+                (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_lot, ligne["description"])
+            )
+            id_ligne = cursor.lastrowid
+
+            for ordre, nom_arret in enumerate(ligne["arrets"], start=1):
+                lieu_row = cursor.execute(
+                    "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_arret,)
+                ).fetchone()
+                if not lieu_row:
+                    continue
+                id_lieu, lat_arret, lng_arret = lieu_row
+                cursor.execute(
+                    "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                    (f"Arrêt {nom_arret} ({ligne['numero_ligne']})", id_lieu, lat_arret, lng_arret)
+                )
+                id_arret = cursor.lastrowid
+                cursor.execute(
+                    "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                    (id_ligne, id_arret, ordre)
+                )
+
+
+# ---------------------------------------------------------------------
+# Quatrième vague d'enrichissement, focalisée sur le réseau Tata (AFTU)
+# spécifiquement : nouveaux lieux (campus, terminus, marchés de quartier)
+# et 28 nouvelles lignes Tata supplémentaires, avec la même règle de
+# numérotation que la vague 3 (numéros jamais réutilisés : 103 à 130).
+# ---------------------------------------------------------------------
+NOUVEAUX_LIEUX_4 = [
+    ('Technopole', 'entreprise', 14.7280, -17.4550, "Zone d'activités technologiques et tertiaires proche de la VDN"),
+    ('Parc Zoologique de Hann', 'site_touristique', 14.7255, -17.4285, "Parc zoologique et forestier de Hann"),
+    ('Ouagou Niayes', 'quartier', 14.7600, -17.4150, "Quartier à la frontière de Pikine et Guédiawaye"),
+    ('Terminus Yoff', 'quartier', 14.7440, -17.4690, "Terminus des lignes desservant Yoff"),
+    ('École Supérieure Polytechnique', 'universite', 14.6930, -17.4620, "École d'ingénieurs du campus de l'UCAD"),
+    ('Marché Syndicat', 'quartier', 14.7710, -17.4020, "Grand marché de quartier à Guédiawaye"),
+    ('Terminus Rufisque', 'quartier', 14.7170, -17.2670, "Terminus des lignes desservant Rufisque"),
+    ('Ngor Plage', 'site_touristique', 14.7520, -17.5160, "Plage du village de Ngor, face à l'île de Ngor"),
+]
+
+NOUVELLES_LIGNES_MINIBUS_4 = [
+    {"numero_ligne": "Ligne 103", "nom_ligne": "Petersen - Technopole (via Cité Keur Gorgui)", "description": "Minibus Tata (AFTU) reliant Petersen à Technopole via Sacré-Cœur et Cité Keur Gorgui.", "arrets": ["Petersen", "Sacré-Cœur", "Cité Keur Gorgui", "Technopole"]},
+    {"numero_ligne": "Ligne 104", "nom_ligne": "Sandaga - Parc Zoologique de Hann", "description": "Minibus Tata (AFTU) reliant Sandaga au Parc Zoologique de Hann via Colobane et Hann.", "arrets": ["Sandaga", "Colobane", "Hann", "Parc Zoologique de Hann"]},
+    {"numero_ligne": "Ligne 105", "nom_ligne": "Pikine - Ouagou Niayes", "description": "Minibus Tata (AFTU) reliant Pikine à Ouagou Niayes via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Ouagou Niayes"]},
+    {"numero_ligne": "Ligne 106", "nom_ligne": "Yoff - Terminus Yoff", "description": "Minibus Tata (AFTU), liaison locale du village de Yoff.", "arrets": ["Yoff", "Terminus Yoff"]},
+    {"numero_ligne": "Ligne 107", "nom_ligne": "UCAD - École Supérieure Polytechnique", "description": "Minibus Tata (AFTU), navette du campus universitaire.", "arrets": ["UCAD", "École Supérieure Polytechnique"]},
+    {"numero_ligne": "Ligne 108", "nom_ligne": "Guédiawaye - Marché Syndicat", "description": "Minibus Tata (AFTU) reliant Guédiawaye au Marché Syndicat.", "arrets": ["Guédiawaye", "Marché Syndicat"]},
+    {"numero_ligne": "Ligne 109", "nom_ligne": "Rufisque - Terminus Rufisque", "description": "Minibus Tata (AFTU), liaison locale de Rufisque.", "arrets": ["Rufisque", "Terminus Rufisque"]},
+    {"numero_ligne": "Ligne 110", "nom_ligne": "Ngor - Ngor Plage", "description": "Minibus Tata (AFTU), courte liaison vers la plage de Ngor.", "arrets": ["Ngor", "Ngor Plage"]},
+    {"numero_ligne": "Ligne 111", "nom_ligne": "Médina - Fann (direct)", "description": "Minibus Tata (AFTU) reliant Médina à Fann via Fass.", "arrets": ["Médina", "Fass", "Fann"]},
+    {"numero_ligne": "Ligne 112", "nom_ligne": "Colobane - Point E", "description": "Minibus Tata (AFTU) reliant Colobane à Point E via Fass.", "arrets": ["Colobane", "Fass", "Point E"]},
+    {"numero_ligne": "Ligne 113", "nom_ligne": "HLM - Grand Médine", "description": "Minibus Tata (AFTU) reliant HLM à Grand Médine via Front de Terre.", "arrets": ["HLM", "Front de Terre", "Grand Médine"]},
+    {"numero_ligne": "Ligne 114", "nom_ligne": "Sicap Baobab - Zone de Captage", "description": "Minibus Tata (AFTU) reliant Sicap Baobab à Zone de Captage.", "arrets": ["Sicap Baobab", "Zone de Captage"]},
+    {"numero_ligne": "Ligne 115", "nom_ligne": "Liberté 1 - Amitié", "description": "Minibus Tata (AFTU) reliant Liberté 1 à Amitié.", "arrets": ["Liberté 1", "Amitié"]},
+    {"numero_ligne": "Ligne 116", "nom_ligne": "Dieuppeul - Derklé", "description": "Minibus Tata (AFTU) reliant Dieuppeul à Derklé.", "arrets": ["Dieuppeul", "Derklé"]},
+    {"numero_ligne": "Ligne 117", "nom_ligne": "Grand Dakar - Castors", "description": "Minibus Tata (AFTU) reliant Grand Dakar à Castors.", "arrets": ["Grand Dakar", "Castors"]},
+    {"numero_ligne": "Ligne 118", "nom_ligne": "Parcelles Assainies - Cambérène (direct)", "description": "Minibus Tata (AFTU) reliant Parcelles Assainies à Cambérène via Grand Médine.", "arrets": ["Parcelles Assainies", "Grand Médine", "Cambérène"]},
+    {"numero_ligne": "Ligne 119", "nom_ligne": "Golf - Wakhinane", "description": "Minibus Tata (AFTU) reliant Golf à Wakhinane.", "arrets": ["Golf", "Wakhinane"]},
+    {"numero_ligne": "Ligne 120", "nom_ligne": "Thiaroye - Djidah Thiaroye Kao", "description": "Minibus Tata (AFTU) reliant Thiaroye à Djidah Thiaroye Kao.", "arrets": ["Thiaroye", "Djidah Thiaroye Kao"]},
+    {"numero_ligne": "Ligne 121", "nom_ligne": "Yeumbeul - Malika", "description": "Minibus Tata (AFTU) reliant Yeumbeul à Malika.", "arrets": ["Yeumbeul", "Malika"]},
+    {"numero_ligne": "Ligne 122", "nom_ligne": "Keur Massar - Diacksao", "description": "Minibus Tata (AFTU) reliant Keur Massar à Diacksao.", "arrets": ["Keur Massar", "Diacksao"]},
+    {"numero_ligne": "Ligne 123", "nom_ligne": "Rufisque Est - Diokoul", "description": "Minibus Tata (AFTU) reliant Rufisque Est à Diokoul.", "arrets": ["Rufisque Est", "Diokoul"]},
+    {"numero_ligne": "Ligne 124", "nom_ligne": "Arafat - Rufisque Nord", "description": "Minibus Tata (AFTU) reliant Arafat à Rufisque Nord.", "arrets": ["Arafat", "Rufisque Nord"]},
+    {"numero_ligne": "Ligne 125", "nom_ligne": "Bargny - Sangalkam", "description": "Minibus Tata (AFTU) reliant Bargny à Sangalkam.", "arrets": ["Bargny", "Sangalkam"]},
+    {"numero_ligne": "Ligne 126", "nom_ligne": "Sébikotane - Bambilor", "description": "Minibus Tata (AFTU) reliant Sébikotane à Bambilor.", "arrets": ["Sébikotane", "Bambilor"]},
+    {"numero_ligne": "Ligne 127", "nom_ligne": "Almadies - Corniche Ouest", "description": "Minibus Tata (AFTU) reliant Almadies à la Corniche Ouest.", "arrets": ["Almadies", "Corniche Ouest"]},
+    {"numero_ligne": "Ligne 128", "nom_ligne": "Mermoz - Fenêtre Mermoz", "description": "Minibus Tata (AFTU), liaison locale du secteur Mermoz.", "arrets": ["Mermoz", "Fenêtre Mermoz"]},
+    {"numero_ligne": "Ligne 129", "nom_ligne": "Point E - Amitié", "description": "Minibus Tata (AFTU) reliant Point E à Amitié.", "arrets": ["Point E", "Amitié"]},
+    {"numero_ligne": "Ligne 130", "nom_ligne": "Sacré-Cœur 3 - Liberté 6 Extension", "description": "Minibus Tata (AFTU) reliant Sacré-Cœur 3 à Liberté 6 Extension.", "arrets": ["Sacré-Cœur 3", "Liberté 6 Extension"]},
+]
+
+
+def _enrichir_reseau_vague_4(cursor):
+    """Quatrième vague d'enrichissement, centrée sur le réseau Tata : mêmes
+    garanties d'idempotence que les vagues précédentes (vérification par
+    nom / numéro de ligne avant chaque insertion)."""
+    for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_4:
+        existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+                (nom, type_lieu, lat, lng, desc)
+            )
+
+    ligne_transport = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
+    ).fetchone()
+    if not ligne_transport:
+        return
+    id_transport_tata = ligne_transport[0]
+
+    for ligne in NOUVELLES_LIGNES_MINIBUS_4:
+        existe = cursor.execute(
+            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
+        ).fetchone()
+        if existe:
+            continue
+
+        cursor.execute(
+            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+            "VALUES (?, ?, ?, 1, ?)",
+            (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_tata, ligne["description"])
+        )
+        id_ligne = cursor.lastrowid
+
+        for ordre, nom_arret in enumerate(ligne["arrets"], start=1):
+            lieu_row = cursor.execute(
+                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_arret,)
+            ).fetchone()
+            if not lieu_row:
+                continue
+            id_lieu, lat_arret, lng_arret = lieu_row
+            cursor.execute(
+                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                (f"Arrêt {nom_arret} ({ligne['numero_ligne']})", id_lieu, lat_arret, lng_arret)
+            )
+            id_arret = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                (id_ligne, id_arret, ordre)
+            )
+
+
 def init_db(force=False):
     """
     Crée le fichier de base de données à partir de schema.sql et le remplit
@@ -659,6 +1279,35 @@ def get_nombre_lieux():
 # Gestion Spécifique des Lignes et Arrêts (Minibus )
 # ---------------------------------------------------------------------
 
+def get_lignes_sonatel():
+    """Retourne uniquement les lignes minibus curées au départ du pôle
+    SONATEL (numéros SN-1 à SN-8). Conservé pour compatibilité ; la page
+    /minibus utilise désormais get_toutes_les_lignes_tata()."""
+    conn = get_connection()
+    lignes = conn.execute(
+        "SELECT * FROM lignes_bus WHERE numero_ligne LIKE 'SN-%' ORDER BY numero_ligne"
+    ).fetchall()
+    conn.close()
+    return lignes
+
+
+def get_toutes_les_lignes_tata():
+    """Retourne l'intégralité des lignes du réseau Minibus Tata (AFTU) —
+    utilisée par la page /minibus, qui référence désormais tout le réseau
+    et non plus seulement les itinéraires curés SONATEL. Le Car rapide,
+    bien que marqué est_minibus=1 en base pour le calcul d'itinéraires,
+    est un moyen de transport distinct et n'est pas inclus ici."""
+    conn = get_connection()
+    lignes = conn.execute("""
+        SELECT lb.* FROM lignes_bus lb
+        JOIN moyens_transport mt ON mt.id_transport = lb.id_transport
+        WHERE mt.nom LIKE 'Minibus Tata%'
+        ORDER BY lb.numero_ligne
+    """).fetchall()
+    conn.close()
+    return lignes
+
+
 def get_toutes_les_lignes_bus(seulement_minibus=False):
     """Retourne les lignes de bus avec un filtre optionnel pour le réseau Minibus."""
     conn = get_connection()
@@ -666,7 +1315,7 @@ def get_toutes_les_lignes_bus(seulement_minibus=False):
     if seulement_minibus:
         query += " WHERE est_minibus = 1"
     query += " ORDER BY numero_ligne"
-    
+
     lignes = conn.execute(query).fetchall()
     conn.close()
     return lignes
@@ -739,6 +1388,14 @@ def ajouter_favori(nom_trajet, id_depart, id_arrivee):
 def supprimer_favori(id_favori):
     conn = get_connection()
     conn.execute("DELETE FROM favoris WHERE id_favori = ?", (id_favori,))
+    conn.commit()
+    conn.close()
+
+
+def vider_historique():
+    """Supprime la totalité de l'historique de recherches de l'utilisateur."""
+    conn = get_connection()
+    conn.execute("DELETE FROM historique_recherches")
     conn.commit()
     conn.close()
 

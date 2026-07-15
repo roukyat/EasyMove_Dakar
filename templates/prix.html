@@ -9,6 +9,7 @@
             <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> › Prix</div>
             <h1>Estimation des prix</h1>
             <p>Combien coûte vraiment chaque trajet ? De quoi négocier ou payer le juste prix, sans se faire avoir.</p>
+            <p class="prix-note"><i class="fa-solid fa-circle-info"></i> Les prix affichés sont des estimations pouvant varier selon le trafic, l'heure ou la négociation avec le chauffeur.</p>
         </div>
     </div>
 
@@ -36,8 +37,10 @@
                             <span class="tc-prix-value">{{ "{:,}".format(t.cout_min).replace(",", " ") }} – {{ "{:,}".format(t.cout_max).replace(",", " ") }} FCFA</span>
                             {% endif %}
                         </div>
-                        {% if t.capacite_max %}
-                        <span class="badge badge-bleu"><i class="fa-solid fa-user-group" style="margin-right:4px;"></i>{{ t.capacite_max }} passager{{ 's' if t.capacite_max > 1 }} max</span>
+                        {% if t.nom == 'Clando' %}
+                        <span class="badge badge-bleu tc-badge-niveau">Prix négocié</span>
+                        {% else %}
+                        <span class="badge {{ t.niveau_prix.classe }} tc-badge-niveau">{{ t.niveau_prix.label }}</span>
                         {% endif %}
                     </div>
                 </div>

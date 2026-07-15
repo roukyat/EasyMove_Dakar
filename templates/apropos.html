@@ -30,9 +30,9 @@
                 <div class="about-mockup reveal" aria-hidden="true">
                     <span class="about-mockup-badge">100% gratuit</span>
                     <div class="about-mockup-dots"><span></span><span></span><span></span></div>
-                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Sonatel</div>
-                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> Foire</div>
-                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata Ligne 4 · 200 FCFA</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Grand Yoff</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> DIT, Cité Keur Gorgui</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata DIT-4 · 350 FCFA</div>
                     <div class="about-mockup-cta"><i class="fa-solid fa-magnifying-glass" style="margin-right: 6px;"></i>Rechercher un trajet</div>
                 </div>
             </div>
@@ -73,8 +73,7 @@
 
             <div class="resolution-banner reveal">
                 <i class="fa-solid fa-bolt"></i>
-                <p>Avec EasyMove, toutes les informations utiles pour se déplacer à Dakar sont réunies au même endroit.
-                Plus besoin de deviner : recherchez, comparez et partez en toute confiance.</p>
+                <p>EasyMove rassemble tout ça au même endroit, pour que vous n'ayez plus à demander à droite à gauche avant de partir.</p>
             </div>
         </div>
     </section>
@@ -82,22 +81,22 @@
     {# ============================================================
        NOTRE HISTOIRE — bref rappel des origines du projet
        ============================================================ #}
-    <section class="section">
+    <section class="section" style="padding-bottom: 24px;">
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">Notre histoire</div>
                 <h2>Née d'un besoin concret, à Dakar.</h2>
-                <p>EasyMove est parti du même problème que vivent chaque jour des milliers de Dakarois : trouver
-                rapidement le bon taxi, le bon clando ou la bonne ligne de Tata sans avoir à deviner. Le projet a
-                commencé en 2026 comme un simple répertoire de transports, avant de devenir un moteur de recherche
-                capable de comparer en temps réel prix, durée et confort entre taxis, clandos, cars rapides, Tata,
-                BRT et TER.
+                <p>L'idée vient d'un constat simple, vécu par des milliers de Dakarois chaque jour : on hésite
+                toujours un peu avant de choisir un taxi, un clando ou une ligne de Tata, faute de repères clairs.
+                EasyMove a démarré en 2026 comme un projet d'étudiants du DIT, pensé au départ comme un simple
+                répertoire de transports. Il s'est transformé au fil du travail en un vrai comparateur, capable de
+                calculer prix, durée et correspondances pour n'importe quel trajet à Dakar.
                 </p>
             </div>
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" style="padding-top: 24px;">
         <div class="container">
             <div class="section-header reveal">
                 <div class="eyebrow">La plateforme</div>
@@ -106,28 +105,28 @@
             <div class="feature-grid reveal">
                 <a href="{{ url_for('trajets') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-route"></i></div>
-                    <h3>Trouvez rapidement le meilleur itinéraire.</h3>
-                    <p>Sélectionnez un départ et une arrivée, obtenez les options disponibles instantanément.</p>
+                    <h3>Le bon itinéraire, en un instant.</h3>
+                    <p>Un départ, une arrivée, et les options disponibles s'affichent tout de suite.</p>
                 </a>
                 <a href="{{ url_for('transports') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-                    <h3>Comparez durée, coût et confort.</h3>
-                    <p>Confrontez prix, durée et confort entre taxi, Tata, DDD, BRT ou TER avant de choisir.</p>
+                    <h3>Taxi, Tata, DDD, BRT, TER...</h3>
+                    <p>Tous les modes de transport, avec leur prix, leur confort et leurs limites, mis côte à côte.</p>
                 </a>
                 <a href="{{ url_for('prix') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-tags"></i></div>
-                    <h3>Estimez votre budget avant de partir.</h3>
-                    <p>Des fourchettes tarifaires réalistes pour éviter les mauvaises surprises et les négociations à l'aveugle.</p>
+                    <h3>Un budget avant de partir.</h3>
+                    <p>Des fourchettes de prix réalistes, pour ne pas se faire avoir en négociant à l'aveugle.</p>
                 </a>
                 <a href="{{ url_for('minibus') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                    <h3>Parcourez le réseau Tata sur une carte interactive.</h3>
-                    <p>Visualisez le réseau Tata/AFTU sur une carte interactive, arrêt par arrêt.</p>
+                    <h3>Le réseau Tata, quartier par quartier.</h3>
+                    <p>Toutes les lignes minibus sur une carte interactive, arrêt par arrêt.</p>
                 </a>
                 <a href="{{ url_for('wolof') }}" class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-comments"></i></div>
-                    <h3>Communiquez plus facilement pendant vos déplacements.</h3>
-                    <p>Un lexique wolof pratique pour négocier un prix, indiquer une destination ou simplement saluer.</p>
+                    <h3>Quelques mots de wolof qui aident.</h3>
+                    <p>De quoi négocier un prix, indiquer une destination ou simplement saluer le chauffeur.</p>
                 </a>
             </div>
         </div>

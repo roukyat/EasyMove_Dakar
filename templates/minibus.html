@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Réseau Minibus Dakar — Cartographie interactive{% endblock %}
+{% block title %}Tata — Le réseau minibus de Dakar — EasyMove Dakar{% endblock %}
 
 {% block content %}
 <div id="donnees-arrets-data" style="display: none;">
@@ -8,282 +8,563 @@
     {% endfor %}
 </div>
 
-<div class="container-fluid" style="padding: 24px; min-height: 100vh; background-color: #0B0F19; color: #FFF;">
-    
-    <div class="page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-        <div>
-            <h1 style="font-size: 1.8rem; font-family: 'Syne', sans-serif; font-weight: 700; margin: 0; color: #FFF;">
-                <i class="fa-solid fa-map-location-dot" style="color: #06B6D4; margin-right: 12px;"></i>Réseau de Transport Minibus
-            </h1>
-            <p style="color: #94A3B8; margin: 4px 0 0 0; font-size: 0.95rem;">
-                Toutes les lignes de bus et de minibus de Dakar, à explorer librement sur la carte.
-            </p>
-        </div>
-        
-        <button id="btnGeoloc" style="background: #2563EB; color: #FFF; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); transition: all 0.2s;">
-            <i class="fa-solid fa-location-crosshairs"></i> Me géolocaliser (Position actuelle)
-        </button>
+<div class="page-header">
+    <div class="container">
+        <div class="breadcrumb"><a href="{{ url_for('accueil') }}">Accueil</a> > Tata</div>
+        <h1><i class="fa-solid fa-map-location-dot" style="color: var(--accent-cyan); margin-right: 10px;"></i>Le réseau Tata de Dakar</h1>
+        <p>Toutes les lignes minibus Tata référencées, quartier par quartier.</p>
     </div>
+</div>
 
-    <div class="minibus-explorer-grid">
+<section class="section" style="padding-top: 24px;">
+    <div class="container">
 
-        <div class="minibus-side-panel" style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
-            
-            <div style="background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 16px; flex-shrink: 0;">
-                <div style="position: relative;">
-                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 15px; color: #94A3B8;"></i>
-                    <input type="text" id="searchNetwork" placeholder="Rechercher une ligne, un arrêt..." 
-                           style="width: 100%; padding: 12px 14px 12px 40px; background: #0F172A; border: 1px solid #334155; border-radius: 8px; color: #FFF; box-sizing: border-box; font-size: 0.9rem; outline: none;">
-                </div>
-            </div>
+        <div class="resolution-banner reveal" style="margin-bottom: 32px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <p>Comptez généralement entre <strong>200 et 500 FCFA</strong> selon la distance, sans horaires fixes — le principe même du Tata. Utilisez la recherche pour retrouver une ligne par nom de quartier.</p>
+        </div>
 
-            <div style="background: #1E293B; border: 1px solid #334155; border-radius: 12px; flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 12px; flex-shrink: 0;">
-                    <button id="tabLignes" style="background: #0F172A; color: #FFF; border: 1px solid #334155; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
-                        <i class="fa-solid fa-route" style="margin-right: 6px;"></i>Lignes
-                    </button>
-                    <button id="tabProches" style="background: transparent; color: #94A3B8; border: 1px solid transparent; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
-                        <i class="fa-solid fa-street-view" style="margin-right: 6px;"></i>Arrêts Proches
-                    </button>
+        <div class="sn-layout">
+
+            <div class="sn-side-panel">
+
+                <div class="search-input-wrapper" style="margin-bottom: 16px;">
+                    <i class="fa-solid fa-magnifying-glass input-icon" style="margin-right: 10px;"></i>
+                    <input type="text" id="searchNetwork" class="search-input" placeholder="Filtrer par destination…">
                 </div>
 
-                <div id="panelLignes" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                <div class="sn-tabs">
+                    <button type="button" id="tabLignes" class="sn-tab actif">
+                        <i class="fa-solid fa-route"></i> Toutes les lignes
+                    </button>
+                    <button type="button" id="tabProches" class="sn-tab">
+                        <i class="fa-solid fa-street-view"></i> Autour de moi
+                    </button>
+                </div>
+
+                {# Carte d'info de la ligne sélectionnée : remplie par JS au clic
+                   sur une carte d'itinéraire, sans toucher au tracé sur la carte. #}
+                <div id="selectedLineInfo"></div>
+
+                <div id="panelLignes" class="sn-panel">
                     {% for item in lignes_minibus %}
-                    <div class="line-item-row stagger-item"
+                    <div class="sn-route-card stagger-item"
                          data-search-pool="{{ item.info.numero_ligne|lower }} {{ item.info.nom_ligne|lower }}"
                          data-id-ligne="{{ item.info.id_ligne }}"
-                         style="background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 14px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; cursor: pointer;">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="background: #06B6D4; color: #0B0F19; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; min-width: 45px; text-align: center;">
-                                {{ item.info.numero_ligne }}
-                            </span>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="font-weight: 600; font-size: 0.9rem; color: #FFF;">{{ item.info.nom_ligne }}</span>
-                                <span style="font-size: 0.75rem; color: #94A3B8;">{{ item.arrets|length }} arrêts</span>
-                            </div>
+                         tabindex="0" role="button"
+                         aria-label="Afficher l'itinéraire {{ item.info.numero_ligne }} — {{ item.info.nom_ligne }}">
+                        <div class="sn-route-top">
+                            <span class="sn-route-badge">{{ item.info.numero_ligne }}</span>
+                            <span class="sn-route-name">{{ item.info.nom_ligne }}</span>
+                            <i class="fa-solid fa-chevron-right sn-route-chevron"></i>
                         </div>
-                        <i class="fa-solid fa-chevron-right" style="font-size: 0.8rem; color: #94A3B8;"></i>
+                        <p class="sn-route-desc">{{ item.info.description }}</p>
+                        <span class="sn-route-stops"><i class="fa-solid fa-location-dot"></i> {{ item.arrets|length }} arrêts</span>
                     </div>
                     {% endfor %}
                 </div>
 
-                <div id="panelProches" style="flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 8px;">
-                    <div style="text-align: center; padding: 32px 16px; color: #94A3B8;" id="gpsPlaceholder">
-                        <i class="fa-solid fa-location-dot" style="font-size: 1.8rem; color: #2563EB; margin-bottom: 12px; display: block;"></i>
-                        <p style="font-size: 0.85rem; margin: 0; line-height: 1.5;">Cliquez sur "Me géolocaliser" pour afficher les arrêts de bus à proximité immédiate.</p>
+                <div id="panelProches" class="sn-panel" style="display: none;">
+                    <button type="button" id="btnGeoloc" class="btn-geoloc" style="margin-bottom: 14px;">
+                        <i class="fa-solid fa-location-crosshairs"></i> Me géolocaliser
+                    </button>
+                    <div class="sn-gps-placeholder" id="gpsPlaceholder">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <p>Cliquez sur « Me géolocaliser » pour afficher les arrêts Tata les plus proches de vous.</p>
                     </div>
-                    <div id="nearStopsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <div id="nearStopsList" class="sn-near-list"></div>
                 </div>
 
             </div>
-        </div>
 
-        <div class="minibus-map-panel" style="border-radius: 16px; overflow: hidden; border: 1px solid #334155; position: relative; height: 100%;">
-            <div id="mapMinibus" style="width: 100%; height: 100%; background: #F4F4F6;"></div>
-        </div>
+            <div class="sn-map-panel map-wrapper">
+                <div id="mapMinibus" class="sn-map"></div>
+            </div>
 
+        </div>
     </div>
-</div>
+</section>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // 1. Initialisation de la carte (on va refaire ça)
-    const map = L.map('mapMinibus', {
-        zoomControl: false,
-        scrollWheelZoom: true
-    }).setView([14.6937, -17.4441], 13);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
-    }).addTo(map);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    
-    const arretsData = [];
-    document.querySelectorAll(".js-arret-item").forEach(el => {
-        arretsData.push({
-            id: parseInt(el.getAttribute("data-id")),
-            nom: el.getAttribute("data-nom"),
-            lat: parseFloat(el.getAttribute("data-lat")),
-            lng: parseFloat(el.getAttribute("data-lng")),
-            ligne: el.getAttribute("data-ligne")
-        });
-    });
-
-    const markersGroup = L.layerGroup().addTo(map);
-    const routingGroup = L.layerGroup().addTo(map);
-    let walkingRoutingControl = null; // Guidage piéton vers l'arrêt le plus proche
-
-    function tracerPointsReseau(liste) {
-        markersGroup.clearLayers();
-        liste.forEach(a => {
-            const pointMarker = L.circleMarker([a.lat, a.lng], {
-                radius: 7,
-                fillColor: "#2563EB",
-                color: "#FFFFFF",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.9
-            });
-
-            pointMarker.bindPopup(`
-                <div style="font-family: system-ui, sans-serif; padding: 2px; color: #000;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700;">Arrêt : ${a.nom}</h4>
-                    <span style="background: #E0F2FE; color: #0369A1; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Ligne ${a.ligne}</span>
-                </div>
-            `);
-            markersGroup.addLayer(pointMarker);
-        });
-    }
-
-    if (arretsData.length > 0) {
-        tracerPointsReseau(arretsData);
-    }
-
-    //  Gestion des Onglets du panneau
+    // ======================================================================
+    // Éléments partagés + onglets + recherche : ne dépendent pas de Leaflet.
+    // Un incident sur la carte (CDN bloqué, plugin en échec, etc.) ne doit
+    // jamais empêcher ces éléments de base de fonctionner — c'est ce qui
+    // s'est produit une première fois : une erreur survenue tôt dans
+    // l'initialisation de la carte interrompait tout le reste du script, y
+    // compris le bouton "Me géolocaliser" défini plus bas.
+    // ======================================================================
     const tabLignes = document.getElementById("tabLignes");
     const tabProches = document.getElementById("tabProches");
     const panelLignes = document.getElementById("panelLignes");
     const panelProches = document.getElementById("panelProches");
+    const selectedLineInfo = document.getElementById("selectedLineInfo");
+    const btnGeoloc = document.getElementById("btnGeoloc");
+    const gpsPlaceholder = document.getElementById("gpsPlaceholder");
+    const nearStopsList = document.getElementById("nearStopsList");
+    const searchInput = document.getElementById("searchNetwork");
 
-    tabLignes.addEventListener("click", () => {
-        tabLignes.style.background = "#0F172A"; tabLignes.style.color = "#FFF";
-        tabProches.style.background = "transparent"; tabProches.style.color = "#94A3B8";
-        panelLignes.style.display = "flex"; panelProches.style.display = "none";
+    const onglets = [
+        { tab: tabLignes, panel: panelLignes },
+        { tab: tabProches, panel: panelProches }
+    ];
+    onglets.forEach(({ tab, panel }) => {
+        tab.addEventListener("click", () => {
+            onglets.forEach(({ tab: t, panel: p }) => {
+                t.classList.toggle("actif", t === tab);
+                p.style.display = (p === panel) ? "flex" : "none";
+            });
+        });
     });
 
-    tabProches.addEventListener("click", () => {
-        tabProches.style.background = "#0F172A"; tabProches.style.color = "#FFF";
-        tabLignes.style.background = "transparent"; tabLignes.style.color = "#94A3B8";
-        panelProches.style.display = "flex"; panelLignes.style.display = "none";
+    function rendreActivableAuClavier(el) {
+        el.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                el.click();
+            }
+        });
+    }
+
+    // Distance approximative d'une ligne : somme des segments arrêt-à-arrêt.
+    function distanceLigneKm(arrets) {
+        let total = 0;
+        for (let i = 1; i < arrets.length; i++) {
+            total += distanceKm(arrets[i - 1].latitude, arrets[i - 1].longitude, arrets[i].latitude, arrets[i].longitude);
+        }
+        return total;
+    }
+
+    // La recherche ne filtre que l'onglet "Toutes les lignes" (seul à
+    // porter data-search-pool) ; si on tape pendant qu'un autre onglet est
+    // actif, on y bascule automatiquement pour que le filtrage soit visible.
+    const lignesRowsRecherche = document.querySelectorAll("#panelLignes .sn-route-card");
+    searchInput.addEventListener("input", function() {
+        const token = this.value.toLowerCase().trim();
+        if (token && !tabLignes.classList.contains("actif")) {
+            tabLignes.click();
+        }
+        lignesRowsRecherche.forEach(row => {
+            const pool = row.getAttribute("data-search-pool");
+            row.style.display = pool.includes(token) ? "" : "none";
+        });
     });
 
-    //  Tracé d'itinéraires complets 
-    const lignesRows = document.querySelectorAll(".line-item-row");
+    // ======================================================================
+    // Géolocalisation & itinéraires à pied. `map`/`routingGroup`/`userIcon`
+    // sont renseignés plus bas si la carte s'initialise correctement ; ces
+    // fonctions restent utilisables (avec repli Google Maps) même si elle
+    // échoue.
+    // ======================================================================
+    let map = null;
+    let routingGroup = null;
+    let walkingRoutingControl = null;
+    let userIcon = null;
+    let userPosition = null;
+    let userMarker = null;
+
+    function obtenirPositionUtilisateur(callback) {
+        if (userPosition) {
+            callback(userPosition);
+            return;
+        }
+        if (!navigator.geolocation) {
+            showToast("Votre appareil ne supporte pas le GPS.", "error");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            if (map && userIcon) {
+                if (!userMarker) {
+                    userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: userIcon }).addTo(map).bindPopup("Vous êtes ici");
+                } else {
+                    userMarker.setLatLng([userPosition.lat, userPosition.lng]);
+                }
+            }
+            callback(userPosition);
+        }, function(err) {
+            showToast("Position GPS refusée ou indisponible.", "error");
+            console.error(err);
+        });
+    }
+
+    function ouvrirItineraireGoogleMaps(pos, destLat, destLng) {
+        const lien = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lng}&destination=${destLat},${destLng}&travelmode=walking`;
+        window.open(lien, '_blank', 'noopener');
+    }
+
+    // Itinéraire à pied vers un arrêt donné. Si la carte ou le plugin de
+    // routage n'est pas disponible, ou si le service de routage public
+    // (OSRM) ne répond pas sous 6 secondes, on bascule sur un repli plutôt
+    // que de laisser l'utilisateur sans réponse.
+    function tracerItineraireAPied(destLat, destLng, destNom) {
+        obtenirPositionUtilisateur(function(pos) {
+            if (!map || !routingGroup || typeof L.Routing === 'undefined') {
+                const distanceVol = distanceKm(pos.lat, pos.lng, destLat, destLng).toFixed(1);
+                showToast(`Carte indisponible — ouverture de l'itinéraire (${distanceVol} km) dans Google Maps.`, "info");
+                ouvrirItineraireGoogleMaps(pos, destLat, destLng);
+                return;
+            }
+
+            if (walkingRoutingControl) {
+                map.removeControl(walkingRoutingControl);
+                walkingRoutingControl = null;
+            }
+            routingGroup.clearLayers();
+
+            let repliDejaUtilise = false;
+            const delaiRepli = setTimeout(function() {
+                repliDejaUtilise = true;
+                tracerRepliLigneDroite(pos, destLat, destLng, destNom);
+            }, 6000);
+
+            try {
+                walkingRoutingControl = L.Routing.control({
+                    waypoints: [L.latLng(pos.lat, pos.lng), L.latLng(destLat, destLng)],
+                    router: L.Routing.osrmv1({ language: 'fr', profile: 'foot' }),
+                    lineOptions: { styles: [{ color: "#4f46e5", weight: 5, opacity: 0.85 }] },
+                    createMarker: function(i, waypoint) {
+                        const label = i === 0 ? "Vous êtes ici" : `<b>Arrêt :</b> ${destNom}`;
+                        return L.marker(waypoint.latLng).bindPopup(label);
+                    },
+                    show: false,
+                    collapsible: true,
+                    addWaypoints: false
+                }).addTo(map);
+
+                walkingRoutingControl.on('routesfound', function(e) {
+                    clearTimeout(delaiRepli);
+                    if (repliDejaUtilise) return;
+                    const route = e.routes[0];
+                    map.fitBounds(L.latLngBounds(route.coordinates), { padding: [50, 50] });
+                    const distanceMarche = (route.summary.totalDistance / 1000).toFixed(1);
+                    const dureeMarche = Math.round(route.summary.totalTime / 60);
+                    showToast(`À pied vers ${destNom} : ${distanceMarche} km, environ ${dureeMarche} min`, "success");
+                });
+                walkingRoutingControl.on('routingerror', function() {
+                    clearTimeout(delaiRepli);
+                    if (!repliDejaUtilise) {
+                        repliDejaUtilise = true;
+                        tracerRepliLigneDroite(pos, destLat, destLng, destNom);
+                    }
+                });
+            } catch (e) {
+                clearTimeout(delaiRepli);
+                tracerRepliLigneDroite(pos, destLat, destLng, destNom);
+            }
+        });
+    }
+
+    // Repli : trajet à vol d'oiseau tracé sur la carte + lien Google Maps
+    // pour un itinéraire à pied précis, utilisé quand le service de routage
+    // ne répond pas.
+    function tracerRepliLigneDroite(pos, destLat, destLng, destNom) {
+        if (walkingRoutingControl) {
+            map.removeControl(walkingRoutingControl);
+            walkingRoutingControl = null;
+        }
+        routingGroup.clearLayers();
+        const traitDirect = L.polyline([[pos.lat, pos.lng], [destLat, destLng]], {
+            color: "#4f46e5", weight: 4, opacity: 0.85, dashArray: "8, 8"
+        }).addTo(routingGroup);
+        map.fitBounds(traitDirect.getBounds(), { padding: [60, 60] });
+        const distanceVol = distanceKm(pos.lat, pos.lng, destLat, destLng).toFixed(1);
+        const lienGoogleMaps = `https://www.google.com/maps/dir/?api=1&origin=${pos.lat},${pos.lng}&destination=${destLat},${destLng}&travelmode=walking`;
+        traitDirect.bindPopup(`
+            <div class="tata-map-popup">
+                <p>Itinéraire détaillé indisponible pour le moment.</p>
+                <p><strong>${distanceVol} km</strong> à vol d'oiseau jusqu'à ${destNom}.</p>
+                <a href="${lienGoogleMaps}" target="_blank" rel="noopener" class="tata-popup-walk-btn" style="display:inline-flex; text-decoration:none;">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Ouvrir dans Google Maps
+                </a>
+            </div>
+        `).openPopup();
+        showToast(`Itinéraire détaillé indisponible — ${distanceVol} km à vol d'oiseau jusqu'à ${destNom}.`, "info");
+    }
+
+    // ======================================================================
+    // Bouton "Me géolocaliser" (liste des arrêts proches) : indépendant de
+    // la carte, doit rester utilisable même si Leaflet a échoué.
+    // ======================================================================
+    btnGeoloc.addEventListener("click", function() {
+        if (!navigator.geolocation) {
+            showToast("Votre appareil ne supporte pas le GPS.", "error");
+            return;
+        }
+        btnGeoloc.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Localisation…';
+        btnGeoloc.disabled = true;
+
+        obtenirPositionUtilisateur(function(pos) {
+            if (map) map.setView([pos.lat, pos.lng], 15);
+            btnGeoloc.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> GPS actif';
+            btnGeoloc.disabled = false;
+
+            fetch(`/api/arrets_proches?lat=${pos.lat}&lng=${pos.lng}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Réponse serveur invalide (" + res.status + ")");
+                    return res.json();
+                })
+                .then(data => {
+                    gpsPlaceholder.style.display = "none";
+                    nearStopsList.innerHTML = "";
+
+                    if (!data.length) {
+                        nearStopsList.innerHTML = '<p style="padding: 12px; color: var(--text-muted, #666);">Aucun arrêt trouvé à proximité.</p>';
+                        return;
+                    }
+
+                    data.forEach(stop => {
+                        const item = document.createElement("div");
+                        item.className = "sn-near-item";
+                        item.tabIndex = 0;
+                        item.setAttribute("role", "button");
+                        item.setAttribute("aria-label", `Tracer l'itinéraire à pied vers l'arrêt ${stop.nom}`);
+                        rendreActivableAuClavier(item);
+                        item.innerHTML = `
+                            <div>
+                                <strong>${stop.nom}</strong>
+                                <span class="sn-near-ligne">Ligne ${stop.numero_ligne}</span>
+                            </div>
+                            <span class="sn-near-dist">${stop.distance} km</span>
+                        `;
+
+                        item.addEventListener("click", function() {
+                            tracerItineraireAPied(stop.latitude, stop.longitude, stop.nom);
+                        });
+                        nearStopsList.appendChild(item);
+                    });
+                })
+                .catch(err => {
+                    btnGeoloc.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Me géolocaliser';
+                    showToast("Impossible de charger les arrêts proches.", "error");
+                    console.error(err);
+                });
+        });
+    });
+
+    // ======================================================================
+    // Cartes d'itinéraires (onglet "Toutes les lignes") : les infos texte
+    // (départ/arrivée/distance/arrêts) s'affichent toujours ; le tracé sur
+    // la carte ne s'exécute que si celle-ci est disponible.
+    // ======================================================================
+    const lignesRows = document.querySelectorAll(".sn-route-card");
     lignesRows.forEach(row => {
+        rendreActivableAuClavier(row);
         row.addEventListener("click", function() {
             const idLigne = this.getAttribute("data-id-ligne");
-            lignesRows.forEach(r => r.style.borderColor = "#334155");
-            this.style.borderColor = "#06B6D4";
+            const numero = this.querySelector(".sn-route-badge").textContent.trim();
+            const nom = this.querySelector(".sn-route-name").textContent.trim();
+            lignesRows.forEach(r => r.classList.remove("actif"));
+            this.classList.add("actif");
 
             fetch(`/api/minibus/arrets?id_ligne=${idLigne}`)
                 .then(res => res.json())
                 .then(arrets => {
                     if (arrets.length === 0) return;
-                    routingGroup.clearLayers();
-                    const polylinePoints = [];
-                    arrets.forEach(a => {
-                        polylinePoints.push([a.latitude, a.longitude]);
-                    });
 
-                    const routeLine = L.polyline(polylinePoints, {
-                        color: "#06B6D4",
-                        weight: 5,
-                        opacity: 0.85,
-                        lineJoin: 'round'
+                    const depart = arrets[0].nom.replace(/^Arrêt /, '').replace(/\s*\(.*\)$/, '');
+                    const arrivee = arrets[arrets.length - 1].nom.replace(/^Arrêt /, '').replace(/\s*\(.*\)$/, '');
+                    const distanceLigne = distanceLigneKm(arrets);
+
+                    selectedLineInfo.innerHTML = `
+                        <div class="sn-info-card">
+                            <div class="sn-info-card-header">
+                                <span class="sn-route-badge">${numero}</span>
+                                <span>${nom}</span>
+                            </div>
+                            <div class="sn-info-row"><i class="fa-solid fa-play"></i> Départ : <strong>${depart}</strong></div>
+                            <div class="sn-info-row"><i class="fa-solid fa-flag-checkered"></i> Arrivée : <strong>${arrivee}</strong></div>
+                            <div class="sn-info-row"><i class="fa-solid fa-location-dot"></i> <strong>${arrets.length}</strong> arrêts</div>
+                            <div class="sn-info-row"><i class="fa-solid fa-ruler"></i> Distance approx. : <strong>${distanceLigne.toFixed(1)} km</strong></div>
+                        </div>
+                    `;
+
+                    if (!map || !routingGroup) return;
+
+                    routingGroup.clearLayers();
+                    const polylinePoints = arrets.map(a => [a.latitude, a.longitude]);
+
+                    // Effet "glow" : un trait large et translucide sous le
+                    // tracé principal, pour un rendu plus soigné qu'une
+                    // simple ligne plate.
+                    L.polyline(polylinePoints, {
+                        color: "#ff5a3c",
+                        weight: 12,
+                        opacity: 0.18,
+                        lineJoin: 'round',
+                        lineCap: 'round'
                     }).addTo(routingGroup);
 
-                    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+                    const routeLine = L.polyline(polylinePoints, {
+                        color: "#ff5a3c",
+                        weight: 5,
+                        opacity: 0.95,
+                        lineJoin: 'round',
+                        lineCap: 'round'
+                    }).addTo(routingGroup);
+
+                    // Départ (vert) et arrivée (indigo) marqués distinctement
+                    // du reste du tracé, pour lire le sens du trajet en un
+                    // coup d'œil.
+                    L.circleMarker(polylinePoints[0], {
+                        radius: 7, color: '#fff', weight: 2, fillColor: '#10b981', fillOpacity: 1
+                    }).addTo(routingGroup);
+                    L.circleMarker(polylinePoints[polylinePoints.length - 1], {
+                        radius: 7, color: '#fff', weight: 2, fillColor: '#4f46e5', fillOpacity: 1
+                    }).addTo(routingGroup);
+
+                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
                 });
         });
     });
 
-    // Filtrage de l'input de recherche
-    const searchInput = document.getElementById("searchNetwork");
-    searchInput.addEventListener("input", function() {
-        const token = this.value.toLowerCase().trim();
-        lignesRows.forEach(row => {
-            const pool = row.getAttribute("data-search-pool");
-            row.style.display = pool.includes(token) ? "flex" : "none";
-        });
-    });
-
-    // 6. Localisation GPS
-    const btnGeoloc = document.getElementById("btnGeoloc");
-    btnGeoloc.addEventListener("click", function() {
-        if (!navigator.geolocation) {
-            alert("Votre appareil ne supporte pas le GPS.");
-            return;
-        }
-        btnGeoloc.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Alignement...';
-
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            const uLat = pos.coords.latitude;
-            const uLng = pos.coords.longitude;
-
-            const userIcon = L.divIcon({
-                className: 'g-pulse',
-                html: '<div style="width:14px; height:14px; background:#1A73E8; border:3px solid #FFF; border-radius:50%; box-shadow:0 0 8px rgba(26,115,232,0.6);"></div>',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
+    // ======================================================================
+    // Carte Leaflet : isolée dans un try/catch. Un plugin externe qui ne
+    // charge pas (CDN bloqué, ad-blocker...) ne doit plus jamais faire
+    // planter tout ce qui précède (onglets, recherche, géolocalisation).
+    // ======================================================================
+    try {
+        const arretsData = [];
+        document.querySelectorAll(".js-arret-item").forEach(el => {
+            arretsData.push({
+                id: parseInt(el.getAttribute("data-id")),
+                nom: el.getAttribute("data-nom"),
+                lat: parseFloat(el.getAttribute("data-lat")),
+                lng: parseFloat(el.getAttribute("data-lng")),
+                ligne: el.getAttribute("data-ligne")
             });
+        });
 
-            L.marker([uLat, uLng], { icon: userIcon }).addTo(map).bindPopup("Vous êtes ici").openPopup();
-            map.setView([uLat, uLng], 15);
-            btnGeoloc.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> GPS Actif';
+        map = L.map('mapMinibus', {
+            zoomControl: false,
+            scrollWheelZoom: true
+        }).setView([14.7259, -17.4793], 12);
 
-            fetch(`/api/arrets_proches?lat=${uLat}&lng=${uLng}`)
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById("gpsPlaceholder").style.display = "none";
-                    const listContainer = document.getElementById("nearStopsList");
-                    listContainer.innerHTML = "";
-                    tabProches.click();
+        // Fond de carte clair et épuré (CartoDB Positron) : les couleurs de
+        // marque (dégradé indigo/corail) ressortent bien mieux sur un fond
+        // très sobre que sur un fond déjà chargé en couleurs.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
 
-                    data.forEach(stop => {
-                        const item = document.createElement("div");
-                        item.style = "background: #0F172A; border: 1px solid #334155; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;";
-                        item.innerHTML = `
-                            <div>
-                                <strong style="color: #FFF; font-size: 0.9rem; display:block; margin-bottom:2px;">${stop.nom}</strong>
-                                <span style="color: #06B6D4; font-size: 0.75rem; font-weight:700;">Ligne ${stop.numero_ligne}</span>
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="color: #10B981; font-weight:700; font-size: 0.85rem; display:block;">${stop.distance} km</span>
-                            </div>
-                        `;
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
 
-                        item.addEventListener("click", function() {
-                            // Itinéraire piéton détaillé (pas-à-pas) jusqu'à l'arrêt de minibus
-                            // le plus proche, avec le même guidage textuel que sur la page Trajets.
-                            if (walkingRoutingControl) {
-                                map.removeControl(walkingRoutingControl);
-                                walkingRoutingControl = null;
-                            }
-                            routingGroup.clearLayers();
+        routingGroup = L.layerGroup().addTo(map);
 
-                            walkingRoutingControl = L.Routing.control({
-                                waypoints: [
-                                    L.latLng(uLat, uLng),
-                                    L.latLng(stop.latitude, stop.longitude)
-                                ],
-                                router: L.Routing.osrmv1({ language: 'fr', profile: 'foot' }),
-                                lineOptions: { styles: [{ color: "#1A73E8", weight: 5, opacity: 0.85 }] },
-                                createMarker: function(i, waypoint) {
-                                    const label = i === 0 ? "Vous êtes ici" : `<b>Arrêt :</b> ${stop.nom} (Ligne ${stop.numero_ligne})`;
-                                    return L.marker(waypoint.latLng).bindPopup(label);
-                                },
-                                show: true,
-                                collapsible: true
-                            }).addTo(map);
+        // Regroupement des arrêts en grappes (le réseau compte plusieurs
+        // centaines d'arrêts) : évite une carte illisible et invite à zoomer
+        // pour explorer un secteur précis. Si le plugin de clustering n'a
+        // pas pu se charger, on retombe sur un simple groupe de calques
+        // plutôt que de planter (voir historique : c'était la cause la plus
+        // probable de la panne totale de "Autour de moi").
+        const markersGroup = (typeof L.markerClusterGroup === 'function')
+            ? L.markerClusterGroup({
+                maxClusterRadius: 42,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    const taille = count < 10 ? 34 : count < 30 ? 40 : 46;
+                    return L.divIcon({
+                        html: `<div class="tata-cluster" style="width:${taille}px;height:${taille}px;">${count}</div>`,
+                        className: '',
+                        iconSize: [taille, taille]
+                    });
+                }
+            }).addTo(map)
+            : L.layerGroup().addTo(map);
 
-                            walkingRoutingControl.on('routesfound', function(e) {
-                                const bounds = L.latLngBounds(e.routes[0].coordinates);
-                                map.fitBounds(bounds, { padding: [40, 40] });
-                            });
-                        });
-                        listContainer.appendChild(item);
+        const tataPinIcon = L.divIcon({
+            html: '<div class="tata-pin"><span></span></div>',
+            className: '',
+            iconSize: [26, 34],
+            iconAnchor: [13, 32],
+            popupAnchor: [0, -30]
+        });
+
+        userIcon = L.divIcon({
+            className: 'g-pulse',
+            html: '<div style="width:14px; height:14px; background:#4f46e5; border:3px solid #FFF; border-radius:50%; box-shadow:0 0 8px rgba(79,70,229,0.6);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        function tracerPointsReseau(liste) {
+            markersGroup.clearLayers();
+            liste.forEach(a => {
+                const pointMarker = L.marker([a.lat, a.lng], { icon: tataPinIcon });
+
+                pointMarker.bindPopup(`
+                    <div class="tata-map-popup">
+                        <h4>${a.nom}</h4>
+                        <span class="tata-map-popup-ligne">Ligne ${a.ligne}</span>
+                        <button type="button" class="tata-popup-walk-btn" data-lat="${a.lat}" data-lng="${a.lng}" data-nom="${a.nom.replace(/"/g, '&quot;')}">
+                            <i class="fa-solid fa-person-walking"></i> Itinéraire à pied
+                        </button>
+                    </div>
+                `);
+                markersGroup.addLayer(pointMarker);
+            });
+        }
+
+        if (arretsData.length > 0) {
+            tracerPointsReseau(arretsData);
+        }
+
+        // Bouton "Itinéraire à pied" à l'intérieur d'une popup : le contenu
+        // est recréé par Leaflet à chaque ouverture, donc on (ré)attache
+        // l'écouteur à chaque popupopen plutôt qu'une seule fois.
+        map.on('popupopen', function(e) {
+            const btn = e.popup._contentNode && e.popup._contentNode.querySelector('.tata-popup-walk-btn');
+            if (!btn) return;
+            btn.addEventListener('click', function() {
+                tracerItineraireAPied(
+                    parseFloat(btn.getAttribute('data-lat')),
+                    parseFloat(btn.getAttribute('data-lng')),
+                    btn.getAttribute('data-nom')
+                );
+                map.closePopup();
+            });
+        });
+
+        // Contrôle "Me géolocaliser" directement sur la carte (en plus du
+        // bouton de l'onglet "Autour de moi") : permet de demander sa
+        // position sans quitter la vue "Toutes les lignes".
+        const LocateControl = L.Control.extend({
+            options: { position: 'bottomright' },
+            onAdd: function() {
+                const div = L.DomUtil.create('div', 'leaflet-bar tata-locate-control');
+                div.innerHTML = '<a href="#" title="Me géolocaliser" role="button" aria-label="Me géolocaliser"><i class="fa-solid fa-location-crosshairs"></i></a>';
+                L.DomEvent.disableClickPropagation(div);
+                L.DomEvent.on(div, 'click', function(e) {
+                    L.DomEvent.preventDefault(e);
+                    obtenirPositionUtilisateur(function(pos) {
+                        map.setView([pos.lat, pos.lng], 15);
                     });
                 });
+                return div;
+            }
         });
-    });
+        map.addControl(new LocateControl());
+    } catch (err) {
+        console.error("Carte Tata indisponible :", err);
+        const mapEl = document.getElementById('mapMinibus');
+        if (mapEl) {
+            mapEl.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; padding:24px; text-align:center; color:var(--text-muted, #666);">Carte momentanément indisponible. La recherche des arrêts proches et les lignes restent utilisables.</div>';
+        }
+        map = null;
+        routingGroup = null;
+    }
 });
 </script>
 {% endblock %}

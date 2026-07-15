@@ -161,7 +161,7 @@
         border: 1px solid var(--border-light);
         border-radius: 8px;
         padding: 10px 14px;
-        color: #FFF;
+        color: var(--text-main);
     }
 
     .arret-proche-resultat .arret-distance {
@@ -250,14 +250,11 @@
                     <span><i class="fa-regular fa-clock"></i> {{ opt.duree_min_minutes }} – {{ opt.duree_max_minutes }}
                         min</span>
                     <span><i class="fa-solid fa-code-branch"></i> Correspondances : {{ opt.correspondances }}</span>
-                    {% if opt.capacite_max %}
-                    <span><i class="fa-solid fa-user-group"></i> Jusqu'à {{ opt.capacite_max }} passager{{ 's' if opt.capacite_max > 1 }}</span>
-                    {% endif %}
                 </div>
 
                 <div class="option-etapes">
                     <div
-                        style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #FFF; margin-bottom: 12px; font-weight: 600;">
+                        style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">
                         Feuille de route pas-à-pas :</div>
                     {% for etape in opt.etapes.split(' | ') %}
                     <div class="etape">
@@ -305,26 +302,26 @@
 <style>
     /* Point bleu de suivi GPS de l'utilisateur */
     .user-location-marker {
-        background: #1a73e8;
+        background: #4f46e5;
         width: 14px !important;
         height: 14px !important;
         border-radius: 50%;
         border: 3px solid #ffffff;
-        box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.4);
+        box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.4);
         animation: pulseUser 2s infinite;
     }
 
     @keyframes pulseUser {
         0% {
-            box-shadow: 0 0 0 0px rgba(26, 115, 232, 0.7);
+            box-shadow: 0 0 0 0px rgba(79, 70, 229, 0.7);
         }
 
         70% {
-            box-shadow: 0 0 0 10px rgba(26, 115, 232, 0);
+            box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
         }
 
         100% {
-            box-shadow: 0 0 0 0px rgba(26, 115, 232, 0);
+            box-shadow: 0 0 0 0px rgba(79, 70, 229, 0);
         }
     }
 </style>
@@ -480,12 +477,10 @@
     // une option bus / minibus / car rapide, géolocalise l'utilisateur,
     // affiche la distance jusqu'à l'arrêt de montée de cette ligne et
     // trace l'itinéraire piéton correspondant sur la carte ci-dessus.
+    // Alias local : distanceKm(...) est l'utilitaire global défini dans
+    // base.html, réutilisé ici plutôt que dupliqué.
     function distanceKmVersArret(lat1, lng1, lat2, lng2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return distanceKm(lat1, lng1, lat2, lng2);
     }
 
     let arretRoutingControl = null;

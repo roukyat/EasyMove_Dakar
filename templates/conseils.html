@@ -13,13 +13,14 @@
 
     <section class="section" style="padding-bottom:32px;">
         <div class="container">
+
             <div class="conseils-filters">
                 <button type="button" class="conseil-filtre actif" data-filtre="tous">
                     <i class="fa-solid fa-layer-group"></i> Tous ({{ conseils_par_categorie.values()|map('length')|sum }})
                 </button>
                 {% for categorie, liste in conseils_par_categorie.items() %}
                 <button type="button" class="conseil-filtre" data-filtre="{{ categorie }}">
-                    <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                    <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     {{ categorie }} ({{ liste|length }})
                 </button>
                 {% endfor %}
@@ -30,7 +31,7 @@
                 {% for c in liste %}
                 <div class="conseil-card reveal" data-categorie="{{ categorie }}">
                     <div class="conseil-card-icon">
-                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     </div>
                     <div class="conseil-card-body">
                         <span class="cc-categorie">{{ categorie }}</span>

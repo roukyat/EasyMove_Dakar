@@ -1,10 +1,8 @@
 {% extends "base.html" %}
-{% from "_icons.html" import vignette_transport %}
 {% block title %}EasyMove Dakar — Voyager sans stress{% endblock %}
 
 {% block content %}
 
-    
     <section class="hero">
         <div class="container hero-inner">
             <div>
@@ -24,10 +22,23 @@
                     <span><i class="fa-solid fa-tags"></i> Prix réalistes, sans surprise</span>
                     <span><i class="fa-solid fa-gift"></i> 100% gratuit</span>
                 </div>
+
+                {% if historique_apercu %}
+                <div class="hero-recent">
+                    <span class="hero-recent-label"><i class="fa-regular fa-clock"></i> Recherché récemment :</span>
+                    {% for h in historique_apercu %}
+                    <span class="hero-recent-chip">{{ h.adresse_depart }} <i class="fa-solid fa-arrow-right" style="font-size:0.65rem; margin: 0 2px;"></i> {{ h.adresse_arrivee }}</span>
+                    {% endfor %}
+                    <a href="{{ url_for('historique') }}" class="hero-recent-more">Tout voir</a>
+                </div>
+                {% endif %}
             </div>
 
             <div class="hero-map-outer">
-               
+                <a href="{{ url_for('minibus') }}" class="hero-map-badge">
+                    <i class="fa-solid fa-route"></i> Le réseau Tata, quartier par quartier
+                </a>
+
                 <div class="hero-map-card reveal">
                     <div id="accueilCarte" class="hero-map"></div>
 
@@ -76,30 +87,62 @@
     </section>
 
     {# ============================================================
-        APERCU DES TRANSPORTS 
+        COMMENT ÇA MARCHE — trois étapes, avant même de choisir un
+        transport, pour que la valeur du produit soit visible d'emblée.
        ============================================================ #}
-    <section class="section">
+    <section class="section" style="padding-top: 64px;">
         <div class="container">
             <div class="section-header reveal">
-                <div class="eyebrow">Les transports</div>
-                <h2>Ce qui circule à Dakar, avec le prix qui va avec.</h2>
-                <p>Taxis, clandos, cars rapides, Tata, BRT, TER : chaque mode avec sa fourchette tarifaire réelle.</p>
+                <div class="eyebrow">Le principe</div>
+                <h2>Trois étapes, un trajet.</h2>
+                <p>Pas de compte à créer, pas d'application à installer : tout se passe dans le navigateur.</p>
             </div>
-            <div class="grid-3 reveal">
-                {% for t in transports_apercu[:3] %}
-                <div class="transport-card">
-                    {{ vignette_transport(t) }}
-                    <div class="tc-header">
-                        <div class="tc-name">{{ t.nom }}</div>
-                    </div>
-                    <div class="tc-body">
-                        <div class="tc-prix">
+            <div class="steps-row reveal">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <h4>Choisir le départ</h4>
+                    <p>Sélectionnez un lieu référencé ou partez de votre position GPS.</p>
+                </div>
+                <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <h4>Choisir la destination</h4>
+                    <p>Indiquez où vous voulez aller, où que ce soit à Dakar.</p>
+                </div>
+                <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <h4>Comparer et partir</h4>
+                    <p>Prix, durée et correspondances, calculés à la volée pour votre trajet.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {# ============================================================
+        LES 3 TRANSPORTS LES PLUS UTILISÉS — présentation éditoriale,
+        sans icône par mode : le prix et une phrase suffisent pour se
+        décider, le détail (avantages/inconvénients) reste sur /transports.
+       ============================================================ #}
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="eyebrow">Les plus utilisés</div>
+                <h2>Trois façons de vous déplacer, du quotidien à l'occasionnel.</h2>
+                <p>Taxi, clando, Tata : à eux trois, ils couvrent la grande majorité des trajets à Dakar.</p>
+            </div>
+            <div class="top-transports reveal">
+                {% for t in top_transports %}
+                <div class="top-transport-item">
+                    <span class="tt-rank">{{ loop.index }}</span>
+                    <div class="tt-body">
+                        <div class="tt-name">{{ t.nom }}</div>
+                        <p class="tt-desc">{{ t.description }}</p>
+                        <div class="tt-prix">
                             {% if t.nom == 'Clando' %}
-                            <span class="tc-prix-label">Prix</span>
-                            <span class="tc-prix-value">Fixé avec le chauffeur</span>
+                            Prix fixé avec le chauffeur
                             {% else %}
-                            <span class="tc-prix-label">Prix estimé</span>
-                            <span class="tc-prix-value">{{ t.cout_min }} – {{ t.cout_max }} FCFA</span>
+                            {{ t.cout_min }} – {{ t.cout_max }} FCFA
                             {% endif %}
                         </div>
                     </div>
@@ -115,8 +158,43 @@
     </section>
 
     {# ============================================================
-       3. POURQUOI EASYMOVE — meme .feature-grid/.feature-card qu'a
-       propos, mais 3 arguments differents et propres a l'accueil.
+        RESEAU TATA — référence générale du réseau minibus, avec un
+        coup de projecteur sur les lignes qui rejoignent le DIT.
+       ============================================================ #}
+    <section class="section">
+        <div class="container">
+            <div class="tata-teaser reveal">
+                <div class="tata-teaser-text">
+                    <div class="eyebrow">Le réseau Tata</div>
+                    <h2>Toutes les lignes minibus de Dakar, sur une seule carte.</h2>
+                    <p>Cherchez une ligne par nom de quartier, ou repérez d'un coup d'œil celles qui rejoignent le DIT, à Cité Keur Gorgui, depuis Ouakam, Parcelles Assainies, Pikine, Grand Yoff ou Petersen.</p>
+                    <div class="tata-teaser-pills">
+                        <span class="tata-pill">Ouakam</span>
+                        <span class="tata-pill">Parcelles Assainies</span>
+                        <span class="tata-pill">Pikine</span>
+                        <span class="tata-pill">Grand Yoff</span>
+                        <span class="tata-pill">Petersen</span>
+                        <span class="tata-pill">Sacré-Cœur</span>
+                        <span class="tata-pill">Cité Keur Gorgui (DIT)</span>
+                    </div>
+                    <a href="{{ url_for('minibus') }}" class="btn-primary" style="margin-top: 24px;">
+                        <i class="fa-solid fa-map-location-dot" style="margin-right: 6px;"></i> Explorer le réseau Tata
+                    </a>
+                </div>
+                <div class="tata-teaser-card about-mockup reveal" aria-hidden="true">
+                    <div class="about-mockup-dots"><span></span><span></span><span></span></div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Ouakam</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-graduation-cap"></i> DIT-1 · Cité Keur Gorgui</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-building"></i> SN-6 · Cité Keur Gorgui</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-water"></i> SN-8 · Ngor</div>
+                    <div class="about-mockup-cta"><i class="fa-solid fa-route" style="margin-right: 6px;"></i>Tout le réseau Tata</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {# ============================================================
+       POURQUOI EASYMOVE
        ============================================================ #}
     <section class="section section-alt">
         <div class="container">
@@ -126,52 +204,31 @@
             </div>
             <div class="feature-grid reveal">
                 <div class="feature-card">
-                    <div class="fc-icon"><i class="fa-solid fa-route"></i></div>
-                    <h3>Un moteur qui calcule, pas une fiche figée.</h3>
-                    <p>Chaque itinéraire est recalculé pour votre départ et votre arrivée, correspondances comprises — pas une liste pré-écrite qui vieillit mal.</p>
-                </div>
-                <div class="feature-card">
                     <div class="fc-icon"><i class="fa-solid fa-tags"></i></div>
-                    <h3>Le prix avant de monter, pas après.</h3>
-                    <p>Des fourchettes tarifaires réalistes, calculées sur la distance réelle du trajet, pour négocier ou payer en toute confiance.</p>
+                    <h3>Prix estimé</h3>
+                    <p>Fourchette réaliste avant de partir.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="fc-icon"><i class="fa-solid fa-comments"></i></div>
-                    <h3>Un compagnon jusqu'au bout du trajet.</h3>
-                    <p>Favoris, historique et lexique wolof : de quoi voyager sans stress, du départ jusqu'à l'arrivée.</p>
+                    <div class="fc-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                    <h3>Carte interactive</h3>
+                    <p>Repères et arrêts géolocalisés.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-route"></i></div>
+                    <h3>Itinéraire optimisé</h3>
+                    <p>Le meilleur trajet, calculé pour vous.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="fc-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <h3>Historique</h3>
+                    <p>Retrouvez vos trajets récents.</p>
                 </div>
             </div>
         </div>
     </section>
 
     {# ============================================================
-       4. CHIFFRES CLES — meme .stats-band que la page A propos.
-       ============================================================ #}
-    <section class="section stats-band">
-        <div class="container">
-            <div class="stats-grid reveal">
-                <div>
-                    <div class="stat-number" data-count="{{ stats.transports }}">0</div>
-                    <div class="stat-label">Moyens de transport comparés</div>
-                </div>
-                <div>
-                    <div class="stat-number" data-count="{{ stats.lignes }}">0</div>
-                    <div class="stat-label">Lignes cartographiées</div>
-                </div>
-                <div>
-                    <div class="stat-number" data-count="{{ stats.arrets }}">0</div>
-                    <div class="stat-label">Arrêts géolocalisés</div>
-                </div>
-                <div>
-                    <div class="stat-number" data-count="{{ stats.lieux }}">0</div>
-                    <div class="stat-label">Lieux référencés</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {# ============================================================
-       5. LEXIQUE WOLOF — .resolution-banner existant.
+       LEXIQUE WOLOF
        ============================================================ #}
     {% if phrases_apercu %}
     <section class="section section-alt">
@@ -195,8 +252,7 @@
     {% endif %}
 
     {# ============================================================
-       6. CTA FINAL — meme .cta-banner (degrade bleu/cyan) que celui
-       deja defini dans style.css.
+       CTA FINAL
        ============================================================ #}
     <section class="section">
         <div class="container">
@@ -227,13 +283,8 @@
         });
     });
 
-    function distanceKm(lat1, lng1, lat2, lng2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
+    // distanceKm(lat1, lng1, lat2, lng2) : utilitaire global défini dans
+    // base.html (partagé avec /trajets, /minibus, /trajets/resultat).
 
     const btnMaPosition = document.getElementById('btnMaPosition');
     if (!btnMaPosition) return;

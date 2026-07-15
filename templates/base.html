@@ -40,8 +40,7 @@
                     </li>
                     <li><a href="{{ url_for('transports') }}"
                             class="{{ 'active' if active_page == 'transports' }}">Transports</a></li>
-                    <li><a href="{{ url_for('minibus') }}" class="{{ 'active' if active_page == 'minibus' }}">Réseau
-                            Minibus</a></li>
+                    <li><a href="{{ url_for('minibus') }}" class="{{ 'active' if active_page == 'minibus' }}">Tata</a></li>
                     <li><a href="{{ url_for('trajets') }}" class="{{ 'active' if active_page == 'trajets' }}">Trajets &amp;
                             Cartes</a></li>
                     <li><a href="{{ url_for('prix') }}" class="{{ 'active' if active_page == 'prix' }}">Prix</a></li>
@@ -75,7 +74,7 @@
                 <div class="footer-col">
                     <h4>Réseaux</h4>
                     <a href="{{ url_for('transports') }}">Moyens de transport</a>
-                    <a href="{{ url_for('minibus') }}">Réseau Minibus Tata</a>
+                    <a href="{{ url_for('minibus') }}">Réseau Tata</a>
                     <a href="{{ url_for('transports') }}">Dakar Dem Dikk &amp; BRT</a>
                     <a href="{{ url_for('transports') }}">Train TER Dakar</a>
                 </div>
@@ -100,6 +99,7 @@
                     <a href="{{ url_for('apropos') }}">À propos</a>
                 </div>
             </div>
+            <div class="footer-academic">Projet de fin d'année — Licence 1 — 2026</div>
         </div>
     </footer>
 
@@ -154,6 +154,18 @@
                 toast.style.transform = 'translateY(10px)';
                 setTimeout(() => toast.remove(), 300);
             }, 3200);
+        }
+
+        // Distance approximative (formule de Haversine) entre deux points GPS,
+        // en kilomètres. Utilitaire global partagé : évite de dupliquer la
+        // même formule sur chaque page qui calcule une distance (accueil,
+        // trajets, résultat de trajet, minibus).
+        function distanceKm(lat1, lng1, lat2, lng2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
         // Aperçu agrandi d'un moyen de transport au clic (mobile / tactile).
@@ -249,6 +261,8 @@
                     requestAnimationFrame(step);
                 });
             }
+            // Compteurs animés au scroll, utilisés sur ".stats-band" (page à
+            // propos — seul endroit du site où les statistiques sont affichées).
             var statsBand = document.querySelector(".stats-band");
             if (statsBand && "IntersectionObserver" in window) {
                 var statsObserver = new IntersectionObserver(function (entries) {

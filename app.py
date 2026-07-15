@@ -50,21 +50,45 @@ def calculer_haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 
+def get_niveau_prix(cout_min, cout_max):
+    """Classe un moyen de transport en Économique / Moyen / Cher à partir de
+    son prix moyen estimé (plutôt que du seul prix plancher, qui écraserait
+    des transports au tarif très variable comme le Taxi). Seuils calibrés
+    sur les tarifs réels du site : Tata/BRT/DDD/Car rapide/Clando restent
+    "Économique", le TER est "Moyen", Taxi et Jakarta sont "Cher"."""
+    moyenne = (cout_min + cout_max) / 2
+    if moyenne <= 500:
+        return {"label": "Économique", "classe": "badge-vert"}
+    elif moyenne <= 2000:
+        return {"label": "Moyen", "classe": "badge-jaune"}
+    return {"label": "Cher", "classe": "badge-rouge"}
+
+
 # ---------------------------------------------------------------------
 # ROUTES 
 # ---------------------------------------------------------------------
 
+# Les 3 moyens de transport mis en avant sur l'accueil : les plus utilisés
+# au quotidien par les Dakarois (flexibilité porte-à-porte du taxi et du
+# clando, densité du réseau Tata), plutôt qu'une liste exhaustive qui
+# n'aiderait pas à se décider rapidement.
+TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata (AFTU)"]
+
+
 @app.route("/")
 def accueil():
     transports = database.get_tous_les_transports()
+    transports_par_nom = {t["nom"]: t for t in transports}
+    top_transports = [transports_par_nom[nom] for nom in TRANSPORTS_POPULAIRES if nom in transports_par_nom]
+
     phrases = database.get_toutes_les_phrases()
     lieux = database.get_tous_les_lieux()
     historique = database.get_historique_recent(limite=3)
-    
+
     # Prise en compte du nom réel de votre index ('index.html' ou 'accueil.html')
     return render_template(
         "index.html",
-        transports_apercu=transports,
+        top_transports=top_transports,
         phrases_apercu=phrases[:3],
         lieux=lieux,
         historique_apercu=historique,
@@ -129,25 +153,24 @@ def resultat_trajet():
 
 @app.route("/minibus")
 def minibus():
-    """Page dédiée affichant le réseau complet et interactif des minibus Tata (AFTU)."""
-    lignes = database.get_toutes_les_lignes_bus(seulement_minibus=True)
+    """Page de référence du réseau Tata (AFTU) : l'ensemble des lignes
+    disponibles à Dakar, quartier par quartier."""
+    lignes = database.get_toutes_les_lignes_tata()
+
     lignes_avec_arrets = []
     tous_les_arrets = []
-    
+
     for ligne in lignes:
         arrets = database.get_arrets_par_ligne(ligne["id_ligne"])
         arrets_dicts = [dict(a) for a in arrets]
-        
+
         # Envoi des arrêts identifiés à la collection globale pour traitement cartographique
         for a in arrets_dicts:
             a["numero_ligne"] = ligne["numero_ligne"]
             tous_les_arrets.append(a)
-            
-        lignes_avec_arrets.append({
-            "info": ligne,
-            "arrets": arrets
-        })
-        
+
+        lignes_avec_arrets.append({"info": ligne, "arrets": arrets})
+
     return render_template(
         "minibus.html",
         lignes_minibus=lignes_avec_arrets,
@@ -168,9 +191,15 @@ def historique():
 
 @app.route("/prix")
 def prix():
+    # Conversion en dict pour pouvoir greffer le badge de niveau de prix
+    # (Économique/Moyen/Cher) sans modifier le schéma de la base.
+    transports = [dict(t) for t in database.get_tous_les_transports()]
+    for t in transports:
+        t["niveau_prix"] = get_niveau_prix(t["cout_min"], t["cout_max"])
+
     return render_template(
         "prix.html",
-        transports=database.get_tous_les_transports(),
+        transports=transports,
         trajets=database.get_tous_les_trajets(),
         active_page="prix",
     )
@@ -180,6 +209,7 @@ def prix():
 def conseils():
     tous_conseils = database.get_tous_les_conseils()
     infos = database.get_infos_utiles()
+
     return render_template(
         "conseils.html",
         conseils_par_categorie=grouper_par(tous_conseils, "categorie"),
@@ -223,7 +253,8 @@ def apropos():
 
 @app.route("/api/arrets_proches")
 def api_arrets_proches():
-    """Retourne les 5 arrêts de minibus les plus proches selon une latitude et longitude données."""
+    """Retourne les 5 arrêts les plus proches parmi l'ensemble du réseau
+    Tata, selon une latitude et longitude données."""
     try:
         user_lat = request.args.get("lat", type=float)
         user_lng = request.args.get("lng", type=float)
@@ -233,7 +264,7 @@ def api_arrets_proches():
     if user_lat is None or user_lng is None:
         return jsonify({"erreur": "Paramètres 'lat' et 'lng' requis"}), 400
 
-    lignes_minibus = database.get_toutes_les_lignes_bus(seulement_minibus=True)
+    lignes_minibus = database.get_toutes_les_lignes_tata()
     tous_arrets = []
 
     for ligne in lignes_minibus:
@@ -311,6 +342,14 @@ def api_ajouter_favori():
 def api_supprimer_favori(id_favori):
     database.supprimer_favori(id_favori)
     return jsonify({"statut": "success", "message": "Favori supprimé."})
+
+
+@app.route("/api/historique", methods=["DELETE"])
+def api_vider_historique():
+    """Vide entièrement l'historique de recherches (bouton "Vider
+    l'historique", avec confirmation côté client avant l'appel)."""
+    database.vider_historique()
+    return jsonify({"statut": "success", "message": "Historique vidé."})
 
 
 if __name__ == "__main__":

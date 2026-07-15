@@ -2,46 +2,36 @@
 
 
 :root {
-    /* Mode Sombre par défaut  */
-    --bg-primary: #05070f;       
-    --bg-secondary: #0b0f19;     
-    --fond-carte: rgba(13, 20, 35, 0.65); 
-    --text-main: #ffffff;        
-    --text-muted: #8e9aa8;       
-    --accent: #ffffff;
-    --border-color: #3c4043;
-    --border-light: rgba(255, 255, 255, 0.07);
-    --border-active: rgba(255, 255, 255, 0.2);
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    --radius: 12px;
+    /* Thème clair audacieux : fond blanc/gris très clair, hiérarchie de
+       texte sombre à haut contraste, mais une identité de marque assumée
+       (indigo vif + corail chaud en dégradé) plutôt qu'un bleu SaaS
+       générique — pensée pour se démarquer tout en restant lisible. */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f5fb;
+    --fond-carte: rgba(255, 255, 255, 0.92);
+    --text-main: #12101d;
+    --text-muted: #635f72;
+    --accent: #12101d;
+    --primary-blue: #4f46e5;
+    --border-color: #e7e4f2;
+    --border-light: rgba(18, 16, 29, 0.06);
+    --border-active: rgba(18, 16, 29, 0.18);
+    --shadow: 0 6px 22px rgba(79, 70, 229, 0.08);
+    --shadow-bold: 0 16px 36px rgba(79, 70, 229, 0.24);
+    --radius: 16px;
     --transition: all 0.2s ease;
 
-
-    --accent-bleu: #2563eb;
+    --accent-bleu: #4f46e5;
     --accent-cyan: #06b6d4;
     --accent-vert: #10b981;
-    --accent-jaune: #f5a623;
+    --accent-jaune: #f59e0b;
     --accent-rouge: #ef4444;
-}
+    --accent-corail: #ff5a3c;
 
-body.light-mode {
-    /* Mode Clair (Quand la classe .light-mode est active) */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --fond-carte: rgba(248, 249, 250, 0.85);
-    --text-main: #fff8f8;
-    --text-muted: #162a43;
-    --accent: #000000;
-    --primary-blue: #1a73e8;
-    --border-color: #0d1423;
-    --border-light: rgba(0, 0, 0, 0.07);
-    --border-active: rgba(0, 0, 0, 0.2);
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    
-    /
-    --accent-bleu: #1a73e8;
-    --accent-cyan: #017b99;
-    --accent-rouge: #d93025;
+    /* Dégradés de marque : indigo -> corail pour les CTA et éléments forts,
+       corail -> ambre pour les touches chaudes (badges, accents ponctuels). */
+    --gradient-brand: linear-gradient(135deg, var(--accent-bleu) 0%, var(--accent-corail) 100%);
+    --gradient-warm: linear-gradient(135deg, var(--accent-corail), var(--accent-jaune));
 }
 
 /* ==========================================================================
@@ -181,14 +171,15 @@ h1, h2, h3, h4 {
 }
 
 .nav-links a.nav-cta {
-    background: var(--accent);
-    color: var(--bg-primary);
+    background: var(--gradient-brand);
+    color: #ffffff;
     font-weight: 600;
     margin-left: 8px;
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.24);
 }
 
 .nav-links a.nav-cta:hover {
-    background: var(--accent-bleu);
+    opacity: 0.92;
     color: #FFFFFF;
 }
 
@@ -241,7 +232,15 @@ h1, h2, h3, h4 {
     position: absolute;
     top: -10%; right: -5%;
     width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: -15%; left: -8%;
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(255, 90, 60, 0.10) 0%, transparent 70%);
     pointer-events: none;
 }
 
@@ -297,14 +296,16 @@ h1, h2, h3, h4 {
     transition: var(--transition);
 }
 
-.btn-primary { 
-    background: var(--accent); 
-    color: var(--bg-primary); 
+.btn-primary {
+    background: var(--gradient-brand);
+    color: #ffffff;
+    box-shadow: 0 10px 26px rgba(79, 70, 229, 0.28);
 }
 
-.btn-primary:hover { 
-    opacity: 0.9; 
-    transform: translateY(-1px); 
+.btn-primary:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    box-shadow: 0 16px 36px rgba(79, 70, 229, 0.36);
 }
 
 .btn-secondary { 
@@ -363,6 +364,99 @@ h1, h2, h3, h4 {
     .hero-map-search .route-picker-grid { grid-template-columns: 1fr; }
 }
 
+/* Badge flottant "Nouveau" au-dessus de la mini-carte du hero */
+.hero-map-badge {
+    position: absolute;
+    top: -14px;
+    left: 24px;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--gradient-brand);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 20px;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+}
+.hero-map-badge:hover { opacity: 0.92; }
+
+/* Bandeau "recherché récemment", sous les CTA du hero (accueil) */
+.hero-recent {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color);
+}
+.hero-recent-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-right: 2px; }
+.hero-recent-chip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 0.78rem;
+    padding: 5px 12px;
+    border-radius: 999px;
+}
+.hero-recent-more { font-size: 0.78rem; font-weight: 700; color: var(--accent-bleu); }
+.hero-recent-more:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   TEASER TATA — accueil, référence générale du réseau minibus + DIT
+   ========================================================================== */
+.tata-teaser {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 56px;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(255, 90, 60, 0.05));
+    border: 1px solid var(--border-color);
+    border-radius: calc(var(--radius) + 8px);
+    padding: 48px;
+}
+.tata-teaser-text p { color: var(--text-muted); font-size: 1rem; line-height: 1.65; margin: 14px 0 0; max-width: 480px; }
+.tata-teaser-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.tata-pill {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+}
+.tata-teaser-card { margin: 0 auto; max-width: 340px; width: 100%; }
+@media (max-width: 900px) {
+    .tata-teaser { grid-template-columns: 1fr; padding: 32px 24px; gap: 32px; }
+}
+
+/* ==========================================================================
+   EN-TÊTE DE PAGE (breadcrumb + h1 + intro) — pages internes
+   (conseils, minibus, transports, wolof, historique, à propos…)
+   ========================================================================== */
+.page-header {
+    padding: 56px 0 40px;
+    background:
+        radial-gradient(circle at 8% 0%, rgba(79, 70, 229, 0.09), transparent 55%),
+        radial-gradient(circle at 100% 120%, rgba(255, 90, 60, 0.07), transparent 50%),
+        var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.breadcrumb {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-weight: 500;
+}
+.breadcrumb a { color: var(--text-muted); }
+.breadcrumb a:hover { color: var(--accent-bleu); }
+.page-header h1 { font-size: clamp(1.7rem, 3.2vw, 2.4rem); margin-bottom: 10px; }
+.page-header p { color: var(--text-muted); font-size: 0.98rem; max-width: 620px; margin: 0; }
+
 /* Sections standards */
 .section, .page-content { padding: 80px 0; max-width: 1200px; margin: 0 auto; }
 .section-alt { background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
@@ -393,8 +487,8 @@ h1, h2, h3, h4 {
    ========================================================================== */
 .search-section {
     background:
-        radial-gradient(circle at 15% 20%, rgba(37, 99, 235, 0.20), transparent 55%),
-        radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.18), transparent 55%),
+        radial-gradient(circle at 15% 20%, rgba(79, 70, 229, 0.22), transparent 55%),
+        radial-gradient(circle at 85% 80%, rgba(255, 90, 60, 0.14), transparent 55%),
         var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
@@ -405,7 +499,7 @@ h1, h2, h3, h4 {
 .search-form {
     background: var(--bg-primary);
     border: 1px solid var(--accent-bleu);
-    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15), 0 12px 30px rgba(6, 182, 212, 0.12);
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.16), 0 12px 30px rgba(255, 90, 60, 0.1);
     border-radius: var(--radius);
     padding: 28px;
 }
@@ -495,7 +589,7 @@ h1, h2, h3, h4 {
     border: 1px solid var(--accent-bleu);
     border-radius: var(--radius);
     padding: 14px 18px;
-    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.14);
     transition: var(--transition);
 }
 .search-input-wrapper:focus-within {
@@ -597,9 +691,9 @@ h1, h2, h3, h4 {
 }
 
 .transport-card:hover, .transport-hover-card:hover {
-    border-color: var(--border-active);
+    border-color: var(--accent-bleu);
     transform: translateY(-4px);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow-bold);
 }
 
 /* Bannière photo professionnelle en tête de carte (page /transports,
@@ -641,25 +735,6 @@ h1, h2, h3, h4 {
     justify-content: center;
     font-size: 2.75rem;
     color: rgba(255, 255, 255, 0.9);
-}
-
-.tc-media-badge {
-    position: absolute;
-    bottom: 14px;
-    left: 16px;
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background: rgba(5, 7, 15, 0.7);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #FFFFFF;
-    font-size: 0.95rem;
-    z-index: 2;
 }
 
 .tc-header, .card-details-static { padding: 18px 24px 0; display: flex; flex-direction: column; gap: 4px; }
@@ -800,10 +875,10 @@ h1, h2, h3, h4 {
 
 /* Badges Fonctionnels */
 .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; background: var(--bg-secondary); color: var(--primary-blue); }
-.badge-vert { background: rgba(16, 185, 129, 0.1); color: var(--accent-vert); }
-.badge-jaune { background: rgba(245, 166, 35, 0.1); color: var(--accent-jaune); }
-.badge-rouge { background: rgba(239, 68, 68, 0.1); color: var(--accent-rouge); }
-.badge-bleu { background: rgba(37, 99, 235, 0.1); color: var(--accent-bleu); }
+.badge-vert { background: rgba(16, 185, 129, 0.12); color: var(--accent-vert); }
+.badge-jaune { background: rgba(245, 158, 11, 0.14); color: var(--accent-jaune); }
+.badge-rouge { background: rgba(239, 68, 68, 0.12); color: var(--accent-rouge); }
+.badge-bleu { background: rgba(79, 70, 229, 0.12); color: var(--accent-bleu); }
 
 /* ==========================================================================
    TIMELINES, COMPARAISONS & ÉLÉMENTS DYNAMIQUES
@@ -815,7 +890,7 @@ h1, h2, h3, h4 {
     align-items: start;
 }
 .minibus-sidebar { background: var(--fond-carte); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; }
-.minibus-item.active { background: rgba(26, 115, 232, 0.1); border-color: var(--accent-bleu); color: var(--text-main); }
+.minibus-item.active { background: rgba(79, 70, 229, 0.1); border-color: var(--accent-bleu); color: var(--text-main); }
 .mb-badge-line { display: inline-block; padding: 2px 8px; background: var(--bg-primary); border-radius: 4px; font-weight: 700; font-size: 0.75rem; color: var(--accent-cyan); margin-bottom: 4px; }
 
 /* Lignes temporelles (Arrêts) */
@@ -963,7 +1038,15 @@ footer::before {
     position: absolute;
     top: -15%; left: -10%;
     width: 480px; height: 480px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.14) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.16) 0%, transparent 70%);
+    pointer-events: none;
+}
+.about-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -20%; right: -10%;
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(255, 90, 60, 0.12) 0%, transparent 70%);
     pointer-events: none;
 }
 .about-hero-inner { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
@@ -1022,7 +1105,7 @@ footer::before {
 
 .resolution-banner {
     display: flex; align-items: center; gap: 20px;
-    background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(6,182,212,0.10));
+    background: linear-gradient(135deg, rgba(79,70,229,0.12), rgba(6,182,212,0.10));
     border: 1px solid var(--accent-bleu);
     border-radius: var(--radius); padding: 24px 28px;
 }
@@ -1032,13 +1115,26 @@ footer::before {
 /* --- Notre solution (4 cartes) --- */
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
 .feature-card {
+    position: relative;
     padding: 28px; border-radius: var(--radius);
     background: var(--bg-secondary); border: 1px solid var(--border-color);
     transition: var(--transition);
     display: block;
+    overflow: hidden;
 }
 a.feature-card { color: inherit; }
-.feature-card:hover { border-color: var(--accent-cyan); transform: translateY(-4px); box-shadow: var(--shadow); }
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--gradient-brand);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+.feature-card:hover { border-color: var(--accent-bleu); transform: translateY(-4px); box-shadow: var(--shadow-bold); }
+.feature-card:hover::before { transform: scaleX(1); }
 .feature-card .fc-icon {
     width: 46px; height: 46px; border-radius: 12px;
     background: linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan));
@@ -1063,8 +1159,8 @@ a.feature-card { color: inherit; }
 /* --- Chiffres --- */
 .stats-band {
     background:
-        radial-gradient(circle at 10% 30%, rgba(37, 99, 235, 0.18), transparent 55%),
-        radial-gradient(circle at 90% 70%, rgba(6, 182, 212, 0.16), transparent 55%),
+        radial-gradient(circle at 10% 30%, rgba(79, 70, 229, 0.2), transparent 55%),
+        radial-gradient(circle at 90% 70%, rgba(255, 90, 60, 0.14), transparent 55%),
         var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
@@ -1196,7 +1292,7 @@ a.feature-card { color: inherit; }
 }
 .favoris-empty-icon {
     width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-    background: rgba(245, 166, 35, 0.1); color: var(--accent-jaune);
+    background: rgba(245, 158, 11, 0.12); color: var(--accent-jaune);
     display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
 }
 .favoris-empty-titre { font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 4px; }
@@ -1216,7 +1312,7 @@ a.feature-card { color: inherit; }
 }
 .favori-card-icon {
     width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
-    background: rgba(245, 166, 35, 0.12); color: var(--accent-jaune);
+    background: rgba(245, 158, 11, 0.14); color: var(--accent-jaune);
     display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
 }
 .favori-card-route {
@@ -1243,7 +1339,7 @@ a.feature-card { color: inherit; }
 }
 .btn-favori-resultat i { color: var(--accent-jaune); }
 .btn-favori-resultat:hover { border-color: var(--accent-jaune); }
-.btn-favori-resultat.active { background: rgba(245, 166, 35, 0.1); border-color: var(--accent-jaune); }
+.btn-favori-resultat.active { background: rgba(245, 158, 11, 0.12); border-color: var(--accent-jaune); }
 .btn-favori-resultat:disabled { opacity: 0.7; cursor: wait; }
 
 /* ==========================================================================
@@ -1270,7 +1366,7 @@ a.feature-card { color: inherit; }
     transition: var(--transition);
 }
 .conseil-filtre:hover { border-color: var(--accent-cyan); color: var(--text-main); }
-.conseil-filtre.actif { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #04121a; }
+.conseil-filtre.actif { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #ffffff; }
 
 .conseils-grid {
     display: grid;
@@ -1318,6 +1414,210 @@ a.feature-card { color: inherit; }
     height: calc(100vh - 140px);
     min-height: 600px;
 }
+
+/* ==========================================================================
+   RÉSEAU MINIBUS — itinéraires curés SONATEL (page /minibus)
+   ========================================================================== */
+.sn-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.sn-side-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.sn-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 14px;
+}
+.sn-tab {
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 9px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.sn-tab i { margin-right: 4px; }
+.sn-tab:hover { border-color: var(--accent-cyan); color: var(--text-main); }
+.sn-tab.actif { background: var(--gradient-brand); color: #fff; border-color: transparent; box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28); }
+
+.sn-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 560px;
+    overflow-y: auto;
+}
+
+.sn-route-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.sn-route-card:hover { border-color: var(--accent-cyan); transform: translateY(-2px); box-shadow: var(--shadow); }
+.sn-route-card.actif { border-color: var(--accent-jaune); background: rgba(245, 158, 11, 0.08); }
+.sn-route-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sn-route-badge {
+    background: linear-gradient(135deg, var(--accent-bleu), var(--accent-cyan));
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+.sn-route-name { font-weight: 700; font-size: 0.92rem; color: var(--text-main); flex: 1; }
+.sn-route-chevron { color: var(--text-muted); font-size: 0.75rem; flex-shrink: 0; }
+.sn-route-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 8px; }
+.sn-route-stops { font-size: 0.72rem; color: var(--accent-cyan); font-weight: 600; }
+.sn-route-stops i { margin-right: 4px; }
+
+.sn-gps-placeholder {
+    text-align: center;
+    padding: 28px 14px;
+    color: var(--text-muted);
+}
+.sn-gps-placeholder i { font-size: 1.6rem; color: var(--accent-bleu); margin-bottom: 10px; display: block; }
+.sn-gps-placeholder p { font-size: 0.85rem; margin: 0; line-height: 1.5; }
+
+.sn-near-list { display: flex; flex-direction: column; gap: 8px; }
+.sn-near-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.sn-near-item:hover { border-color: var(--accent-bleu); }
+.sn-near-item strong { display: block; font-size: 0.88rem; color: var(--text-main); margin-bottom: 2px; }
+.sn-near-ligne { font-size: 0.72rem; color: var(--accent-cyan); font-weight: 700; }
+.sn-near-dist { font-weight: 700; color: var(--accent-vert); font-size: 0.85rem; }
+
+.sn-map-panel { position: relative; height: 640px; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-bold); }
+.sn-map { width: 100%; height: 100%; }
+
+@media (max-width: 960px) {
+    .sn-layout { grid-template-columns: 1fr; }
+    .sn-map-panel { height: 420px; }
+}
+
+/* ==========================================================================
+   CARTE /minibus — marqueurs, grappes et popups aux couleurs de la marque
+   ========================================================================== */
+
+/* Épingle individuelle (arrêt Tata) : forme de goutte en dégradé de
+   marque, plutôt qu'un simple point plat. */
+.tata-pin {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    background: var(--gradient-brand);
+    border: 2px solid #ffffff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+.tata-pin span {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 8px; height: 8px;
+    background: #ffffff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Grappe de plusieurs arrêts proches (zoom faible) : cercle plein en
+   dégradé de marque avec le nombre d'arrêts regroupés. */
+.tata-cluster {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient-brand);
+    color: #ffffff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+}
+
+/* Popup d'un arrêt, avec la même typographie/palette que le reste du
+   site plutôt que les styles inline par défaut de Leaflet. */
+.tata-map-popup { font-family: 'Inter', sans-serif; padding: 2px; }
+.tata-map-popup h4 { margin: 0 0 6px; font-size: 0.95rem; font-weight: 700; color: var(--text-main); }
+.tata-map-popup-ligne {
+    display: inline-block;
+    background: var(--gradient-brand);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+}
+.tata-map-popup p { margin: 0 0 8px; font-size: 0.85rem; color: var(--text-main); }
+
+/* Bouton "Itinéraire à pied" dans une popup d'arrêt : déclenche le calcul
+   d'un trajet à pied depuis la position de l'utilisateur (demandée au
+   premier clic si elle n'est pas déjà connue). */
+.tata-popup-walk-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--gradient-brand);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.tata-popup-walk-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+/* Bouton de géolocalisation posé directement sur la carte (à côté du zoom),
+   pour ne pas obliger à passer par l'onglet "Autour de moi" pour situer sa
+   position avant de demander un itinéraire vers un arrêt. */
+.tata-locate-control a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: #ffffff;
+    color: var(--accent-bleu);
+    font-size: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.tata-locate-control a:hover { background: var(--gradient-brand); color: #ffffff; }
 
 /* ==========================================================================
    HISTORIQUE — carte de recherche recente, page /historique
@@ -1426,4 +1726,144 @@ a.feature-card { color: inherit; }
        lisibles mais deviennent serrees avec des libelles longs : on repasse
        a 1 colonne. */
     .stats-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ==========================================================================
+   MENTION ACADEMIQUE — footer
+   ========================================================================== */
+.footer-academic {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    opacity: 0.75;
+    margin-top: 14px;
+}
+
+/* ==========================================================================
+   TOP 3 TRANSPORTS — accueil, présentation éditoriale sans icône de mode
+   ========================================================================== */
+.top-transports {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+.top-transport-item {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 24px 28px;
+    border-bottom: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+.top-transport-item:last-child { border-bottom: none; }
+.top-transport-item:hover { background: var(--bg-secondary); }
+.tt-rank {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--border-active);
+    flex-shrink: 0;
+    width: 34px;
+    text-align: center;
+}
+.tt-body { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; flex: 1; min-width: 0; }
+.tt-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--text-main); flex: 1 1 160px; }
+.tt-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0; flex: 2 1 260px; }
+.tt-prix { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--accent-bleu); font-size: 0.95rem; white-space: nowrap; }
+@media (max-width: 640px) {
+    .top-transport-item { padding: 18px 20px; gap: 14px; }
+    .tt-body { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
+/* ==========================================================================
+   PAGE PRIX — note d'info + badges Économique/Moyen/Cher
+   ========================================================================== */
+.prix-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    max-width: 640px;
+}
+.prix-note i { color: var(--accent-cyan); margin-top: 2px; flex-shrink: 0; }
+.tc-badge-niveau { margin-top: 10px; align-self: flex-start; }
+
+/* ==========================================================================
+   HISTORIQUE — bouton "Vider l'historique"
+   ========================================================================== */
+.historique-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+}
+.btn-vider-historique {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--accent-rouge);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.btn-vider-historique:hover { background: rgba(239, 68, 68, 0.08); border-color: var(--accent-rouge); }
+.btn-vider-historique:disabled { opacity: 0.6; cursor: wait; }
+
+/* ==========================================================================
+   MINIBUS — carte d'information de la ligne sélectionnée (panneau latéral)
+   ========================================================================== */
+.sn-info-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-jaune);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 4px;
+    animation: fadeInUp 0.35s ease both;
+}
+.sn-info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sn-info-card-header .sn-route-badge { font-size: 0.75rem; }
+.sn-info-card-header span:last-child { font-weight: 700; font-size: 0.92rem; color: var(--text-main); }
+.sn-info-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.83rem; color: var(--text-muted);
+    padding: 7px 0;
+    border-top: 1px solid var(--border-light);
+}
+.sn-info-row:first-of-type { border-top: none; }
+.sn-info-row i { width: 16px; color: var(--accent-cyan); flex-shrink: 0; }
+.sn-info-row strong { color: var(--text-main); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+    .sn-info-card { animation: none; }
+}
+
+/* ==========================================================================
+   ACCESSIBILITE — focus clavier toujours visible
+   Les regles ":focus" existantes (select, inputs...) gerent deja leur
+   propre anneau de focus ; celle-ci couvre les elements qui n'avaient
+   aucun etat de focus visible (liens, boutons, cartes cliquables), sans
+   rien changer au clic/tactile grace a :focus-visible.
+   ========================================================================== */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent-cyan);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
