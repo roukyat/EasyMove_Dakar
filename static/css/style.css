@@ -782,9 +782,37 @@ h1, h2, h3, h4 {
     opacity: 1;
     transform: scale(1) translateY(0);
 }
-.tc-name, .card-details-static h3 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+/* Hauteur fixe sur 2 lignes (line-clamp, pas juste min-height) : certains
+   noms (« Minibus Tata (AFTU) », « BRT (Bus Rapid Transit) ») passent sur
+   deux lignes alors que d'autres (« Taxi », « TER ») tiennent sur une
+   seule. Un min-height seul ne suffit pas à garantir l'alignement — il ne
+   protège que contre le cas "trop court", pas "trop long". La hauteur fixe
+   + line-clamp garantit que la description qui suit démarre exactement à
+   la même hauteur sur toutes les cartes d'une même rangée, quel que soit
+   le nom. */
+.tc-name, .card-details-static h3 {
+    font-size: 1.25rem; font-weight: 700; color: var(--text-main);
+    line-height: 1.2; height: 2.4em; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+}
 .tc-body { padding: 20px 24px 24px; display: flex; flex-direction: column; flex: 1; }
-.tc-desc, .card-details-static .desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; min-height: 40px; }
+/* Hauteur fixe sur 2 lignes (line-clamp), pas un min-height : les
+   descriptions en base vont de ~9 mots (Jakarta) à ~20 mots (Taxi, Clando,
+   Ndiaga Ndiaye), soit 1 à 3 lignes selon le transport. Avec un simple
+   min-height, les cartes à texte long poussaient "Prix estimé" plus bas
+   que leurs voisines de la même rangée — c'est exactement ce qui cassait
+   l'alignement. Ici la hauteur est fixe et le texte excédentaire est
+   tronqué (ellipsis), donc le prix, les avantages/inconvénients et les
+   badges démarrent toujours à la même hauteur d'une carte à l'autre. */
+.tc-desc, .card-details-static .desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin-bottom: 16px;
+    height: 2.9em;
+    overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+}
 /* Pousse systématiquement les badges (confort/disponibilité) en bas de la
    carte, quelle que soit la longueur des listes avantages/inconvénients
    au-dessus : les cartes d'une même rangée restent visuellement alignées. */

@@ -165,6 +165,18 @@ def verifier_et_mettre_a_jour_schema():
     # une base déjà à jour.
     _mettre_a_jour_tarifs_2026(cursor)
 
+    # Le Tata ne circule pas de façon fiable "tard le soir" (service qui se
+    # raréfie fortement en fin de journée) : la disponibilité affichée est
+    # recentrée sur le matin, plutôt que de laisser croire à un service
+    # tardif équivalent au matin. Idempotent, même logique que les tarifs.
+    _corriger_disponibilite_tata(cursor)
+
+    # Alignement des avantages/inconvénients (3 + 3, par axe prix / couverture
+    # / confort) pour les 9 moyens de transport, y compris Ndiaga Ndiaye :
+    # idempotent (UPDATE conditionné au contenu actuel), sûr à rejouer sur
+    # une base déjà à jour.
+    _aligner_avantages_inconvenients_transports(cursor)
+
     # Descriptions plus naturelles pour Taxi/Clando/Tata (accueil + page
     # /transports) : idempotent, même logique que les tarifs ci-dessus.
     _naturaliser_descriptions_transport(cursor)
@@ -238,6 +250,7 @@ def _completer_images_transport_manquantes(cursor):
     images_par_defaut = {
         "Dakar Dem Dikk": "/static/img/DDD.jpg",
         "TER": "/static/img/TER.jpg",
+        "Ndiaga Ndiaye": "/static/img/Ndiaga_Ndiaye.png",
     }
     for nom, chemin_image in images_par_defaut.items():
         cursor.execute(
@@ -279,6 +292,126 @@ def _mettre_a_jour_tarifs_2026(cursor):
         )
 
 
+# Avantages / inconvénients retravaillés pour les 9 moyens de transport de
+# la page /transports : exactement 3 avantages et 3 inconvénients par
+# transport, alignés terme à terme sur les mêmes 3 axes (prix, couverture/
+# disponibilité, confort/sécurité) pour une lecture plus structurée en
+# vis-à-vis.
+#
+# Chaque item est un résumé court (une poignée de mots), pas une phrase
+# complète : la première version (voir historique) tenait sur des phrases
+# de 70-100 caractères qui s'étalaient sur 2-3 lignes dans la colonne
+# étroite de la carte, rendant les cartes très inégales en hauteur. Le
+# contenu est raccourci à la source (résumé), pas coupé visuellement en CSS.
+#
+# Important : le template (/transports) sépare les items avec
+# `avantages.split(',')` — un item ne doit donc jamais contenir de virgule
+# interne (utiliser "et"/parenthèses à la place), sous peine d'être découpé
+# en plus de 3 puces à l'affichage.
+AVANTAGES_INCONVENIENTS_2026 = {
+    "Taxi": (
+        "Tarif négociable, "
+        "Disponible 24h/24 partout, "
+        "Trajet direct porte-à-porte",
+        "Plus cher que les autres transports, "
+        "Rare et cher la nuit ou sous la pluie, "
+        "Pas de compteur et confort variable",
+    ),
+    "Clando": (
+        "Très économique car partagé, "
+        "Dense sur les axes de banlieue, "
+        "Alternative rapide au taxi",
+        "Prix variable selon le chauffeur, "
+        "Trajet fixe sans détour possible, "
+        "Aucun signe distinctif et confort limité",
+    ),
+    "Dakar Dem Dikk": (
+        "Tarif fixe et abordable, "
+        "Réseau étendu à Dakar et en banlieue, "
+        "Bus stable et plus grand qu'un minibus",
+        "Plus cher qu'un Tata ou un car rapide, "
+        "Fréquence irrégulière, "
+        "Souvent bondé aux heures de pointe",
+    ),
+    "Car rapide": (
+        "Le moins cher de Dakar, "
+        "Présent sur de nombreux axes, "
+        "Expérience authentique et populaire",
+        "Tarif flou à vérifier avec l'apprenti, "
+        "Aucun horaire fixe, "
+        "Confort et sécurité limités",
+    ),
+    "Minibus Tata (AFTU)": (
+        "Tarif fixe et très abordable, "
+        "Réseau dense dans tous les quartiers, "
+        "Bon rapport prix/fiabilité",
+        "Ticket à garder jusqu'à la descente, "
+        "Pas d'horaires fixes, "
+        "Souvent bondé aux heures de pointe",
+    ),
+    "Jakarta (moto-taxi)": (
+        "Prix raisonnable vu le temps gagné, "
+        "Rapide et évite les embouteillages, "
+        "Disponible 24h/24",
+        "Plus cher qu'un Tata ou un car rapide, "
+        "Peu adapté aux bagages ou longs trajets, "
+        "Casque pas toujours fourni",
+    ),
+    "TER": (
+        "Tarif fixe sans négociation, "
+        "Liaison rapide Dakar-Diamniadio, "
+        "Climatisé et confortable",
+        "Plus cher qu'un bus ou un Tata, "
+        "Peu de gares et inutile en intra-Dakar, "
+        "Correspondance souvent nécessaire",
+    ),
+    "BRT (Bus Rapid Transit)": (
+        "Tarif fixe et abordable, "
+        "Un bus toutes les 6 minutes, "
+        "Climatisé et quai de plain-pied",
+        "Plus cher qu'un Tata sur le même trajet, "
+        "Un seul axe (Petersen-Guédiawaye), "
+        "Stations parfois éloignées",
+    ),
+    "Ndiaga Ndiaye": (
+        "Un des tarifs les plus bas, "
+        "Dessert des zones mal couvertes, "
+        "Direct vers Pikine Guédiawaye et Keur Massar",
+        "Tarif à confirmer avec le receveur, "
+        "Rare en dehors du matin, "
+        "Très chargé aux heures de pointe",
+    ),
+}
+
+
+def _corriger_disponibilite_tata(cursor):
+    """Recentre la disponibilité affichée du Tata sur le matin : le service
+    se raréfie nettement en soirée, donc "tard le soir" donnait une
+    impression de couverture tardive trompeuse. Fonctionne par UPDATE sur
+    le nom, comme _mettre_a_jour_tarifs_2026 : met bien à jour les lignes
+    déjà présentes sur une base existante (pas seulement à la création)."""
+    nouvelle_disponibilite = "Tôt le matin, selon l'affluence"
+    cursor.execute(
+        "UPDATE moyens_transport SET disponibilite = ? "
+        "WHERE nom = 'Minibus Tata (AFTU)' AND disponibilite != ?",
+        (nouvelle_disponibilite, nouvelle_disponibilite)
+    )
+
+
+def _aligner_avantages_inconvenients_transports(cursor):
+    """Recale les avantages/inconvénients de chaque moyen de transport vers
+    exactement 3 avantages et 3 inconvénients alignés terme à terme (prix,
+    couverture/disponibilité, confort/sécurité). Fonctionne par UPDATE sur
+    le nom, comme _mettre_a_jour_tarifs_2026 : met bien à jour les lignes
+    déjà présentes sur une base existante (pas seulement à la création)."""
+    for nom, (avantages, inconvenients) in AVANTAGES_INCONVENIENTS_2026.items():
+        cursor.execute(
+            "UPDATE moyens_transport SET avantages = ?, inconvenients = ? "
+            "WHERE nom = ? AND (avantages != ? OR inconvenients != ?)",
+            (avantages, inconvenients, nom, avantages, inconvenients)
+        )
+
+
 # Descriptions retravaillées pour les 3 transports mis en avant sur
 # l'accueil (Taxi, Clando, Minibus Tata) : les phrases d'origine, denses et
 # à rallonge, sont remplacées par un ton plus direct et parlé. Ce champ
@@ -287,6 +420,17 @@ DESCRIPTIONS_NATURELLES = {
     "Taxi": "Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.",
     "Clando": "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
     "Minibus Tata (AFTU)": "Le minibus qui dessert la quasi-totalité des quartiers de Dakar, à prix fixe et très abordable.",
+    # Version raccourcie : l'original listait le châssis Mercedes-Benz et le
+    # détail des banlieues desservies (déjà couvert par les avantages),
+    # ce qui rendait la carte /transports nettement plus longue que ses
+    # voisines et cassait l'alignement des prix/avantages sur la même ligne.
+    "Ndiaga Ndiaye": "Minibus blanc traditionnel, pilier du transport collectif vers Dakar et sa banlieue, surtout le matin et aux heures de pointe.",
+    # DDD et BRT étaient les descriptions les plus longues restantes de la
+    # page /transports (détails d'opérateur / de lignes déjà présents dans
+    # les avantages) : résumées ici pour rester au même gabarit que leurs
+    # voisines.
+    "Dakar Dem Dikk": "Bus officiel de la ville de Dakar (DDD), lignes numérotées à tarif fixe, distinct du réseau Tata/AFTU.",
+    "BRT (Bus Rapid Transit)": "Bus électrique à haut niveau de service, reliant Petersen à Guédiawaye (lignes B1 et B2).",
 }
 
 
@@ -363,14 +507,16 @@ def _ajouter_transport_ndiaga_ndiaye(cursor):
                (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
-            "Ndiaga Ndiaye", "",
-            "Minibus blanc, souvent construit sur d'anciens châssis Mercedes-Benz, très utilisé pour le transport "
-            "collectif au Sénégal. Dessert Dakar et sa banlieue (Pikine, Guédiawaye, Keur Massar, Rufisque...) ainsi "
-            "que quelques liaisons interurbaines, surtout le matin et aux heures de pointe.",
+            "Ndiaga Ndiaye", "/static/img/Ndiaga_Ndiaye.png",
+            "Minibus blanc traditionnel, pilier du transport collectif vers Dakar et sa banlieue, surtout le matin "
+            "et aux heures de pointe.",
             100, 350, "Faible", "Le matin et aux heures de pointe",
-            "Dessert de nombreuses destinations, plus économique qu'un taxi, très présent dans la banlieue de Dakar, "
-            "accès à des zones moins bien desservies",
-            "Très chargé aux heures de pointe, confort parfois limité, temps d'attente variable selon les lignes",
+            "Très économique avec l'un des tarifs les plus bas du transport collectif, Dessert de nombreuses zones "
+            "de banlieue mal couvertes par d'autres réseaux, Alternative directe et peu chère vers Pikine "
+            "Guédiawaye ou Keur Massar",
+            "Aucun tarif affiché à confirmer auprès du receveur avant de monter, Circule surtout le matin et aux "
+            "heures de pointe et se fait rare en journée creuse, Très chargé aux heures de pointe avec un confort "
+            "parfois limité",
         )
     )
 
@@ -1694,23 +1840,42 @@ def get_tous_les_favoris():
 # Paires "populaires" affichées sur la page /trajets et /prix à titre
 # d'exemples/raccourcis. La recherche elle-même fonctionne pour n'importe
 # quelle paire de lieux de la table `lieux` (voir rechercher_trajet).
+#
+# Liste recalée sur les axes réellement les plus empruntés de l'agglomération
+# dakaroise, d'après le réseau AFTU/Tata (64 lignes, desserte Pikine/
+# Guédiawaye/Rufisque), le tracé du BRT Petersen-Guédiawaye (~18 km, l'un des
+# axes les plus denses de la ville) et les grands corridors identifiés par le
+# CETUD dans ses plans de déplacements urbains : Route des Niayes (Pikine -
+# Guédiawaye - Malika - Keur Massar), Route de Rufisque (Thiaroye - Rufisque
+# - Bargny), VDN/Corniche Ouest (Ouakam - Ngor - Almadies - Yoff) et l'axe
+# autoroutier TER Dakar - Diamniadio - AIBD. Sources : cetud.sn (Réseaux de
+# transport, Plan de Mobilité Urbaine Durable), demdikk.sn, aftu-senegal.org.
 TRAJETS_POPULAIRES = [
-    ("Yoff", "Plateau"), ("Ouakam", "UCAD"), ("Ngor", "Sandaga"),
-    ("Parcelles Assainies", "Liberté 6"), ("Petersen", "Almadies"),
-    ("Guédiawaye", "Plateau"), ("Rufisque", "Plateau"), ("Keur Massar", "Plateau"),
-    ("Pikine", "UCAD"), ("Grand Yoff", "Sandaga"), ("Médina", "Ouakam"),
-    ("Almadies", "Aéroport AIBD"), ("Plateau", "Aéroport AIBD"),
-    ("Plateau", "Diamniadio"), ("Plateau", "Lac Rose (Retba)"),
-    ("Ouakam", "Yoff"), ("Sacré-Cœur", "Guédiawaye"), ("Thiaroye", "Keur Massar"),
-    ("Rufisque", "Bargny"), ("Ngor", "Almadies"), ("Colobane", "Grand Yoff"),
-    ("Médina", "Gorée"), ("Petersen", "Rufisque"), ("Yoff", "Guédiawaye"),
-    ("Parcelles Assainies", "Cambérène"), ("Grand Mbao", "Plateau"),
-    ("Sandaga", "Fann"), ("Liberté 6", "Almadies"), ("Pikine", "Rufisque"),
-    ("Keur Massar", "Malika"), ("Diamniadio", "Sébikotane"), ("Ouakam", "Rufisque"),
-    ("Plateau", "Sicap Baobab"), ("Grand Yoff", "Cambérène"), ("HLM", "Point E"),
-    ("Petersen", "Yoff Layène"), ("Grand Yoff", "Cité Djily Mbaye"), ("Ouakam", "Village des Arts"),
-    ("Colobane", "Zac Mbao"), ("Pikine", "Yeumbeul Sud"), ("Médina", "Gare de Dakar"),
-    ("Almadies", "Île de Ngor"), ("Ouakam", "Monument de la Renaissance Africaine"),
+    # Route des Niayes : Plateau/Petersen <-> Pikine <-> Guédiawaye <-> Malika/Keur Massar
+    ("Petersen", "Guédiawaye"), ("Plateau", "Pikine"), ("Plateau", "Parcelles Assainies"),
+    ("Pikine", "Guédiawaye"), ("Guédiawaye", "Keur Massar"), ("Parcelles Assainies", "Malika"),
+    ("Petersen", "Yeumbeul"), ("Grand Yoff", "Parcelles Assainies"), ("Colobane", "Grand Yoff"),
+
+    # Route de Rufisque : Plateau/Petersen <-> Thiaroye <-> Rufisque <-> Bargny
+    ("Plateau", "Rufisque"), ("Petersen", "Rufisque"), ("Rufisque", "Bargny"),
+    ("Plateau", "Thiaroye"), ("Pikine", "Rufisque"), ("Thiaroye", "Keur Massar"),
+
+    # Autoroute à péage / TER : Plateau <-> Diamniadio <-> Sébikotane/AIBD
+    ("Plateau", "Diamniadio"), ("Diamniadio", "Sébikotane"),
+    ("Plateau", "Aéroport AIBD"), ("Diamniadio", "Aéroport AIBD"),
+
+    # VDN / Corniche Ouest : Sacré-Cœur/Plateau <-> Ouakam <-> Ngor <-> Almadies/Yoff
+    ("Sacré-Cœur", "Ouakam"), ("Ouakam", "Ngor"), ("Ngor", "Almadies"),
+    ("Petersen", "Almadies"), ("Plateau", "Yoff"), ("Sacré-Cœur", "Almadies"),
+    ("Ouakam", "Yoff"), ("Médina", "Ouakam"),
+
+    # Hubs historiques et pôle étudiant (Fass/Colobane, SONATEL/UCAD)
+    ("Sandaga", "Fann"), ("HLM", "Point E"), ("Grand Dakar", "Pikine"),
+    ("SONATEL", "UCAD"), ("Point E", "UCAD"),
+
+    # Autres liaisons courantes (zone industrielle, ferry Gorée, tourisme)
+    ("Médina", "Gorée"), ("Plateau", "Lac Rose (Retba)"),
+    ("Keur Massar", "Malika"), ("Plateau", "Grand Mbao"),
 ]
 
 
