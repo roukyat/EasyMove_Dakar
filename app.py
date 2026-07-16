@@ -74,6 +74,35 @@ def get_niveau_prix(cout_min, cout_max):
 # n'aiderait pas à se décider rapidement.
 TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata (AFTU)"]
 
+# Ordre d'affichage des catégories du lexique Wolof (page /wolof) : suit le
+# déroulé naturel d'un trajet (saluer, monter dans un Tata, ...) plutôt que
+# l'ordre alphabétique renvoyé par la requête SQL. Icônes Font Awesome
+# associées à chaque catégorie : voir ICONES_CATEGORIES_WOLOF ci-dessous.
+ORDRE_CATEGORIES_WOLOF = [
+    "Saluer",
+    "Monter dans un Tata",
+    "Demander un arrêt",
+    "Demander son chemin",
+    "Payer et connaître le tarif",
+    "Poser une question",
+    "Remercier et prendre congé",
+    "Situations d'urgence",
+]
+
+# Icône Font Awesome représentant chaque catégorie du lexique Wolof, dans le
+# même esprit que les icônes déjà utilisées ailleurs sur le site (ex. page
+# /conseils). Repli sur "fa-comments" si une catégorie imprévue apparaît.
+ICONES_CATEGORIES_WOLOF = {
+    "Saluer": "fa-comments",
+    "Monter dans un Tata": "fa-bus",
+    "Demander un arrêt": "fa-location-dot",
+    "Demander son chemin": "fa-map",
+    "Payer et connaître le tarif": "fa-coins",
+    "Poser une question": "fa-circle-question",
+    "Remercier et prendre congé": "fa-handshake",
+    "Situations d'urgence": "fa-triangle-exclamation",
+}
+
 
 @app.route("/")
 def accueil():
@@ -221,20 +250,20 @@ def conseils():
 @app.route("/wolof")
 def wolof():
     phrases = database.get_toutes_les_phrases()
+    groupes = grouper_par(phrases, "situation")
+    phrases_par_situation = OrderedDict(
+        (cat, groupes[cat]) for cat in ORDRE_CATEGORIES_WOLOF if cat in groupes
+    )
+    # Filet de sécurité : une catégorie imprévue reste visible (ajoutée en fin de liste).
+    for cat, liste in groupes.items():
+        phrases_par_situation.setdefault(cat, liste)
+
     return render_template(
         "wolof.html",
         phrases=phrases,
-        phrases_par_situation=grouper_par(phrases, "situation"),
+        phrases_par_situation=phrases_par_situation,
+        icones_categories=ICONES_CATEGORIES_WOLOF,
         active_page="wolof",
-    )
-
-
-@app.route("/contact")
-def contact():
-    return render_template(
-        "contact.html",
-        stats=get_stats(),
-        active_page="contact",
     )
 
 

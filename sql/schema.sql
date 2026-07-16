@@ -111,7 +111,8 @@ CREATE TABLE IF NOT EXISTS phrases_wolof (
     wolof         TEXT NOT NULL,
     francais      TEXT NOT NULL,
     phonetique    TEXT,
-    situation     TEXT           -- ex: 'Salutations', 'Négocier un prix'
+    situation     TEXT,          -- ex: 'Saluer', 'Payer et connaître le tarif'
+    contexte      TEXT           -- ex: 'À dire au chauffeur' (optionnel)
 );
 
 -- ---------------------------------------------------------------------
@@ -146,6 +147,8 @@ CREATE TABLE IF NOT EXISTS historique_recherches (
     lng_depart          REAL,
     lat_arrivee         REAL,
     lng_arrivee         REAL,
+    id_lieu_depart      INTEGER,
+    id_lieu_arrivee     INTEGER,
     date_recherche      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

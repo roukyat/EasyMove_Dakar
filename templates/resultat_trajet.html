@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Résultat de recherche — EasyMove Dakar{% endblock %}
+{% block meta_description %}Le meilleur itinéraire entre vos deux points à Dakar, avec la carte, le prix, la durée et les correspondances de chaque option de transport.{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -518,7 +519,7 @@
                 }
 
                 const iconArret = L.divIcon({
-                    html: '<div class="custom-map-marker" style="background:#10B981;">🚏</div>',
+                    html: '<div class="custom-map-marker" style="background:#10B981;"><i class="fa-solid fa-bus-simple"></i></div>',
                     className: '',
                     iconSize: [32, 32],
                     iconAnchor: [16, 16]

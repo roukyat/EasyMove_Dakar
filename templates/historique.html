@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Mon Historique de Trajets — EasyMove Dakar{% endblock %}
+{% block meta_description %}Retrouvez vos itinéraires récents à Dakar et relancez vos trajets fréquents en un clic.{% endblock %}
 
 {% block content %}
 
@@ -67,7 +68,7 @@
             </div>
 
             <div class="historique-actions" style="display: flex; align-items: center; gap: 12px;">
-                <a href="{{ url_for('trajets') }}?auto_depart={{ item.adresse_depart }}&auto_arrivee={{ item.adresse_arrivee }}"
+                <a href="{{ url_for('resultat_trajet', depart=item.id_lieu_depart, arrivee=item.id_lieu_arrivee) if item.id_lieu_depart and item.id_lieu_arrivee else url_for('trajets') }}"
                    title="Relancer cette recherche d'itinéraire"
                    style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: var(--transition);">
                     <i class="fa-solid fa-rotate"></i> Revoir l'itinéraire

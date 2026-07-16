@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Conseils — EasyMove Sénégal{% endblock %}
+{% block title %}Conseils — EasyMove Dakar{% endblock %}
+{% block meta_description %}Conseils pratiques pour se déplacer à Dakar : bien négocier, prendre le Tata en sécurité et les numéros d'urgence à garder sur soi.{% endblock %}
 
 {% block content %}
 
@@ -20,7 +21,7 @@
                 </button>
                 {% for categorie, liste in conseils_par_categorie.items() %}
                 <button type="button" class="conseil-filtre" data-filtre="{{ categorie }}">
-                    <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                    <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie or 'Ndiaga' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     {{ categorie }} ({{ liste|length }})
                 </button>
                 {% endfor %}
@@ -31,7 +32,7 @@
                 {% for c in liste %}
                 <div class="conseil-card reveal" data-categorie="{{ categorie }}">
                     <div class="conseil-card-icon">
-                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
+                        <i class="fa-solid {% if 'partir' in categorie %}fa-suitcase-rolling{% elif 'Cars rapides' in categorie or 'Ndiaga' in categorie %}fa-van-shuttle{% elif 'Tata' in categorie %}fa-bus{% elif 'transport' in categorie %}fa-bus{% elif 'bien-être' in categorie or 'Confort' in categorie %}fa-face-smile{% elif 'Argent' in categorie %}fa-coins{% elif 'météo' in categorie or 'Saisons' in categorie %}fa-cloud-sun-rain{% elif 'femmes' in categorie %}fa-user-shield{% else %}fa-calendar-days{% endif %}"></i>
                     </div>
                     <div class="conseil-card-body">
                         <span class="cc-categorie">{{ categorie }}</span>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Lexique Wolof — EasyMove Dakar{% endblock %}
+{% block meta_description %}Les expressions wolof essentielles pour se faire comprendre des chauffeurs à Dakar : saluer, indiquer une destination, négocier un prix.{% endblock %}
 
 {% block content %}
 
@@ -10,7 +11,8 @@
                 <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Wolof
             </div>
             <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Lexique de survie en Wolof</h1>
-            <p style="color: var(--text-muted); max-width: 600px;">{{ phrases|length }} expressions pour vous faire comprendre des chauffeurs, du premier salut à la négociation du prix.</p>
+            <p style="color: var(--text-muted); max-width: 600px;">Des expressions utiles pour vous déplacer à Dakar, demander votre chemin,
+             échanger avec les chauffeurs et communiquer plus facilement au quotidien.</p>
         </div>
     </div>
 
@@ -28,7 +30,7 @@
             {% for situation, liste in phrases_par_situation.items() %}
             <div class="wolof-section reveal" style="margin-bottom: 48px;">
                 <div class="wolof-section-title" style="font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.3rem; margin-bottom: 16px; color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-comments" style="font-size: 1.1rem;"></i> {{ situation }}
+                    <i class="fa-solid {{ icones_categories.get(situation, 'fa-comments') }}" style="font-size: 1.1rem;"></i> {{ situation }}
                 </div>
                 <div style="overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border-light);">
                     <table class="wolof-table" style="width: 100%; border: none;">
@@ -50,7 +52,10 @@
                                         <i class="fa-solid fa-volume-low" style="margin-right: 6px; opacity: 0.6;"></i> {{ p.phonetique }}
                                     </div>
                                 </td>
-                                <td class="wolof-fr" style="color: var(--text-muted);">{{ p.francais }}</td>
+                                <td class="wolof-fr" style="color: var(--text-muted);">
+                                    {{ p.francais }}
+                                    {% if p.contexte %}<div style="margin-top: 4px; font-size: 0.78rem; font-style: italic; opacity: 0.75;">{{ p.contexte }}</div>{% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

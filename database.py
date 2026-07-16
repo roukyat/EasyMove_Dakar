@@ -70,9 +70,31 @@ def verifier_et_mettre_a_jour_schema():
                 lng_depart REAL,
                 lat_arrivee REAL,
                 lng_arrivee REAL,
+                id_lieu_depart INTEGER,
+                id_lieu_arrivee INTEGER,
                 date_recherche TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+    # id_lieu_depart/id_lieu_arrivee ajoutés après le lancement initial, pour
+    # que "Revoir l'itinéraire" (page /historique) puisse rouvrir directement
+    # le bon résultat au lieu de ramener sur une recherche vide : les entrées
+    # d'historique plus anciennes gardent ces colonnes à NULL.
+    cursor.execute("PRAGMA table_info(historique_recherches)")
+    colonnes_historique = [row["name"] for row in cursor.fetchall()]
+    if "id_lieu_depart" not in colonnes_historique:
+        cursor.execute("ALTER TABLE historique_recherches ADD COLUMN id_lieu_depart INTEGER")
+    if "id_lieu_arrivee" not in colonnes_historique:
+        cursor.execute("ALTER TABLE historique_recherches ADD COLUMN id_lieu_arrivee INTEGER")
+
+    # `contexte` ajoutée pour la refonte du lexique Wolof (page /wolof) :
+    # une courte indication d'usage par phrase ("À dire au chauffeur"...),
+    # affichée en petit sous la traduction sans changer la mise en page du
+    # tableau. NULL pour les phrases qui n'en ont pas besoin.
+    cursor.execute("PRAGMA table_info(phrases_wolof)")
+    colonnes_phrases = [row["name"] for row in cursor.fetchall()]
+    if "contexte" not in colonnes_phrases:
+        cursor.execute("ALTER TABLE phrases_wolof ADD COLUMN contexte TEXT")
 
     # Le Taxi et le Clando étaient historiquement fusionnés dans une seule
     # ligne 'Taxi clando' : on les sépare ici en deux moyens de transport
@@ -103,6 +125,12 @@ def verifier_et_mettre_a_jour_schema():
     # initial : idempotent (vérification par titre), donc sûr à rejouer sur
     # une base qui a déjà ces conseils.
     _ajouter_conseils_cars_rapides_et_tata(cursor)
+
+    # Nouveau moyen de transport "Ndiaga Ndiaye" (page /transports) + ses
+    # conseils pratiques dédiés (page /conseils). Idempotent (vérification
+    # par nom / par titre).
+    _ajouter_transport_ndiaga_ndiaye(cursor)
+    _ajouter_conseils_ndiaga_ndiaye(cursor)
 
     # Relecture éditoriale de quelques conseils trop longs pour une carte
     # compacte : idempotent (UPDATE conditionné au contenu actuel), sûr à
@@ -153,6 +181,14 @@ def verifier_et_mettre_a_jour_schema():
     # Quatrième vague d'enrichissement, centrée spécifiquement sur le
     # réseau Tata (28 lignes supplémentaires + nouveaux lieux). Idempotent.
     _enrichir_reseau_vague_4(cursor)
+
+    # Refonte du lexique Wolof (page /wolof) : les phrases existantes sont
+    # reclassées dans des catégories pensées pour un déplacement réel
+    # (saluer, monter dans un Tata, demander un arrêt...) plutôt que des
+    # intitulés grammaticaux, et le lexique est enrichi de nouvelles
+    # expressions utiles + d'un contexte d'usage. Idempotent (UPDATE par
+    # texte wolof exact + INSERT conditionné à l'absence de la phrase).
+    _reorganiser_lexique_wolof_transport(cursor)
 
     conn.commit()
     conn.close()
@@ -313,6 +349,32 @@ def _migrer_taxi_et_clando(cursor):
         )
 
 
+def _ajouter_transport_ndiaga_ndiaye(cursor):
+    """Ajoute le Ndiaga Ndiaye (minibus blanc de transport collectif, souvent
+    construit sur d'anciens châssis Mercedes-Benz) à la page /transports.
+    Idempotent : n'insère que si ce moyen de transport n'existe pas déjà."""
+    existe = cursor.execute(
+        "SELECT 1 FROM moyens_transport WHERE nom = 'Ndiaga Ndiaye'"
+    ).fetchone()
+    if existe:
+        return
+    cursor.execute(
+        """INSERT INTO moyens_transport
+               (nom, image_url, description, cout_min, cout_max, niveau_confort, disponibilite, avantages, inconvenients)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "Ndiaga Ndiaye", "",
+            "Minibus blanc, souvent construit sur d'anciens châssis Mercedes-Benz, très utilisé pour le transport "
+            "collectif au Sénégal. Dessert Dakar et sa banlieue (Pikine, Guédiawaye, Keur Massar, Rufisque...) ainsi "
+            "que quelques liaisons interurbaines, surtout le matin et aux heures de pointe.",
+            100, 350, "Faible", "Le matin et aux heures de pointe",
+            "Dessert de nombreuses destinations, plus économique qu'un taxi, très présent dans la banlieue de Dakar, "
+            "accès à des zones moins bien desservies",
+            "Très chargé aux heures de pointe, confort parfois limité, temps d'attente variable selon les lignes",
+        )
+    )
+
+
 def _corriger_id_transport_errones(cursor):
     """Corrige un bug hérité de la scission Taxi/Clando : l'insertion de la
     nouvelle ligne 'Clando' juste après 'Taxi' dans moyens_transport a
@@ -456,6 +518,29 @@ NOUVEAUX_CONSEILS_CARS_RAPIDES_ET_TATA = [
     ),
 ]
 
+NOUVEAUX_CONSEILS_NDIAGA_NDIAYE = [
+    (
+        'Ndiaga Ndiaye', 'Confirmer la destination avant de monter',
+        "Demandez au receveur où va le véhicule avant de monter : les Ndiaga Ndiaye n'affichent pas toujours leur destination.",
+        "Toute l'année"
+    ),
+    (
+        'Ndiaga Ndiaye', 'Prévoir de la petite monnaie à bord',
+        "Ayez des petites coupures sur vous : la monnaie facilite et accélère le paiement à bord.",
+        "Toute l'année"
+    ),
+    (
+        'Ndiaga Ndiaye', 'Prévenir avant de descendre',
+        "Repérez votre arrêt à l'avance et prévenez quelques instants avant, le temps que le véhicule s'arrête.",
+        "Toute l'année"
+    ),
+    (
+        'Ndiaga Ndiaye', 'Demander en cas de doute',
+        "Un doute sur l'itinéraire ? Le receveur ou les autres passagers vous orienteront volontiers.",
+        "Toute l'année"
+    ),
+]
+
 # Relecture éditoriale : version raccourcie de l'ensemble des conseils
 # (les 8 conseils de base + les 8 Cars rapides/Tata), jugés trop longs pour
 # une carte compacte. Appliquée via UPDATE (voir _raccourcir_conseils_verbeux)
@@ -517,6 +602,18 @@ def _ajouter_conseils_cars_rapides_et_tata(cursor):
             )
 
 
+def _ajouter_conseils_ndiaga_ndiaye(cursor):
+    """Ajoute les conseils pratiques Ndiaga Ndiaye s'ils n'existent pas déjà
+    (vérification par titre), même logique que _ajouter_conseils_cars_rapides_et_tata."""
+    for categorie, titre, contenu, periode in NOUVEAUX_CONSEILS_NDIAGA_NDIAYE:
+        existe = cursor.execute("SELECT 1 FROM conseils WHERE titre = ?", (titre,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO conseils (categorie, titre, contenu, periode) VALUES (?, ?, ?, ?)",
+                (categorie, titre, contenu, periode)
+            )
+
+
 def _raccourcir_conseils_verbeux(cursor):
     """Recale le texte de quelques conseils vers une version plus concise
     (relecture éditoriale pour la soutenance). Fonctionne par UPDATE sur le
@@ -568,6 +665,160 @@ NOUVELLES_PHRASES_WOLOF = [
     ('Wallal ma !', 'Aidez-moi !', 'wa-lal ma', 'Urgence'),
     ('Fabu police bi', 'Appelez la police', 'fabou po-lis bi', 'Urgence'),
 ]
+
+# ---------------------------------------------------------------------
+# REFONTE DU LEXIQUE WOLOF (page /wolof) — voir _reorganiser_lexique_wolof_transport
+# ---------------------------------------------------------------------
+# Les intitulés grammaticaux d'origine ('Salutations', 'Politesse',
+# 'Négociation', 'Transport', 'Direction', 'Nombres', 'Urgence') sont
+# remplacés par des catégories pensées autour d'une situation réelle de
+# déplacement à Dakar. Chaque entrée : (wolof, nouvelle_situation, contexte
+# ou None). Le texte wolof sert de clé (inchangé) : cette table ne modifie
+# jamais le wolof/français/phonétique déjà validés, seulement le
+# classement et, pour certaines phrases, un petit contexte d'usage.
+RECLASSEMENT_PHRASES_WOLOF = [
+    ('Salaam aleekum', 'Saluer', "Salutation standard, à toute heure de la journée"),
+    ('Maleekum salaam', 'Saluer', "Réponse automatique à « Salaam aleekum »"),
+    ('Nanga def ?', 'Saluer', None),
+    ('Maa ngi fi', 'Saluer', "Réponse à « Nanga def ? »"),
+    ('Jamm ak jamm', 'Saluer', "Autre réponse possible à « Nanga def ? »"),
+    ('Ana yow ?', 'Saluer', None),
+    ('Naka nga tudd ?', 'Saluer', None),
+
+    ('Jërejëf', 'Remercier et prendre congé', None),
+    ('Amul solo', 'Remercier et prendre congé', "Réponse habituelle à un merci"),
+    ('Ba beneen yoon', 'Remercier et prendre congé', None),
+    ('Ballago', 'Remercier et prendre congé', None),
+    ('Ma mangi dem', 'Remercier et prendre congé', None),
+
+    ('Baal ma', 'Poser une question', "À dire avant toute question à un inconnu"),
+    ('Waaw', 'Poser une question', None),
+    ('Déedéet', 'Poser une question', None),
+    ('Ndank ndank', 'Poser une question', "Pour demander de répéter ou de ralentir"),
+    ('Baal ma, dama bëgg laa laaj', 'Poser une question', None),
+    ('Su la neexee', 'Poser une question', None),
+
+    ('Nak bu baax ?', 'Payer et connaître le tarif', None),
+    ('Ñaata la ?', 'Payer et connaître le tarif', None),
+    ('Dafa seer', 'Payer et connaître le tarif', None),
+    ('Dafa seer lool', 'Payer et connaître le tarif', None),
+    ('Baax na', 'Payer et connaître le tarif', "Pour valider un prix négocié"),
+    ('Dina dem', 'Payer et connaître le tarif', "Argument de négociation si le prix reste trop élevé"),
+    ('Dafa yomb', 'Payer et connaître le tarif', None),
+    ('Wesaare', 'Payer et connaître le tarif', None),
+    ('Benn, ñaar, ñett', 'Payer et connaître le tarif', "Utile pour comprendre un prix annoncé"),
+    ('Ñeent, juróom', 'Payer et connaître le tarif', None),
+    ('Juróom-benn', 'Payer et connaître le tarif', None),
+    ('Fukk', 'Payer et connaître le tarif', None),
+    ('Fukk ak juróom', 'Payer et connaître le tarif', None),
+    ('Téeméer', 'Payer et connaître le tarif', None),
+
+    ('Dem ci [lieu]', 'Monter dans un Tata', "À dire directement au chauffeur ou au receveur"),
+    ('Dama bëgg dem [lieu]', 'Monter dans un Tata', "Variante un peu plus polie de « Dem ci »"),
+    ('Ban gaal moo dem [lieu] ?', 'Monter dans un Tata', "Utile si plusieurs véhicules attendent au même endroit"),
+    ('Fan la gare bi nekk ?', 'Monter dans un Tata', None),
+    ('Kañ nga dem ?', 'Monter dans un Tata', "À demander au chauffeur qui attend encore des passagers"),
+    ('Bus bi dafa fees', 'Monter dans un Tata', None),
+    ('Ana taxi yi ?', 'Monter dans un Tata', None),
+
+    ('Taxawal fii !', 'Demander un arrêt', None),
+    ('Yëgël ma ci...', 'Demander un arrêt', None),
+    ('Wàcc fi !', 'Demander un arrêt', "Peut être dit par le receveur pour indiquer votre arrêt"),
+
+    ('Fan la [lieu] nekk ?', 'Demander son chemin', None),
+    ('Jëm ci kanam', 'Demander son chemin', None),
+    ('Ci kanam rekk', 'Demander son chemin', None),
+    ('Jëm ci ndey', 'Demander son chemin', None),
+    ('Jëm ci kaw', 'Demander son chemin', None),
+    ('Yagg na ?', 'Demander son chemin', None),
+    ('Foofu la', 'Demander son chemin', None),
+    ('Fii la', 'Demander son chemin', None),
+
+    ('Dama metti', 'Situations d\'urgence', None),
+    ('Wóoy !', 'Situations d\'urgence', None),
+    ('Sama xel dafa tang', 'Situations d\'urgence', None),
+    ('Wallal ma !', 'Situations d\'urgence', "Interpellation directe, pour une urgence réelle"),
+    ('Fabu police bi', 'Situations d\'urgence', None),
+]
+
+# Nouvelles expressions ajoutées pour couvrir les situations concrètes d'un
+# trajet en Tata/taxi/Jakarta à Dakar (montée, arrêt, chemin, paiement,
+# urgence). Wolof standard tel qu'employé à Dakar — y compris les emprunts
+# au français (« arrêt », « gare », « BRT », « TER »...) couramment utilisés
+# tels quels dans une phrase wolof, comme c'est réellement le cas au
+# quotidien pour le vocabulaire des transports modernes.
+# Chaque entrée : (wolof, francais, phonetique, situation, contexte ou None).
+NOUVELLES_PHRASES_WOLOF_TRANSPORT = [
+    ('Naka guddi gi ?', 'Bonsoir, comment se passe la soirée ?', 'na-ka gou-di gui', 'Saluer', "Salutation utilisée en fin de journée"),
+
+    ('Tata bii, dafa dem [lieu] ?', 'Ce Tata va-t-il à [lieu] ?', 'ta-ta bii da-fa dem', 'Monter dans un Tata', "À demander avant de monter"),
+    ('Ban ligne moo dem [lieu] ?', 'Quelle ligne va à [lieu] ?', 'ban ligne mo dem', 'Monter dans un Tata', None),
+    ('Ligne bii, dafa jaar ci [lieu] ?', 'Cette ligne passe-t-elle par [lieu] ?', 'ligne bii da-fa diar si', 'Monter dans un Tata', None),
+    ('Fan la bus bii di jaar ?', 'Où passe cette ligne ?', 'fan la bous bii di diar', 'Monter dans un Tata', None),
+    ('Fan la terminus bi nekk ?', 'Où est le terminus ?', 'fan la ter-mi-nuss bi nèk', 'Monter dans un Tata', None),
+    ('Fan laa mëna jël BRT bi ?', 'Où puis-je prendre le BRT ?', 'fan la mè-na djël bi-èr-té bi', 'Monter dans un Tata', None),
+    ('Fan laa mëna jël TER bi ?', 'Où puis-je prendre le TER ?', 'fan la mè-na djël té-euh-èr bi', 'Monter dans un Tata', None),
+    ('Am na correspondance ?', 'Y a-t-il une correspondance ?', 'am na kor-res-pon-dans', 'Monter dans un Tata', None),
+    ('Ñaata waxtu la war ?', 'Combien de temps faut-il ?', 'nya-ta wakh-tou la war', 'Monter dans un Tata', None),
+    ('Xibaar ma bu nu egsee', 'Pouvez-vous me prévenir quand nous arrivons ?', 'xi-baar ma bou nou èg-sé', 'Monter dans un Tata', "À dire en montant si vous ne connaissez pas le trajet"),
+
+    ('Fan la arrêt bi nekk ?', 'Où est cet arrêt ?', 'fan la a-rè bi nèk', 'Demander un arrêt', None),
+    ('Fan laa wara wàcc ?', 'Où dois-je descendre ?', 'fan la wa-ra watch', 'Demander un arrêt', None),
+    ('Fii, mooy sama arrêt ?', 'Cet arrêt est-il le bon ?', 'fi-i mo-y sa-ma a-rè', 'Demander un arrêt', "Pour confirmer avant de descendre"),
+    ('Ban arrêt bu topp ?', 'Quel est le prochain arrêt ?', 'ban a-rè bou top', 'Demander un arrêt', None),
+
+    ('Réer naa', 'Je suis perdu(e)', 'ré-èr na', 'Demander son chemin', None),
+    ('Wallal ma, su la neexee', 'Pouvez-vous m\'aider ?', 'wa-lal ma sou la né-é', 'Demander son chemin', "Formule polie, à distinguer du « Wallal ma ! » d'urgence"),
+    ('Dama wut universite bi', 'Je cherche l\'université', 'da-ma wout u-ni-vèr-si-té bi', 'Demander son chemin', None),
+    ('Dama wut opitaal bi', 'Je cherche l\'hôpital', 'da-ma wout o-pi-tal bi', 'Demander son chemin', None),
+    ('Dama wut marse bi', 'Je cherche le marché', 'da-ma wout mar-sé bi', 'Demander son chemin', None),
+    ('Dama wut Plateau bi', 'Je cherche le centre-ville (le Plateau)', 'da-ma wout pla-to bi', 'Demander son chemin', None),
+    ('Dama wut tefes bi', 'Je cherche la plage', 'da-ma wout té-fess bi', 'Demander son chemin', None),
+    ('Dama wut station bi', 'Je cherche la station', 'da-ma wout sta-syon bi', 'Demander son chemin', None),
+
+    ('Ñaata la trajet bi ?', 'Combien coûte le trajet ?', 'nya-ta la tra-djè bi', 'Payer et connaître le tarif', None),
+    ('Fii laa fey ?', 'Je paie ici ?', 'fi-i la féy', 'Payer et connaître le tarif', None),
+    ('Amuma wesaare', "Je n'ai pas de monnaie", 'a-mou-ma wé-sa-ré', 'Payer et connaître le tarif', None),
+    ('Wesaareal ma', 'Pouvez-vous rendre la monnaie ?', 'wé-sa-ré-al ma', 'Payer et connaître le tarif', None),
+
+    ('Waxuma wolof', 'Je ne parle pas wolof', 'wa-xou-ma wo-lof', 'Poser une question', "Pour prévenir tout de suite votre interlocuteur"),
+    ('Dégg nga farañse ?', 'Parlez-vous français ?', 'dègue nga fa-rañ-sé', 'Poser une question', None),
+    ('Dégg nga angale ?', 'Parlez-vous anglais ?', 'dègue nga an-ga-lé', 'Poser une question', None),
+
+    ('Jërejëf, chauffeur !', 'Merci chauffeur', 'djé-ré-djef so-fer', 'Remercier et prendre congé', None),
+    ('Jërejëf, apprenti !', 'Merci receveur', 'djé-ré-djef a-pran-ti', 'Remercier et prendre congé', "« Apprenti » désigne le receveur qui collecte les tickets dans le Tata"),
+    ('Fanaan ak jamm', 'Bonne soirée / bonne nuit', 'fa-naan ak diam', 'Remercier et prendre congé', "Pour se quitter en fin de journée"),
+]
+
+
+def _reorganiser_lexique_wolof_transport(cursor):
+    """Reclasse le lexique wolof existant dans des catégories orientées
+    situation de déplacement (voir RECLASSEMENT_PHRASES_WOLOF) et ajoute les
+    nouvelles expressions de NOUVELLES_PHRASES_WOLOF_TRANSPORT. Idempotent :
+    le reclassement est un UPDATE sans condition sur la valeur actuelle (sûr
+    à rejouer) ; pour les nouvelles phrases, `situation` est elle aussi
+    remise à jour si la phrase existe déjà (et pas seulement insérée si
+    absente), afin qu'un changement d'intitulé de catégorie se propage
+    toujours aux lignes déjà en base plutôt que de rester figé."""
+    for wolof, situation, contexte in RECLASSEMENT_PHRASES_WOLOF:
+        cursor.execute(
+            "UPDATE phrases_wolof SET situation = ?, contexte = COALESCE(contexte, ?) WHERE wolof = ?",
+            (situation, contexte, wolof)
+        )
+
+    for wolof, francais, phonetique, situation, contexte in NOUVELLES_PHRASES_WOLOF_TRANSPORT:
+        existe = cursor.execute("SELECT 1 FROM phrases_wolof WHERE wolof = ?", (wolof,)).fetchone()
+        if existe:
+            cursor.execute(
+                "UPDATE phrases_wolof SET situation = ?, contexte = COALESCE(contexte, ?) WHERE wolof = ?",
+                (situation, contexte, wolof)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO phrases_wolof (wolof, francais, phonetique, situation, contexte) VALUES (?, ?, ?, ?, ?)",
+                (wolof, francais, phonetique, situation, contexte)
+            )
+
 
 NOUVELLES_LIGNES_MINIBUS = [
     {
@@ -1351,13 +1602,16 @@ def get_arrets_par_ligne(id_ligne):
 # Gestion de l'Historique des Recherches et Favoris
 # ---------------------------------------------------------------------
 
-def ajouter_recherche_historique(dep_nom, arr_nom, dep_lat=None, dep_lng=None, arr_lat=None, arr_lng=None):
+def ajouter_recherche_historique(dep_nom, arr_nom, dep_lat=None, dep_lng=None, arr_lat=None, arr_lng=None,
+                                  id_lieu_depart=None, id_lieu_arrivee=None):
     """Enregistre une recherche effectuée par l'utilisateur."""
     conn = get_connection()
     conn.execute("""
-        INSERT INTO historique_recherches (adresse_depart, adresse_arrivee, lat_depart, lng_depart, lat_arrivee, lng_arrivee)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (dep_nom, arr_nom, dep_lat, dep_lng, arr_lat, arr_lng))
+        INSERT INTO historique_recherches
+            (adresse_depart, adresse_arrivee, lat_depart, lng_depart, lat_arrivee, lng_arrivee,
+             id_lieu_depart, id_lieu_arrivee)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (dep_nom, arr_nom, dep_lat, dep_lng, arr_lat, arr_lng, id_lieu_depart, id_lieu_arrivee))
     conn.commit()
     conn.close()
 
@@ -1539,7 +1793,8 @@ def rechercher_trajet(id_depart, id_arrivee):
     ajouter_recherche_historique(
         lieu_depart["nom"], lieu_arrivee["nom"],
         lieu_depart["latitude"], lieu_depart["longitude"],
-        lieu_arrivee["latitude"], lieu_arrivee["longitude"]
+        lieu_arrivee["latitude"], lieu_arrivee["longitude"],
+        id_lieu_depart=id_depart, id_lieu_arrivee=id_arrivee
     )
 
     reponse = _construire_reponse(conn, lieu_depart, lieu_arrivee)

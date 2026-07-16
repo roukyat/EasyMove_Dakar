@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}EasyMove Dakar — Voyager sans stress{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}EasyMove Dakar : comparateur de trajets pour se déplacer à Dakar. Taxi, clando, Tata, BRT, TER — prix, durée et itinéraire calculés en quelques secondes.{% endblock %}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+
+    <meta property="og:title" content="{{ self.title() }}">
+    <meta property="og:description" content="{{ self.meta_description() }}">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fr_SN">
+    <meta property="og:image" content="{{ url_for('static', filename='img/mini_bus.jpg', _external=True) }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +29,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 
-<body class>
+<body>
 
     <nav class="navbar">
         <div class="container">

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Trajets — EasyMove Dakar{% endblock %}
+{% block meta_description %}Calculez votre itinéraire à Dakar : choisissez un départ et une arrivée pour comparer toutes les options de transport, prix et durée en un instant.{% endblock %}
 
 {% block content %}
 
@@ -8,8 +9,9 @@
             <div class="breadcrumb" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
                 <a href="{{ url_for('accueil') }}">Accueil</a> <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; margin: 0 6px;"></i> Trajets
             </div>
-            <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Calculateur d'itinéraires</h1>
-            <p style="color: var(--text-muted); max-width: 600px;">Deux points sur la carte, toutes les options de transport entre les deux — prix, durée et correspondances comparés en un instant.</p>
+            <h1 style="font-size: 2.5rem; margin-bottom: 8px;">Trouver un trajet</h1>
+            <p style="color: var(--text-muted); max-width: 600px;">Indiquez simplement votre point de départ et votre destination.
+             EasyMove vous guide en proposant le meilleur itinéraire, les lignes à emprunter, le temps estimé et le coût du trajet.</p>
         </div>
     </div>
 
