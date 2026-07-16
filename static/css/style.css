@@ -940,6 +940,28 @@ h1, h2, h3, h4 {
 .compare-table tr:last-child td, .wolof-table tr:last-child td { border-bottom: none; }
 .compare-table tr:hover td, .wolof-table tr:hover td { background: var(--bg-primary); color: var(--text-main); }
 
+/* Trajets populaires (page /prix) : grille de cartes plutôt qu'un tableau
+   à défilement horizontal, plus lisible sur mobile pour une liste courte. */
+.trajets-populaires-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 20px; }
+.trajet-populaire-card {
+    background: var(--fond-carte); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 22px; transition: var(--transition);
+}
+.trajet-populaire-card:hover { border-color: var(--accent-bleu); transform: translateY(-3px); box-shadow: var(--shadow); }
+.tp-route {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; color: var(--text-main);
+}
+.tp-route i { color: var(--accent-cyan); font-size: 0.75rem; }
+.tp-transport { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 0.85rem; color: var(--text-muted); }
+.tp-transport i { color: var(--accent-bleu); width: 16px; }
+.tp-meta {
+    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--border-light); font-size: 0.85rem; color: var(--text-muted);
+}
+.tp-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.tp-meta i { color: var(--accent-cyan); }
+
 details { background: var(--fond-carte); border: 1px solid var(--border-color); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
 summary { padding: 16px 20px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; list-style: none; color: var(--text-main); }
 summary::after { content: "\f078"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 0.8rem; color: var(--text-muted); transition: var(--transition); }

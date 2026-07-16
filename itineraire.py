@@ -50,6 +50,15 @@ JAKARTA_PAR_KM_MIN = 80
 JAKARTA_PAR_KM_MAX = 150
 JAKARTA_VITESSE_KMH = 26.0
 
+# Ndiaga Ndiaye : minibus blanc de transport collectif, sans ligne fixe en
+# base (comme le Clando) mais avec un tarif estimable (contrairement au
+# Clando, purement négocié) — calibré pour rester dans la fourchette
+# affichée sur /transports (100-350 FCFA sur un trajet urbain courant).
+NDIAGA_NDIAYE_BASE = 100
+NDIAGA_NDIAYE_PAR_KM_MIN = 30
+NDIAGA_NDIAYE_PAR_KM_MAX = 70
+NDIAGA_NDIAYE_VITESSE_KMH = 17.0
+
 SEUIL_MARCHE_A_PIED_KM = 1.0  # en dessous, on propose aussi "à pied"
 
 
@@ -123,15 +132,28 @@ class Graphe:
         }
 
         # Métadonnées (id_transport, image, capacité...) des moyens de
-        # transport hors-ligne (Taxi, Clando, Jakarta) : chargées une seule
-        # fois depuis `moyens_transport` pour rester synchronisées avec la
-        # base plutôt que de dupliquer ces valeurs en dur dans le code.
+        # transport hors-ligne (Taxi, Clando, Jakarta, Ndiaga Ndiaye) :
+        # chargées une seule fois depuis `moyens_transport` pour rester
+        # synchronisées avec la base plutôt que de dupliquer ces valeurs
+        # en dur dans le code.
         self.transports_meta = {
             row["nom"]: dict(row)
             for row in conn.execute(
-                "SELECT * FROM moyens_transport WHERE nom IN ('Taxi', 'Clando', 'Jakarta (moto-taxi)')"
+                "SELECT * FROM moyens_transport WHERE nom IN "
+                "('Taxi', 'Clando', 'Jakarta (moto-taxi)', 'Ndiaga Ndiaye')"
             )
         }
+
+        # Tous les moyens de transport qui possèdent au moins une ligne
+        # exploitable dans le graphe (id_transport -> nom_transport) :
+        # utilisé pour calculer une alternative dédiée par mode (voir
+        # calculer_itineraire), au lieu de se limiter à un seul chemin
+        # "toutes lignes confondues" + une alternative minibus.
+        self.transports_routables = {
+            info["id_transport"]: info["nom_transport"]
+            for info in lignes_info.values()
+        }
+
         par_ligne = defaultdict(list)
         for la in conn.execute("SELECT id_ligne, id_arret, ordre FROM ligne_arrets ORDER BY id_ligne, ordre"):
             par_ligne[la["id_ligne"]].append(la["id_arret"])
@@ -450,6 +472,29 @@ def _option_jakarta(distance_km, meta=None):
     }
 
 
+def _option_ndiaga_ndiaye(distance_km, meta=None):
+    """Ndiaga Ndiaye : minibus blanc de transport collectif, sans ligne fixe
+    référencée en base (comme le Clando, il suit des axes informels plutôt
+    qu'un trajet cartographié), présenté ici comme option toujours
+    disponible sur le même principe que Taxi/Clando/Jakarta."""
+    meta = meta or {}
+    duree = distance_km / NDIAGA_NDIAYE_VITESSE_KMH * 60 + 5
+    prix_min = _arrondi_prix(NDIAGA_NDIAYE_BASE + distance_km * NDIAGA_NDIAYE_PAR_KM_MIN)
+    prix_max = _arrondi_prix(NDIAGA_NDIAYE_BASE + distance_km * NDIAGA_NDIAYE_PAR_KM_MAX)
+    return {
+        "nom_transport": "Ndiaga Ndiaye",
+        "image_url": meta.get("image_url") or "",
+        "id_transport": meta.get("id_transport"),
+        "numero_ligne": "", "nom_ligne": "",
+        "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 100),
+        "duree_min_minutes": max(3, int(round(duree * 0.85))),
+        "duree_max_minutes": max(5, int(round(duree * 1.35))),
+        "correspondances": "Aucune",
+        "etapes": f"Héler un Ndiaga Ndiaye sur son axe habituel et confirmer la destination avec le receveur | Trajet direct de {distance_km:.1f} km",
+        "recommande": 0,
+    }
+
+
 def _option_a_pied(distance_km):
     duree = distance_km / VITESSE_MARCHE_KMH * 60
     return {
@@ -513,14 +558,36 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
             chemin_mini = _reconstruire_chemin(pred_mini, sources, cible_mini)
             legs_mini = _grouper_en_etapes(graphe, chemin_mini)
             opt_mini = _formatter_option_transit(graphe, legs_mini)
-            if opt_mini and (not opt_transit or opt_mini["etapes"] != opt_transit["etapes"]):
+            if opt_mini and not any(o["etapes"] == opt_mini["etapes"] for o in options):
                 options.append(opt_mini)
+
+        # Alternative dédiée par mode de transport (Dakar Dem Dikk, Car
+        # rapide, Minibus Tata, BRT, TER...) : sans cette boucle, seuls les
+        # modes qui composent le chemin objectivement le plus rapide (et le
+        # réseau minibus combiné ci-dessus) apparaissaient dans les
+        # résultats — les autres moyens de transport de la base, même
+        # disponibles pour ce trajet, étaient ignorés. On calcule ici un
+        # chemin filtré par mode (correspondances au sein du même mode
+        # incluses) et on ne l'ajoute que s'il atteint la destination et
+        # diffère des options déjà trouvées.
+        for id_transport, nom_transport in graphe.transports_routables.items():
+            cible_mode, _dist_mode, pred_mode = _dijkstra_filtre(
+                graphe, sources, cibles, lambda m, tid=id_transport: m["id_transport"] == tid
+            )
+            if cible_mode is None:
+                continue
+            chemin_mode = _reconstruire_chemin(pred_mode, sources, cible_mode)
+            legs_mode = _grouper_en_etapes(graphe, chemin_mode)
+            opt_mode = _formatter_option_transit(graphe, legs_mode)
+            if opt_mode and not any(o["etapes"] == opt_mode["etapes"] for o in options):
+                options.append(opt_mode)
 
     if id_ld != id_la:
         transports_meta = getattr(graphe, "transports_meta", {})
         options.append(_option_taxi(distance_directe, transports_meta.get("Taxi")))
         options.append(_option_clando(distance_directe, transports_meta.get("Clando")))
         options.append(_option_jakarta(distance_directe, transports_meta.get("Jakarta (moto-taxi)")))
+        options.append(_option_ndiaga_ndiaye(distance_directe, transports_meta.get("Ndiaga Ndiaye")))
         if distance_directe <= SEUIL_MARCHE_A_PIED_KM:
             options.append(_option_a_pied(distance_directe))
 

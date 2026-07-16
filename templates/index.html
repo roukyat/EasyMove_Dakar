@@ -7,7 +7,6 @@
     <section class="hero">
         <div class="container hero-inner">
             <div>
-                <div class="hero-eyebrow"><i class="fa-solid fa-location-dot"></i> Comparateur de trajets — Dakar & Sénégal</div>
                 <h1>Trouvez votre <em>trajet</em> à Dakar en quelques secondes.</h1>
                 <p>Taxi, clando, Tata, BRT, TER : comparez le prix, la durée et le meilleur itinéraire avant même de monter.</p>
                 <div class="hero-btns">
@@ -143,7 +142,7 @@
                             {% if t.nom == 'Clando' %}
                             Prix fixé avec le chauffeur
                             {% else %}
-                            {{ t.cout_min }} – {{ t.cout_max }} FCFA
+                            {{ t.cout_min }} - {{ t.cout_max }} FCFA
                             {% endif %}
                         </div>
                     </div>
@@ -159,8 +158,10 @@
     </section>
 
     {# ============================================================
-        RESEAU TATA — référence générale du réseau minibus, avec un
-        coup de projecteur sur les lignes qui rejoignent le DIT.
+        RESEAU TATA — référence générale du réseau minibus. La carte de
+        droite illustre le principe d'EasyMove (départ/destination ->
+        ligne, temps, prix, arrêt de descente) avec un trajet réel
+        (Sacré-Cœur -> Mermoz, Tata Ligne 15), pas une simple photo.
        ============================================================ #}
     <section class="section">
         <div class="container">
@@ -184,11 +185,13 @@
                 </div>
                 <div class="tata-teaser-card about-mockup reveal" aria-hidden="true">
                     <div class="about-mockup-dots"><span></span><span></span><span></span></div>
-                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Ouakam</div>
-                    <div class="about-mockup-row"><i class="fa-solid fa-graduation-cap"></i> DIT-1 · Cité Keur Gorgui</div>
-                    <div class="about-mockup-row"><i class="fa-solid fa-building"></i> SN-6 · Cité Keur Gorgui</div>
-                    <div class="about-mockup-row"><i class="fa-solid fa-water"></i> SN-8 · Ngor</div>
-                    <div class="about-mockup-cta"><i class="fa-solid fa-route" style="margin-right: 6px;"></i>Tout le réseau Tata</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-location-dot"></i> Foire</div>
+                    <div class="about-mockup-row filled"><i class="fa-solid fa-flag-checkered"></i> Sacré-Cœur</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-bus"></i> Tata · Ligne 34</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-clock"></i> 10-30 min</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-coins"></i> 200 FCFA</div>
+                    <div class="about-mockup-row"><i class="fa-solid fa-circle-down"></i> Descendre à Arrêt Sacré-Cœur</div>
+                    <div class="about-mockup-cta"><i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i>Trajet trouvé en quelques secondes</div>
                 </div>
             </div>
         </div>
@@ -235,7 +238,6 @@
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">
-                <div class="eyebrow">Le mot du jour</div>
                 <h2>Quelques mots de wolof changent tout sur la route.</h2>
             </div>
             {% set p = phrases_apercu[0] %}

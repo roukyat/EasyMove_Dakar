@@ -1851,31 +1851,18 @@ def get_tous_les_favoris():
 # autoroutier TER Dakar - Diamniadio - AIBD. Sources : cetud.sn (Réseaux de
 # transport, Plan de Mobilité Urbaine Durable), demdikk.sn, aftu-senegal.org.
 TRAJETS_POPULAIRES = [
-    # Route des Niayes : Plateau/Petersen <-> Pikine <-> Guédiawaye <-> Malika/Keur Massar
-    ("Petersen", "Guédiawaye"), ("Plateau", "Pikine"), ("Plateau", "Parcelles Assainies"),
-    ("Pikine", "Guédiawaye"), ("Guédiawaye", "Keur Massar"), ("Parcelles Assainies", "Malika"),
-    ("Petersen", "Yeumbeul"), ("Grand Yoff", "Parcelles Assainies"), ("Colobane", "Grand Yoff"),
+    # Pôle étudiant : UCAD et les hubs qui y mènent au quotidien
+    ("UCAD", "Plateau"), ("UCAD", "Yoff"), ("Petersen", "UCAD"), ("Colobane", "UCAD"),
 
-    # Route de Rufisque : Plateau/Petersen <-> Thiaroye <-> Rufisque <-> Bargny
-    ("Plateau", "Rufisque"), ("Petersen", "Rufisque"), ("Rufisque", "Bargny"),
-    ("Plateau", "Thiaroye"), ("Pikine", "Rufisque"), ("Thiaroye", "Keur Massar"),
+    # Dakarois au quotidien : Plateau, Sandaga, Parcelles, Liberté 6
+    ("Plateau", "Sandaga"), ("Sandaga", "Parcelles Assainies"), ("Liberté 6", "Yoff"),
 
-    # Autoroute à péage / TER : Plateau <-> Diamniadio <-> Sébikotane/AIBD
-    ("Plateau", "Diamniadio"), ("Diamniadio", "Sébikotane"),
-    ("Plateau", "Aéroport AIBD"), ("Diamniadio", "Aéroport AIBD"),
+    # Touristes et visiteurs : corniche ouest, Ngor, Almadies
+    ("Ouakam", "Almadies"), ("Yoff", "Ngor"), ("Sacré-Cœur", "Mermoz"),
 
-    # VDN / Corniche Ouest : Sacré-Cœur/Plateau <-> Ouakam <-> Ngor <-> Almadies/Yoff
-    ("Sacré-Cœur", "Ouakam"), ("Ouakam", "Ngor"), ("Ngor", "Almadies"),
-    ("Petersen", "Almadies"), ("Plateau", "Yoff"), ("Sacré-Cœur", "Almadies"),
-    ("Ouakam", "Yoff"), ("Médina", "Ouakam"),
-
-    # Hubs historiques et pôle étudiant (Fass/Colobane, SONATEL/UCAD)
-    ("Sandaga", "Fann"), ("HLM", "Point E"), ("Grand Dakar", "Pikine"),
-    ("SONATEL", "UCAD"), ("Point E", "UCAD"),
-
-    # Autres liaisons courantes (zone industrielle, ferry Gorée, tourisme)
-    ("Médina", "Gorée"), ("Plateau", "Lac Rose (Retba)"),
-    ("Keur Massar", "Malika"), ("Plateau", "Grand Mbao"),
+    # Nouveaux arrivants : le grand hub de transport de Petersen vers le
+    # centre-ville, et l'hôpital de référence de la ville
+    ("Petersen", "Plateau"), ("Hôpital Principal de Dakar", "Plateau"),
 ]
 
 

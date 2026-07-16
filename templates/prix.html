@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_icons.html" import vignette_transport %}
+{% from "_icons.html" import vignette_transport, icone_transport %}
 {% block title %}Prix — EasyMove Dakar{% endblock %}
 {% block meta_description %}Combien coûte un trajet à Dakar ? Fourchettes de prix réalistes pour le taxi, le clando, le Tata, le BRT et le TER.{% endblock %}
 
@@ -53,36 +53,33 @@
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">
-                <div class="eyebrow">Trajets prédéfinis</div>
-                <h2 style="font-size:1.5rem;">Prix des trajets les plus courants</h2>
+                <div class="eyebrow">Trajets populaires</div>
+                <h2 style="font-size:1.5rem;">Prix des trajets les plus fréquents</h2>
+                <p>Des liaisons représentatives du quotidien à Dakar : étudiants, visiteurs, nouveaux arrivants et habitués.</p>
             </div>
-            <div style="overflow-x: auto;">
-                <table class="compare-table">
-                    <thead>
-                        <tr>
-                            <th>Trajet</th>
-                            <th>Transport recommandé</th>
-                            <th>Prix</th>
-                            <th>Durée</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in trajets %}
-                        {% set t = item.trajet %}
-                        {% set best = item.options[0] %}
-                        <tr>
-                            <td><span class="transport-name">{{ t.nom_depart }} → {{ t.nom_arrivee }}</span></td>
-                            {% if best %}
-                            <td>{{ best.nom_transport }}</td>
-                            <td>{% if best.prix_libre %}Fixé avec le chauffeur{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}</td>
-                            <td>{{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</td>
-                            {% else %}
-                            <td colspan="3">—</td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="trajets-populaires-grid reveal">
+                {% for item in trajets %}
+                {% set t = item.trajet %}
+                {% set best = item.options[0] if item.options else None %}
+                <div class="trajet-populaire-card">
+                    <div class="tp-route">
+                        <i class="fa-solid fa-location-dot"></i> {{ t.nom_depart }}
+                        <i class="fa-solid fa-arrow-right"></i>
+                        {{ t.nom_arrivee }}
+                    </div>
+                    {% if best %}
+                    <div class="tp-transport">
+                        <i class="fa-solid {{ icone_transport(best.nom_transport) }}"></i> {{ best.nom_transport }}
+                    </div>
+                    <div class="tp-meta">
+                        <span><i class="fa-solid fa-coins"></i> {% if best.prix_libre %}Prix négocié{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}</span>
+                        <span><i class="fa-regular fa-clock"></i> {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
+                    </div>
+                    {% else %}
+                    <div class="tp-transport">Aucune option trouvée pour ce trajet.</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
         </div>
     </section>
