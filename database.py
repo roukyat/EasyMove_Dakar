@@ -202,6 +202,44 @@ def verifier_et_mettre_a_jour_schema():
     # texte wolof exact + INSERT conditionné à l'absence de la phrase).
     _reorganiser_lexique_wolof_transport(cursor)
 
+    # Ajout de l'Université Amadou Mahtar Mbow (UAM), pôle universitaire de
+    # Diamniadio distinct de l'UCAD, pour permettre des trajets réels comme
+    # "Colobane -> Université Amadou Mahtar Mbow" (page /prix). Idempotent
+    # (vérification par nom), même logique que les autres enrichissements
+    # de lieux ci-dessus.
+    _ajouter_universite_amadou_mahtar_mbow(cursor)
+
+    # Remplacement des lignes Tata par les 70 lignes réelles officielles de
+    # l'AFTU (opérateur officiel du réseau, source aftu-senegal.org, relevé
+    # 2026-07-17), à la demande explicite de l'utilisateur ("les vraies
+    # lignes officielles, terminus réels seulement"). Pour chaque numéro de
+    # ligne officiel qui entre en collision avec une ligne fictive existante
+    # (ce qui concerne la quasi-totalité des 70 lignes), l'ancien tracé
+    # inventé est retiré et remplacé par les deux vrais terminus publiés par
+    # l'AFTU — voir _remplacer_par_lignes_aftu_reelles_2026 pour le détail
+    # et les niveaux de confiance des coordonnées. Idempotent (marqueur de
+    # description dédié empêchant toute ré-exécution destructive).
+    _remplacer_par_lignes_aftu_reelles_2026(cursor)
+
+    # Retrait des ~60 lignes Tata restées fictives (numéros 6-23, 39, 47,
+    # 90, 92-130 : la partie du réseau imaginé lors d'itérations
+    # précédentes qui ne correspond à AUCUN numéro publié par l'AFTU,
+    # contrairement aux 70 lignes ci-dessus). Décision explicite de
+    # l'utilisateur après qu'on lui a montré que /minibus affichait ces
+    # lignes inventées à côté des vraies sans distinction possible : plutôt
+    # que de les garder ou de les flaguer, il a choisi de les retirer pour
+    # que le réseau affiché soit intégralement réel. Idempotent (ne fait
+    # rien si ces lignes ont déjà été retirées).
+    _retirer_lignes_tata_non_officielles_2026(cursor)
+
+    # Enrichissement des lignes BRT (B1/B2) avec les vraies stations
+    # SunuBRT (CETUD + presse + OSM network=SunuBRT), à la demande de
+    # l'utilisateur après avoir remarqué l'absence du BRT comme option pour
+    # un trajet Sacré-Cœur -> Liberté 6 — la station Liberté 6 (réelle)
+    # manquait du tracé. Voir _enrichir_lignes_brt_2026 pour le détail des
+    # sources et des niveaux de confiance. Idempotent (marqueur dédié).
+    _enrichir_lignes_brt_2026(cursor)
+
     conn.commit()
     conn.close()
 
@@ -248,7 +286,11 @@ def _completer_images_transport_manquantes(cursor):
     Ne touche que les lignes où image_url est encore vide, pour ne jamais
     écraser une valeur déjà personnalisée."""
     images_par_defaut = {
-        "Dakar Dem Dikk": "/static/img/DDD.jpg",
+        # Corrigé : le fichier réel livré dans static/img/ est "ddd.png"
+        # (minuscules, extension .png) — l'ancien chemin "/static/img/DDD.jpg"
+        # ne correspondait à aucun fichier existant et aurait affiché une
+        # image cassée sur toute base migrée avant l'ajout de cette photo.
+        "Dakar Dem Dikk": "/static/img/ddd.png",
         "TER": "/static/img/TER.jpg",
         "Ndiaga Ndiaye": "/static/img/Ndiaga_Ndiaye.png",
     }
@@ -1338,6 +1380,508 @@ def _ajouter_reseau_sonatel(cursor):
             )
 
 
+# Coordonnées réelles de l'Université Amadou Mahtar Mbow (UAM), campus
+# universitaire du Pôle urbain de Diamniadio inauguré en 2022 — distinct de
+# l'UCAD (Dakar intra-muros). Source : OpenStreetMap (way 593944367).
+LIEU_UNIVERSITE_AMADOU_MAHTAR_MBOW = (
+    'Université Amadou Mahtar Mbow', 'universite', 14.733981, -17.197246,
+    "Université publique du Pôle urbain de Diamniadio, inaugurée en 2022 — distincte de l'UCAD"
+)
+
+
+def _ajouter_universite_amadou_mahtar_mbow(cursor):
+    """Ajoute le lieu 'Université Amadou Mahtar Mbow' s'il n'existe pas déjà
+    (vérification par nom), sans lui associer d'arrêt/ligne dédié : à environ
+    30 km du centre de Dakar et à plus de 2 km du pôle TER de Diamniadio, ce
+    trajet reste couvert par les options Taxi/Clando/Jakarta/Ndiaga Ndiaye
+    (calculées à la volée par itineraire.py à partir de la distance), comme
+    pour tout lieu réel non desservi par une ligne cartographiée."""
+    nom, type_lieu, lat, lng, desc = LIEU_UNIVERSITE_AMADOU_MAHTAR_MBOW
+    existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+    if not existe:
+        cursor.execute(
+            "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+            (nom, type_lieu, lat, lng, desc)
+        )
+
+
+# ---------------------------------------------------------------------
+# Réseau Tata (AFTU) réel — remplacement des lignes fictives par les 70
+# vraies lignes officielles publiées par l'AFTU (Association de
+# Financement des professionnels du Transport Urbain), opérateur officiel
+# du réseau, sur aftu-senegal.org/infos-pratiques/ (relevé du 2026-07-17).
+# Numéros officiels couverts : 1-5, 24-38, 40-46, 48-89, 91 (70 lignes ;
+# les numéros manquants entre 1 et 91 ne sont simplement pas publiés par
+# l'AFTU à ce jour).
+#
+# Niveau de confiance des coordonnées des nouveaux lieux ci-dessous :
+# - "position vérifiée" : coordonnées confirmées par une source
+#   indépendante (recherche web ciblée, carte).
+# - "position approximative" : aucune coordonnée précise publiée trouvée ;
+#   estimation au niveau du quartier/de la commune connue, à corriger si
+#   une source plus précise est un jour disponible. Ceci est explicitement
+#   documenté ici plutôt que présenté comme une donnée exacte.
+# ---------------------------------------------------------------------
+NOUVEAUX_LIEUX_AFTU_REEL_2026 = [
+    ('Terminus Lat Dior', 'quartier', 14.670416, -17.444279,
+     "Terminus historique du réseau Tata, Plateau, à proximité du Palais de Justice (position approximative)"),
+    ('HLM Grand Yoff', 'quartier', 14.7220, -17.4520,
+     "Secteur à la frontière des quartiers HLM et Grand Yoff (position approximative)"),
+    ('Sam Notaire (Guédiawaye)', 'quartier', 14.778, -17.408,
+     "Commune d'arrondissement Sam Notaire, Guédiawaye (position approximative)"),
+    ('Marché Boubess', 'quartier', 14.786387, -17.379171,
+     "Marché de quartier à Guédiawaye, commune Wakhinane Nimzatt (position vérifiée)"),
+    ('Hamo V/VI', 'quartier', 14.780, -17.390,
+     "Secteur de la commune Ndiarème Limamoulaye, Guédiawaye (position approximative)"),
+    ('Cité Nation Unies (Cambérène)', 'quartier', 14.752, -17.451,
+     "Secteur de Cambérène (position approximative)"),
+    ('Gadaye', 'quartier', 14.780, -17.395,
+     "Quartier nord-est de Guédiawaye (position approximative)"),
+    ('Tally Icotaf', 'quartier', 14.760, -17.395,
+     "Carrefour avec la route des Niayes, secteur Pikine/Guédiawaye (position approximative)"),
+    ('Hôpital Abass Ndao', 'site_touristique', 14.688030, -17.451800,
+     "Hôpital public, avenue Cheikh Anta Diop, Gueule Tapée-Fass-Colobane (position vérifiée)"),
+    ('Sahm', 'quartier', 14.773342, -17.396806,
+     "Marché Sahm, commune Sam Notaire, Guédiawaye (position vérifiée)"),
+    ('Serigne Assane', 'quartier', 14.771, -17.399,
+     "Secteur du quartier Baghdad, commune Sam Notaire, Guédiawaye (position approximative)"),
+    ('Marché Ndiareme', 'quartier', 14.776, -17.412,
+     "Marché de quartier, commune Ndiarème Limamoulaye, Guédiawaye (position approximative)"),
+    ('Diamalaye', 'quartier', 14.753250, -17.463281,
+     "Secteur de Yoff, à la frontière avec Grand Médine (position vérifiée)"),
+    ('Cité Claudel', 'quartier', 14.693, -17.462,
+     "Connue localement sous le nom de Cité Aline Sitoe Diatta, secteur Fann/Point E (position approximative)"),
+    ('Cité des Enseignants', 'quartier', 14.765, -17.412,
+     "Secteur du quartier Golf, Guédiawaye/Pikine (position approximative)"),
+    ('Ouakam Baye', 'quartier', 14.721248, -17.488743,
+     "Secteur d'Ouakam (position vérifiée à l'échelle du quartier)"),
+    ('Thierno Ndiaye', 'quartier', 14.722, -17.478,
+     "Secteur à la frontière d'Ouakam et Grand Yoff (position approximative)"),
+    ('Kounoune Ngalam', 'quartier', 14.714542, -17.275169,
+     "Commune de Kounoune, département de Rufisque (position vérifiée)"),
+    ('Cité Serigne Mansour', 'quartier', 14.768, -17.406,
+     "Secteur de Guédiawaye (position approximative)"),
+    ('Malika Cimetière', 'quartier', 14.787, -17.352,
+     "Secteur du cimetière de Malika (position approximative)"),
+    ('Jaxaay', 'quartier', 14.770533, -17.279533,
+     "Cité de recasement de Jaxaay-Parcelles, Keur Massar (position vérifiée)"),
+    ('Gare des Baux Maraîchers', 'gare', 14.741116, -17.402185,
+     "Gare routière des Baux Maraîchers, en face du marché aux poissons (position vérifiée)"),
+    ('Bountou Pikine', 'quartier', 14.744827, -17.400780,
+     "Secteur le long de l'autoroute Seydina Limamoulaye, Pikine (position vérifiée)"),
+    ('Terminus Keur Massar (Cité MTOA)', 'quartier', 14.786, -17.310,
+     "Cité MTOA, secteur de Keur Massar (position approximative)"),
+    ('Terminus Rufisque Sonadis', 'quartier', 14.712, -17.264,
+     "Zone industrielle Sonadis, Rufisque Est (position approximative)"),
+    ('Jaxaay 2', 'quartier', 14.768, -17.276,
+     "Extension de la cité de Jaxaay (position approximative)"),
+    ('Mbarou Samba Deme (Mbeubeuss)', 'quartier', 14.80963, -17.30342,
+     "Secteur proche de la décharge de Mbeubeuss, Keur Massar Nord (position approximative)"),
+    ('Arrêt Chérif', 'quartier', 14.718, -17.268,
+     "Secteur de Rufisque (position approximative)"),
+    ('Terminus Camp Marchand Rufisque', 'site_touristique', 14.715254, -17.270022,
+     "Site historique de Rufisque Est (position approximative à l'échelle communale)"),
+    ('Gorom 1', 'quartier', 14.760, -17.462,
+     "Secteur côtier proche de Yoff/Cambérène cité par la ligne AFTU Yoff-Gorom 1 (position approximative et incertaine — non confirmée par une source cartographique indépendante)"),
+    ('Thiawlène Rufisque', 'quartier', 14.708, -17.262,
+     "Secteur côtier de Rufisque Est (position approximative)"),
+    ('Terminus Tivaouane Peul', 'quartier', 14.800, -17.280,
+     "Village proche de Mbeubeuss, commune Keur Massar Nord (position approximative)"),
+    ('Daroukhane', 'quartier', 14.762, -17.398,
+     "Secteur Daroukhoune, Pikine/Guédiawaye (position approximative)"),
+    ('Sipres', 'quartier', 14.759, -17.397,
+     "Cité Sipres — plusieurs cités portent ce nom au Sénégal ; position approximative pour le secteur Pikine/Guédiawaye visé par cette ligne"),
+    ('Cité Assurance', 'quartier', 14.757, -17.393,
+     "Secteur de Pikine (position approximative)"),
+    ('Diamaguène', 'quartier', 14.747283, -17.320758,
+     "Commune de Mbao, département de Pikine (position vérifiée)"),
+    ('Darou Thioub', 'quartier', 14.760, -17.402,
+     "Secteur Pikine/Guédiawaye (position approximative)"),
+    ('Banoba', 'quartier', 14.726686, -17.280244,
+     "Secteur du département Rufisque-Bargny (position approximative)"),
+    ('Tournalou Boune', 'quartier', 14.690, -17.210,
+     "Secteur côtier proche de Bargny/Sendou (position approximative)"),
+    ('Toubab Dialaw', 'ville', 14.6061, -17.1503,
+     "Village côtier connu pour son centre culturel, au sud de Bargny (position vérifiée)"),
+    ('Mosquée Massalikoul Djinane', 'site_touristique', 14.704950, -17.453646,
+     "Grande mosquée du secteur Grand Dakar (position vérifiée)"),
+    ('Croisement Niague', 'quartier', 14.737155, -17.215637,
+     "Village de la commune de Sangalkam (position vérifiée)"),
+    ('APIX (Pôle urbain de Diamniadio)', 'entreprise', 14.720, -17.190,
+     "Zone d'activités liée à l'agence APIX, proche de Diamniadio (position approximative)"),
+    ('Dougar', 'quartier', 14.69, -17.17,
+     "Village de l'arrondissement de Sébikotane (position approximative)"),
+    ('Liberté 5', 'quartier', 14.708, -17.455,
+     "Quartier voisin de Liberté 6 (position approximative)"),
+]
+
+# (numero_ligne, terminus A, terminus B) — noms de lieux devant exister
+# soit dans NOUVEAUX_LIEUX_AFTU_REEL_2026 ci-dessus, soit déjà dans la
+# table lieux (Petersen, UCAD, Colobane, Yoff, Ngor, Parcelles Assainies,
+# Nord Foire, Grand Mbao, Ouakam, Keur Massar, Sébikotane, Liberté 6,
+# Rufisque, Almadies, Bargny, Guédiawaye, Yeumbeul, Lac Rose (Retba),
+# Sangalkam, Cambérène, Bambilor, Arafat, Zone de Captage, Malika, Gueule
+# Tapée, Cité Comico, Stade Léopold Sédar Senghor, Pikine, Thiaroye).
+LIGNES_AFTU_OFFICIELLES_2026 = [
+    ("Ligne 1", "Terminus Lat Dior", "HLM Grand Yoff"),
+    ("Ligne 2", "Parcelles Assainies", "Petersen"),
+    ("Ligne 3", "Yoff", "Petersen"),
+    ("Ligne 4", "Yoff", "Petersen"),
+    ("Ligne 5", "Parcelles Assainies", "Petersen"),
+    ("Ligne 24", "UCAD", "Sam Notaire (Guédiawaye)"),
+    ("Ligne 25", "Parcelles Assainies", "Petersen"),
+    ("Ligne 26", "Parcelles Assainies", "Thiaroye"),
+    ("Ligne 27", "Marché Boubess", "Petersen"),
+    ("Ligne 28", "Hamo V/VI", "Petersen"),
+    ("Ligne 29", "Cité Nation Unies (Cambérène)", "Petersen"),
+    ("Ligne 30", "Gadaye", "Colobane"),
+    ("Ligne 31", "Tally Icotaf", "Hôpital Abass Ndao"),
+    ("Ligne 32", "Sahm", "Serigne Assane"),
+    ("Ligne 33", "Colobane", "Serigne Assane"),
+    ("Ligne 34", "Nord Foire", "Terminus Lat Dior"),
+    ("Ligne 35", "Ngor", "Pikine"),
+    ("Ligne 36", "Marché Ndiareme", "Ngor"),
+    ("Ligne 37", "Diamalaye", "Cité Claudel"),
+    ("Ligne 38", "Cité des Enseignants", "Sahm"),
+    ("Ligne 40", "Grand Mbao", "Petersen"),
+    ("Ligne 41", "Petersen", "Marché Boubess"),
+    ("Ligne 42", "Gadaye", "Ouakam Baye"),
+    ("Ligne 43", "Ouakam", "Thierno Ndiaye"),
+    ("Ligne 44", "Grand Mbao", "Ouakam"),
+    ("Ligne 45", "Kounoune Ngalam", "Parcelles Assainies"),
+    ("Ligne 46", "Serigne Assane", "Terminus Lat Dior"),
+    ("Ligne 48", "Cité Serigne Mansour", "Terminus Lat Dior"),
+    ("Ligne 49", "Gadaye", "Ngor"),
+    ("Ligne 50", "Petersen", "Malika Cimetière"),
+    ("Ligne 51", "Jaxaay", "Gare des Baux Maraîchers"),
+    ("Ligne 52", "Bountou Pikine", "Keur Massar"),
+    ("Ligne 53", "Keur Massar", "Sébikotane"),
+    ("Ligne 54", "Terminus Keur Massar (Cité MTOA)", "UCAD"),
+    ("Ligne 55", "Terminus Rufisque Sonadis", "Petersen"),
+    ("Ligne 56", "Jaxaay 2", "Petersen"),
+    ("Ligne 57", "Liberté 6", "Rufisque"),
+    ("Ligne 58", "Sahm", "Cité Comico"),
+    ("Ligne 59", "Stade Léopold Sédar Senghor", "Mbarou Samba Deme (Mbeubeuss)"),
+    ("Ligne 60", "Colobane", "Bargny"),
+    ("Ligne 61", "Almadies", "Keur Massar"),
+    ("Ligne 62", "Arrêt Chérif", "Gueule Tapée"),
+    ("Ligne 63", "Terminus Camp Marchand Rufisque", "Stade Léopold Sédar Senghor"),
+    ("Ligne 64", "Guédiawaye", "Rufisque"),
+    ("Ligne 65", "Colobane", "Jaxaay"),
+    ("Ligne 66", "Yoff", "Gorom 1"),
+    ("Ligne 67", "Ouakam", "Thiawlène Rufisque"),
+    ("Ligne 68", "Yeumbeul", "Sébikotane"),
+    ("Ligne 69", "Diamalaye", "Terminus Tivaouane Peul"),
+    ("Ligne 70", "Daroukhane", "Jaxaay 2"),
+    ("Ligne 71", "Keur Massar", "Cité Claudel"),
+    ("Ligne 72", "Guédiawaye", "Kounoune Ngalam"),
+    ("Ligne 73", "Lac Rose (Retba)", "Thiaroye"),
+    ("Ligne 74", "Bargny", "Terminus Tivaouane Peul"),
+    ("Ligne 75", "Malika", "Colobane"),
+    ("Ligne 76", "Sipres", "Cité Assurance"),
+    ("Ligne 77", "Rufisque", "Liberté 5"),
+    ("Ligne 78", "Diamaguène", "Liberté 5"),
+    ("Ligne 79", "Sangalkam", "Cambérène"),
+    ("Ligne 80", "Diamalaye", "Darou Thioub"),
+    ("Ligne 81", "Gare des Baux Maraîchers", "Terminus Tivaouane Peul"),
+    ("Ligne 82", "Terminus Lat Dior", "Cité Comico"),
+    ("Ligne 83", "Arafat", "Zone de Captage"),
+    ("Ligne 84", "UCAD", "Jaxaay"),
+    ("Ligne 85", "Banoba", "Liberté 5"),
+    ("Ligne 86", "Tournalou Boune", "Toubab Dialaw"),
+    ("Ligne 87", "Bambilor", "Mosquée Massalikoul Djinane"),
+    ("Ligne 88", "Terminus Keur Massar (Cité MTOA)", "Liberté 5"),
+    ("Ligne 89", "Bargny", "Croisement Niague"),
+    ("Ligne 91", "APIX (Pôle urbain de Diamniadio)", "Dougar"),
+]
+
+MARQUEUR_LIGNE_AFTU_REELLE_2026 = "[AFTU officiel 2026]"
+
+
+def _remplacer_par_lignes_aftu_reelles_2026(cursor):
+    """Remplace, pour chaque numéro officiel AFTU listé dans
+    LIGNES_AFTU_OFFICIELLES_2026, la ligne existante (fictive, inventée
+    lors d'itérations précédentes du projet) par la vraie ligne Tata
+    correspondante — mêmes deux vrais terminus que ceux publiés par
+    l'AFTU. Les lignes qui n'ont pas de détail d'arrêts intermédiaires
+    publié par l'AFTU sont volontairement modélisées comme des lignes à 2
+    arrêts (terminus de départ / terminus d'arrivée) plutôt que
+    d'inventer un tracé intermédiaire fictif.
+
+    Idempotent et non-destructif vis-à-vis des données réelles : chaque
+    ligne recréée est marquée dans sa description par
+    MARQUEUR_LIGNE_AFTU_REELLE_2026 ; si ce marqueur est déjà présent pour
+    le numéro de ligne concerné, la fonction ne touche plus jamais à cette
+    ligne (elle ne supprime donc que l'ancien contenu FICTIF, une seule
+    fois, jamais les vraies données une fois en place)."""
+    for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_AFTU_REEL_2026:
+        existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+                (nom, type_lieu, lat, lng, desc)
+            )
+
+    ligne_transport = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
+    ).fetchone()
+    if not ligne_transport:
+        return
+    id_transport_tata = ligne_transport[0]
+
+    for numero_ligne, terminus_a, terminus_b in LIGNES_AFTU_OFFICIELLES_2026:
+        deja_migree = cursor.execute(
+            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ? AND description LIKE ?",
+            (numero_ligne, f"%{MARQUEUR_LIGNE_AFTU_REELLE_2026}%")
+        ).fetchone()
+        if deja_migree:
+            continue
+
+        ancienne_ligne = cursor.execute(
+            "SELECT id_ligne FROM lignes_bus WHERE numero_ligne = ?", (numero_ligne,)
+        ).fetchone()
+        if ancienne_ligne:
+            id_ancienne = ancienne_ligne[0]
+            # Ordre important : ligne_arrets référence arrets par clé
+            # étrangère (PRAGMA foreign_keys = ON dans schema.sql), donc on
+            # supprime d'abord les lignes de jonction avant les arrêts
+            # eux-mêmes (même ordre que _retirer_lignes_dit_fictives).
+            #
+            # MAIS contrairement aux lignes DIT-1..5 (qui avaient leurs
+            # propres arrêts dédiés), le réseau fictif d'origine (donnees.sql)
+            # PARTAGE de nombreux arrêts-carrefour entre plusieurs lignes
+            # (ex: id_arret 14, 24... référencés par 4-5 lignes différentes
+            # à la fois). Un arrêt ne doit donc être supprimé que s'il n'est
+            # plus référencé par AUCUNE autre ligne après la suppression du
+            # tracé fictif remplacé ici — sinon on casse la contrainte de
+            # clé étrangère des autres lignes qui l'utilisent encore.
+            arrets_a_supprimer = cursor.execute(
+                "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ancienne,)
+            ).fetchall()
+            cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ancienne,))
+            for arret_row in arrets_a_supprimer:
+                id_arret_candidat = arret_row[0]
+                encore_reference = cursor.execute(
+                    "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
+                ).fetchone()
+                if not encore_reference:
+                    cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+            cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ancienne,))
+
+        nom_ligne = f"{terminus_a} - {terminus_b}"
+        description = (
+            f"Minibus Tata (AFTU) reliant {terminus_a} à {terminus_b}. "
+            f"Ligne officielle réelle de l'AFTU (source aftu-senegal.org, relevé 2026-07-17) ; "
+            f"seuls les deux terminus sont cartographiés, l'AFTU ne publiant pas le détail des "
+            f"arrêts intermédiaires pour cette ligne. {MARQUEUR_LIGNE_AFTU_REELLE_2026}"
+        )
+        cursor.execute(
+            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+            "VALUES (?, ?, ?, 1, ?)",
+            (numero_ligne, nom_ligne, id_transport_tata, description)
+        )
+        id_ligne = cursor.lastrowid
+
+        for ordre, nom_terminus in enumerate((terminus_a, terminus_b), start=1):
+            lieu_row = cursor.execute(
+                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_terminus,)
+            ).fetchone()
+            if not lieu_row:
+                continue
+            id_lieu, lat_arret, lng_arret = lieu_row
+            cursor.execute(
+                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                (f"Arrêt {nom_terminus} ({numero_ligne})", id_lieu, lat_arret, lng_arret)
+            )
+            id_arret = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                (id_ligne, id_arret, ordre)
+            )
+
+
+NUMEROS_LIGNES_TATA_NON_OFFICIELLES_2026 = (
+    list(range(6, 24)) + [39, 47, 90] + list(range(92, 131))
+)
+
+
+def _retirer_lignes_tata_non_officielles_2026(cursor):
+    """Retire les lignes Tata dont le numéro ne fait PAS partie des 70
+    numéros officiels publiés par l'AFTU (voir LIGNES_AFTU_OFFICIELLES_2026
+    ci-dessus) : ces ~60 lignes (numéros 6-23, 39, 47, 90, 92-130) restaient
+    du réseau inventé lors d'itérations précédentes du projet, sans aucune
+    correspondance avec un numéro AFTU réel — l'utilisateur a explicitement
+    demandé leur suppression plutôt que de les laisser affichées à côté des
+    70 vraies lignes sur /minibus sans distinction possible.
+
+    Même précaution que _remplacer_par_lignes_aftu_reelles_2026 : certains
+    arrêts de ces lignes fictives sont partagés avec d'autres lignes encore
+    présentes en base (arrêts-carrefour du réseau d'origine), donc un arrêt
+    n'est supprimé que s'il n'est plus référencé par aucune autre ligne
+    après le retrait de celle-ci. Idempotent : ne fait rien si ces lignes
+    ont déjà été retirées lors d'une exécution précédente."""
+    for numero in NUMEROS_LIGNES_TATA_NON_OFFICIELLES_2026:
+        numero_ligne = f"Ligne {numero}"
+        ligne_row = cursor.execute(
+            "SELECT id_ligne FROM lignes_bus WHERE numero_ligne = ?", (numero_ligne,)
+        ).fetchone()
+        if not ligne_row:
+            continue
+        id_ligne = ligne_row[0]
+
+        arrets_a_supprimer = cursor.execute(
+            "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+        ).fetchall()
+        cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+        for arret_row in arrets_a_supprimer:
+            id_arret_candidat = arret_row[0]
+            encore_reference = cursor.execute(
+                "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
+            ).fetchone()
+            if not encore_reference:
+                cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+        cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
+
+
+# ---------------------------------------------------------------------
+# Enrichissement du réseau BRT (lignes B1/B2) avec les vraies stations
+# officielles du SunuBRT Petersen-Guédiawaye, à la demande de l'utilisateur
+# après avoir signalé que le BRT n'apparaissait pas comme option pour un
+# trajet Sacré-Cœur -> Liberté 6 alors que c'est le moyen le plus sûr pour
+# un étranger. Cause identifiée : la ligne B1 existante ne comportait que 8
+# arrêts (Petersen, Grand Dakar, Sacré-Cœur, Front de Terre, Patte d'Oie,
+# Parcelles Assainies, Golf Sud, Préfecture Guédiawaye) — "Front de Terre"
+# et "Patte d'Oie" ne correspondent à aucun nom de station BRT officielle
+# trouvé (CETUD, presse, OSM network=SunuBRT), et surtout aucun arrêt
+# n'existait près de Liberté 6, qui est pourtant une vraie station BRT (le
+# rond-point Liberté 6 lui-même — confirmé par CETUD et par la presse
+# locale lors du vandalisme de la station en 2024).
+#
+# Sources : CETUD (cetud.sn/les-caracteristiques-techniques-du-projet-brt),
+# liste des 14 gares au lancement (mai 2024, SENTV/Senego), annonces
+# d'ouverture de gares supplémentaires (2025), et les points OSM tagués
+# network=SunuBRT pour les coordonnées. La station "Gueule Tapée" citée
+# dans une annonce d'ouverture n'a pas été intégrée : sa localisation
+# annoncée (secteur de Guédiawaye) entre en conflit avec le quartier bien
+# connu du même nom près de la Médina, et aucune coordonnée fiable n'a pu
+# distinguer les deux — plutôt que de risquer une confusion, cette station
+# est délibérément omise pour l'instant.
+# ---------------------------------------------------------------------
+NOUVEAUX_LIEUX_BRT_2026 = [
+    ('Place de la Nation (BRT)', 'quartier', 14.694, -17.449,
+     "Anciennement Place de l'Obélisque, boulevard Général de Gaulle (position vérifiée)"),
+    ('Dial Diop (BRT)', 'quartier', 14.705, -17.454,
+     "Secteur du boulevard Dial Diop, Grand Dakar (position approximative — centroïde du quartier Grand Dakar)"),
+    ('Khar Yàlla', 'quartier', 14.729, -17.451,
+     "Secteur de Grand Yoff, entre Sicap-Liberté et Dieuppeul-Derklé (position vérifiée)"),
+    ('Scat Urbam', 'quartier', 14.736, -17.459,
+     "Secteur de Grand Yoff, proche de Sicap-Liberté (position vérifiée)"),
+    ('Cardinal Hyacinthe Thiandoum (BRT)', 'quartier', 14.737, -17.453,
+     "Près de l'échangeur Aliou Sow, Grand Yoff (position approximative — centroïde du quartier Grand Yoff, nom exact de la station non localisé précisément)"),
+    ('Police des Parcelles', 'quartier', 14.751, -17.440,
+     "Station BRT taguée dans OpenStreetMap (network=SunuBRT), Parcelles Assainies (position vérifiée)"),
+    ('Croisement 22', 'quartier', 14.753, -17.434,
+     "Station BRT taguée dans OpenStreetMap (network=SunuBRT), Parcelles Assainies (position vérifiée)"),
+    ('Ndingala', 'quartier', 14.752, -17.438,
+     "Secteur de Parcelles Assainies, entre Police des Parcelles et Golf Sud (position approximative — aucune coordonnée précise trouvée)"),
+    ('Golf Nord', 'quartier', 14.776, -17.399,
+     "Station BRT taguée dans OpenStreetMap (network=SunuBRT), Guédiawaye (position vérifiée)"),
+    ('Fith Mith', 'quartier', 14.775, -17.406,
+     "Station BRT taguée dans OpenStreetMap (network=SunuBRT), Guédiawaye, ouverte en 2025 (position vérifiée)"),
+]
+
+# Ordre géographique Petersen -> Préfecture de Guédiawaye. Les noms déjà
+# présents dans `lieux` (Petersen, Grande Mosquée de Dakar, Grand Dakar,
+# Liberté 1, Sacré-Cœur, Liberté 5, Liberté 6, Grand Médine, Parcelles
+# Assainies, Golf Sud, Hôpital Dalal Jamm, Guédiawaye) sont réutilisés tels
+# quels, sans créer de doublon.
+STATIONS_BRT_B1_OMNIBUS_2026 = [
+    "Petersen", "Grande Mosquée de Dakar", "Place de la Nation (BRT)", "Dial Diop (BRT)",
+    "Grand Dakar", "Liberté 1", "Sacré-Cœur", "Liberté 5", "Liberté 6",
+    "Khar Yàlla", "Scat Urbam", "Cardinal Hyacinthe Thiandoum (BRT)", "Grand Médine",
+    "Police des Parcelles", "Croisement 22", "Parcelles Assainies", "Ndingala",
+    "Golf Sud", "Hôpital Dalal Jamm", "Golf Nord", "Fith Mith", "Guédiawaye",
+]
+
+# Ligne semi-express : ne dessert que les pôles principaux du corridor.
+STATIONS_BRT_B2_SEMI_EXPRESS_2026 = [
+    "Petersen", "Place de la Nation (BRT)", "Grand Dakar", "Sacré-Cœur",
+    "Grand Médine", "Hôpital Dalal Jamm", "Guédiawaye",
+]
+
+MARQUEUR_BRT_ENRICHI_2026 = "[BRT enrichi 2026]"
+
+
+def _enrichir_lignes_brt_2026(cursor):
+    """Remplace le tracé (arrêts) des lignes B1 et B2 par la vraie liste de
+    stations SunuBRT ci-dessus, en conservant le même numero_ligne (B1/B2)
+    et donc le même id_ligne — contrairement au remplacement des lignes
+    Tata fictives, il ne s'agit pas de renuméroter quoi que ce soit, juste
+    de corriger le tracé d'une ligne réelle déjà existante.
+
+    Même précaution que pour les autres suppressions de ce module : un
+    arrêt n'est supprimé que s'il n'est plus référencé par aucune autre
+    ligne. Idempotent (marqueur dédié dans la description empêchant toute
+    ré-exécution destructive une fois le tracé réel en place)."""
+    for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_BRT_2026:
+        existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+                (nom, type_lieu, lat, lng, desc)
+            )
+
+    for numero_ligne, stations in (
+        ("B1", STATIONS_BRT_B1_OMNIBUS_2026),
+        ("B2", STATIONS_BRT_B2_SEMI_EXPRESS_2026),
+    ):
+        ligne_row = cursor.execute(
+            "SELECT id_ligne, description FROM lignes_bus WHERE numero_ligne = ?", (numero_ligne,)
+        ).fetchone()
+        if not ligne_row:
+            continue
+        id_ligne, description_actuelle = ligne_row
+        if description_actuelle and MARQUEUR_BRT_ENRICHI_2026 in description_actuelle:
+            continue
+
+        arrets_a_supprimer = cursor.execute(
+            "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+        ).fetchall()
+        cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+        for arret_row in arrets_a_supprimer:
+            id_arret_candidat = arret_row[0]
+            encore_reference = cursor.execute(
+                "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
+            ).fetchone()
+            if not encore_reference:
+                cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+
+        nouvelle_description = (
+            f"{description_actuelle or ''} {MARQUEUR_BRT_ENRICHI_2026}".strip()
+        )
+        cursor.execute(
+            "UPDATE lignes_bus SET description = ? WHERE id_ligne = ?",
+            (nouvelle_description, id_ligne)
+        )
+
+        for ordre, nom_station in enumerate(stations, start=1):
+            lieu_row = cursor.execute(
+                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_station,)
+            ).fetchone()
+            if not lieu_row:
+                continue
+            id_lieu, lat_arret, lng_arret = lieu_row
+            cursor.execute(
+                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                (f"Station {nom_station} ({numero_ligne})", id_lieu, lat_arret, lng_arret)
+            )
+            id_arret = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                (id_ligne, id_arret, ordre)
+            )
+
+
 def _retirer_lignes_dit_fictives(cursor):
     """Retire les lignes 'DIT-1' à 'DIT-5' créées lors d'une itération
     précédente du projet : c'étaient des lignes inventées pour l'occasion,
@@ -1851,8 +2395,12 @@ def get_tous_les_favoris():
 # autoroutier TER Dakar - Diamniadio - AIBD. Sources : cetud.sn (Réseaux de
 # transport, Plan de Mobilité Urbaine Durable), demdikk.sn, aftu-senegal.org.
 TRAJETS_POPULAIRES = [
+    # Voyageurs et touristes : l'aéroport AIBD vers le centre-ville et le
+    # pôle universitaire (le TER dessert déjà Diamniadio sur cet axe)
+    ("Aéroport AIBD", "Plateau"), ("Aéroport AIBD", "UCAD"),
+
     # Pôle étudiant : UCAD et les hubs qui y mènent au quotidien
-    ("UCAD", "Plateau"), ("UCAD", "Yoff"), ("Petersen", "UCAD"), ("Colobane", "UCAD"),
+    ("UCAD", "Plateau"), ("UCAD", "Yoff"), ("Petersen", "UCAD"),
 
     # Dakarois au quotidien : Plateau, Sandaga, Parcelles, Liberté 6
     ("Plateau", "Sandaga"), ("Sandaga", "Parcelles Assainies"), ("Liberté 6", "Yoff"),
@@ -1860,9 +2408,12 @@ TRAJETS_POPULAIRES = [
     # Touristes et visiteurs : corniche ouest, Ngor, Almadies
     ("Ouakam", "Almadies"), ("Yoff", "Ngor"), ("Sacré-Cœur", "Mermoz"),
 
-    # Nouveaux arrivants : le grand hub de transport de Petersen vers le
-    # centre-ville, et l'hôpital de référence de la ville
-    ("Petersen", "Plateau"), ("Hôpital Principal de Dakar", "Plateau"),
+    # Grands axes structurants : le TER vers Diamniadio (via le pôle gare
+    # de Dakar, à deux pas de Petersen) et le nouveau campus universitaire
+    # de Diamniadio (Université Amadou Mahtar Mbow), plus l'hôpital de
+    # référence de la ville
+    ("Gare de Dakar", "Diamniadio"), ("Colobane", "Université Amadou Mahtar Mbow"),
+    ("Hôpital Principal de Dakar", "Plateau"),
 ]
 
 
