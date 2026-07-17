@@ -63,17 +63,15 @@
                 {% set best = item.options[0] if item.options else None %}
                 <div class="trajet-populaire-card">
                     <div class="tp-route">
-                        <i class="fa-solid fa-location-dot"></i> {{ t.nom_depart }}
-                        <i class="fa-solid fa-arrow-right"></i>
-                        {{ t.nom_arrivee }}
+                        {{ t.nom_depart }} → {{ t.nom_arrivee }}
                     </div>
                     {% if best %}
                     <div class="tp-transport">
-                        <i class="fa-solid {{ icone_transport(best.nom_transport) }}"></i> {{ best.nom_transport }}
+                        {{ best.nom_transport }}
                     </div>
                     <div class="tp-meta">
-                        <span><i class="fa-solid fa-coins"></i> {% if best.prix_libre %}Prix négocié{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}</span>
-                        <span><i class="fa-regular fa-clock"></i> {{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
+                        <span>{% if best.prix_libre %}Prix négocié{% else %}{{ best.prix_min }} – {{ best.prix_max }} FCFA{% endif %}</span>
+                        <span>{{ best.duree_min_minutes }} – {{ best.duree_max_minutes }} min</span>
                     </div>
                     {% else %}
                     <div class="tp-transport">Aucune option trouvée pour ce trajet.</div>

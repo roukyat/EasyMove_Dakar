@@ -6,6 +6,7 @@ du projet EasyMoveDakar : création, connexion, et fonctions de recherche
 utilisées par app.py.
 """
 
+import re
 import sqlite3
 import os
 
@@ -240,6 +241,36 @@ def verifier_et_mettre_a_jour_schema():
     # sources et des niveaux de confiance. Idempotent (marqueur dédié).
     _enrichir_lignes_brt_2026(cursor)
 
+    # Nettoyage (audit du 2026-07-17) : `trajets` et `trajet_options`
+    # n'ont jamais été alimentées depuis que le moteur d'itinéraire calcule
+    # tout à la volée (voir itineraire.py) — retirées de schema.sql, et
+    # supprimées ici sur les bases déjà créées. Idempotent (vérifie
+    # l'existence avant de DROP).
+    _supprimer_tables_mortes(cursor)
+
+    # Retrait de toute mention de l'opérateur AFTU et de la clause "seuls
+    # les deux terminus sont cartographiés..." dans les descriptions des
+    # lignes Tata (page /minibus), et renommage de 'Minibus Tata (AFTU)'
+    # en 'Minibus Tata' : l'utilisateur ne veut voir apparaître ni la
+    # source des données ni le nom de l'opérateur aux visiteurs du site,
+    # juste les deux terminus. Idempotent (chaque étape est un no-op sur
+    # les lignes déjà nettoyées).
+    _retirer_source_description_tata_2026(cursor)
+
+    # Corrections du lexique wolof (page /wolof) fournies par l'utilisateur,
+    # locuteur natif : remplace plusieurs formulations approximatives par
+    # les vraies expressions employées à Dakar, corrige un contresens
+    # ("Kañ nga dem ?" pris pour un futur) et ajoute les tournures
+    # manquantes (tutoiement/vouvoiement, urgence...). Idempotent (voir
+    # _corriger_lexique_wolof_reel_2026).
+    _corriger_lexique_wolof_reel_2026(cursor)
+
+    # Vraies lignes urbaines et banlieue de Dakar Dem Dikk (demdikk.sn),
+    # à la demande de l'utilisateur, pour que DDD apparaisse dans les
+    # suggestions de recherche d'itinéraire au même titre que Tata/Car
+    # rapide/BRT. Idempotent (voir _ajouter_lignes_dem_dikk_reelles_2026).
+    _ajouter_lignes_dem_dikk_reelles_2026(cursor)
+
     conn.commit()
     conn.close()
 
@@ -280,6 +311,268 @@ def _supprimer_colonne_capacite_max(cursor):
     cursor.execute("ALTER TABLE moyens_transport_tmp RENAME TO moyens_transport")
 
 
+def _supprimer_tables_mortes(cursor):
+    """Supprime les tables `trajets` et `trajet_options` : elles n'ont
+    jamais été alimentées depuis que le moteur d'itinéraire (itineraire.py)
+    calcule tout à la volée plutôt que de lire des trajets pré-calculés en
+    base. Retirées de schema.sql pour les nouvelles installations ; cette
+    fonction les retire aussi des bases déjà créées avant ce nettoyage.
+    Idempotent : vérifie l'existence de chaque table avant de la DROP."""
+    for nom_table in ("trajet_options", "trajets"):
+        existe = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (nom_table,)
+        ).fetchone()
+        if existe:
+            cursor.execute(f"DROP TABLE {nom_table}")
+
+
+def _retirer_source_description_tata_2026(cursor):
+    """Retire de toute description déjà en base les formulations qui
+    indiquent explicitement d'où vient l'information sur le réseau Tata
+    (site aftu-senegal.org, mention "officiel"/"publié par l'AFTU",
+    "l'AFTU ne publiant pas le détail des arrêts..."...), retire la phrase
+    "Seuls les deux terminus sont cartographiés..." dans son intégralité
+    (l'utilisateur ne veut plus voir cette précision du tout, pas
+    seulement la partie qui cite l'AFTU comme source), et retire la
+    mention "(AFTU)" partout où elle accolait le nom de l'opérateur à
+    "Minibus Tata" ou "Tata" (nom de ligne affiché : "Minibus Tata"
+    seul). Renomme aussi la ligne 'Minibus Tata (AFTU)' de
+    `moyens_transport` en 'Minibus Tata'.
+
+    Basé sur des regex (pas des REPLACE de chaîne exacte) pour rester
+    robuste aux variantes d'apostrophe (' vs ’) et d'espacement qui
+    peuvent exister selon la version du texte déjà stockée en base.
+    Idempotent : ne modifie une ligne que si son contenu change
+    réellement."""
+    motif_prefixe_source = re.compile(
+        r"Ligne officielle r[ée]elle de l['’]AFTU\s*\(source[^)]*\)\s*;?\s*",
+        re.IGNORECASE,
+    )
+    motif_clause_source_longue = re.compile(
+        r"\.?\s*Seuls? les deux terminus sont cartographi[ée]s,?\s*"
+        r"l['’]AFTU ne publiant pas le d[ée]tail des arr[êe]ts "
+        r"interm[ée]diaires pour cette ligne\.?",
+        re.IGNORECASE,
+    )
+    motif_clause_terminus_courte = re.compile(
+        r"\.?\s*Seuls? les deux terminus sont cartographi[ée]s pour cette "
+        r"ligne\.?",
+        re.IGNORECASE,
+    )
+    motif_aftu_parenthese = re.compile(r"\s*\(AFTU\)", re.IGNORECASE)
+    motif_tata_slash_aftu = re.compile(r"Tata/AFTU", re.IGNORECASE)
+
+    cursor.execute(
+        "UPDATE moyens_transport SET nom = 'Minibus Tata' WHERE nom = 'Minibus Tata (AFTU)'"
+    )
+
+    for table, colonne in (("lignes_bus", "description"), ("lieux", "description"),
+                            ("moyens_transport", "description")):
+        lignes = cursor.execute(
+            f"SELECT rowid, {colonne} FROM {table} WHERE {colonne} LIKE '%AFTU%'"
+        ).fetchall()
+        for rowid, texte in lignes:
+            if not texte:
+                continue
+            nouveau = motif_prefixe_source.sub("", texte)
+            nouveau = motif_clause_source_longue.sub("", nouveau)
+            nouveau = motif_clause_terminus_courte.sub("", nouveau)
+            nouveau = motif_aftu_parenthese.sub("", nouveau)
+            nouveau = motif_tata_slash_aftu.sub("Tata", nouveau)
+            nouveau = nouveau.replace(MARQUEUR_LIGNE_AFTU_REELLE_2026, "")
+            nouveau = re.sub(r"\s{2,}", " ", nouveau).strip()
+            if nouveau != texte:
+                cursor.execute(
+                    f"UPDATE {table} SET {colonne} = ? WHERE rowid = ?",
+                    (nouveau, rowid),
+                )
+
+
+# ---------------------------------------------------------------------
+# ENRICHISSEMENT DAKAR DEM DIKK (2026-07-17) — à la demande de l'utilisateur
+# ("la base de données du site officiel de Dem Dikk... pour que lorsqu'on
+# fait des recherches on ait aussi Dem Dikk dans les suggestions"). Source :
+# demdikk.sn/reseau-urbain-dakar/ (lignes urbaines et banlieue), relevé
+# 2026-07-17.
+#
+# Dakar Dem Dikk (DDD) avait 7 lignes fictives dans la donnée d'origine
+# (numéros bruts "Ligne 7/9/14/18/22/25/28", inventées comme le reste du
+# réseau à l'époque). Trois d'entre elles (7, 9, 18) correspondent à un
+# vrai numéro DDD mais avec un tracé complètement différent de la ligne
+# réelle publiée — remplacées ci-dessous. Les quatre autres (14, 22, 25,
+# 28) n'ont aucun équivalent dans la numérotation officielle DDD trouvée
+# sur le site — retirées, même logique que pour les ~60 lignes Tata non
+# officielles (l'utilisateur veut un réseau affiché intégralement réel).
+#
+# Comme pour les lignes AFTU, seuls les deux terminus publiés sont
+# modélisés (pas de tracé intermédiaire inventé) : le site liste souvent
+# les arrêts intermédiaires, mais ceux-ci sont des points de rue trop fins
+# (« Rond point JVC », « Marché HLM »...) pour être ajoutés comme lieux
+# fiables sans coordonnées propres.
+#
+# Numérotation stockée avec le préfixe "DDD " (ex. "DDD 7") plutôt que le
+# numéro brut ("Ligne 7") : la numérotation officielle DDD (1, 2, 4, 5...)
+# chevauche largement celle, purement inventée, du réseau Minibus Tata
+# (qui utilise aussi "Ligne 1", "Ligne 2"...) — sans préfixe distinct, une
+# ligne DDD et une ligne Tata pourraient partager le même `numero_ligne`
+# et se confondre dans toute requête qui ne filtre pas aussi par
+# `id_transport` (déjà le cas de `_remplacer_par_lignes_aftu_reelles_2026`
+# pour Tata, mais ce risque ne s'est jamais matérialisé côté Tata car son
+# numérotage n'a jamais recoupé celui de DDD jusqu'ici).
+# ---------------------------------------------------------------------
+NOUVEAUX_LIEUX_DEM_DIKK_2026 = [
+    ('Place Leclerc', 'site_touristique', 14.6935, -17.4245, "Rond-point et terminus historique du Plateau, près de l'Embarcadère de Gorée"),
+    ('Palais 1', 'site_touristique', 14.6699, -17.4257, "Terminus DDD proche du Palais présidentiel, côté Avenue Léopold Sédar Senghor"),
+    ('Palais 2', 'site_touristique', 14.6705, -17.4247, "Second terminus DDD proche du Palais présidentiel, côté Avenue Nelson Mandela"),
+    ('Lat Dior', 'site_touristique', 14.6745, -17.4330, "Avenue Lat Dior, artère commerçante du Plateau proche de Sandaga"),
+    ('Daroukhane', 'quartier', 14.7870, -17.4020, "Quartier de Guédiawaye, en bord de corniche"),
+    ('Bayakh', 'ville', 14.85, -17.05, "Commune rurale au nord de Rufisque, sur l'axe vers Kayar"),
+    ('Baux Maraîchers', 'quartier', 14.7150, -17.4430, "Zone maraîchère proche de Hann et Cambérène"),
+    ('Jaxaay', 'quartier', 14.7750, -17.3350, "Cité de recasement proche de Keur Massar"),
+    ('Gadaye', 'quartier', 14.7900, -17.3600, "Quartier proche de Malika, aussi appelé Gadaye-Filaos"),
+    ('Aéroport LSS', 'aeroport', 14.7397, -17.4902, "Ancien aéroport international Léopold Sédar Senghor, à Yoff"),
+]
+
+# (numéro officiel DDD, terminus A, terminus B) — numéro tel que publié sur
+# demdikk.sn, sans le préfixe "DDD " (ajouté au moment de l'insertion).
+LIGNES_DEM_DIKK_OFFICIELLES_2026 = [
+    ("1", "Parcelles Assainies", "Place Leclerc"),
+    ("2", "Daroukhane", "Place Leclerc"),
+    ("4", "Liberté 5", "Place Leclerc"),
+    ("5", "Guédiawaye", "Palais 1"),
+    ("6", "Guédiawaye", "Palais 1"),
+    ("7", "Ouakam", "Palais 2"),
+    ("8", "Aéroport LSS", "Palais 2"),
+    ("9", "Liberté 6", "Palais 2"),
+    ("10", "Liberté 5", "Palais 2"),
+    ("11", "Keur Massar", "Lat Dior"),
+    ("12", "Guédiawaye", "Palais 1"),
+    ("13", "Liberté 5", "Palais 2"),
+    ("15", "Rufisque", "Palais 1"),
+    ("16A", "Malika", "Palais 1"),
+    ("16B", "Malika", "Palais 1"),
+    ("18", "Dieuppeul", "Plateau"),
+    ("208", "Bayakh", "Rufisque"),
+    ("213", "Rufisque", "Dieuppeul"),
+    ("217", "Thiaroye", "Ouakam"),
+    ("218", "Thiaroye", "Aéroport LSS"),
+    ("219", "Daroukhane", "Ouakam"),
+    ("220", "Rufisque", "Guédiawaye"),
+    ("221", "Gadaye", "Almadies"),
+    ("227", "Keur Massar", "Parcelles Assainies"),
+    ("228", "Rufisque", "Yenne"),
+    ("232", "Baux Maraîchers", "Aéroport LSS"),
+    ("233", "Baux Maraîchers", "Palais 1"),
+    ("234", "Jaxaay", "Place Leclerc"),
+    ("311", "Lac Rose (Retba)", "Keur Massar"),
+    ("319", "Liberté 6", "Ouakam"),
+    ("327", "Keur Massar", "Parcelles Assainies"),
+    ("501", "Palais 2", "Place Leclerc"),
+]
+
+# Anciennes lignes DDD fictives sans aucun équivalent dans la numérotation
+# officielle relevée sur demdikk.sn : retirées (numéro brut, sans préfixe,
+# tel qu'inséré à l'origine par donnees.sql).
+NUMEROS_LIGNES_DDD_FICTIVES_SANS_EQUIVALENT_2026 = ['Ligne 14', 'Ligne 22', 'Ligne 25', 'Ligne 28']
+
+# Anciennes lignes DDD fictives dont le numéro correspond à une vraie ligne
+# DDD mais avec un tracé différent : retirées puis recréées ci-dessous sous
+# leur numéro préfixé ("DDD 7", "DDD 9", "DDD 18") avec le vrai tracé.
+NUMEROS_LIGNES_DDD_FICTIVES_A_REMPLACER_2026 = ['Ligne 7', 'Ligne 9', 'Ligne 18']
+
+
+def _supprimer_ligne_dem_dikk_2026(cursor, numero_ligne, id_transport_ddd):
+    """Retire une ligne DDD (et ses arrêts devenus orphelins) en ne
+    cherchant que parmi les lignes de DDD (`id_transport` filtré) : le
+    même texte de `numero_ligne` ("Ligne 7"...) peut exister pour un autre
+    opérateur (Minibus Tata), qu'il ne faut surtout pas toucher. No-op si
+    la ligne n'existe pas ou plus (idempotent)."""
+    ligne = cursor.execute(
+        "SELECT id_ligne FROM lignes_bus WHERE numero_ligne = ? AND id_transport = ?",
+        (numero_ligne, id_transport_ddd)
+    ).fetchone()
+    if not ligne:
+        return
+    id_ligne = ligne[0]
+    arrets_a_supprimer = cursor.execute(
+        "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+    ).fetchall()
+    cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+    for arret_row in arrets_a_supprimer:
+        id_arret_candidat = arret_row[0]
+        encore_reference = cursor.execute(
+            "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
+        ).fetchone()
+        if not encore_reference:
+            cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+    cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
+
+
+def _ajouter_lignes_dem_dikk_reelles_2026(cursor):
+    """Ajoute les vraies lignes urbaines et banlieue de Dakar Dem Dikk
+    (voir LIGNES_DEM_DIKK_OFFICIELLES_2026), après avoir retiré les
+    quelques lignes DDD fictives de la donnée d'origine (voir les deux
+    listes NUMEROS_LIGNES_DDD_FICTIVES_* ci-dessus). Idempotent : chaque
+    ligne réelle n'est insérée que si son `numero_ligne` préfixé
+    ("DDD 7"...) n'existe pas déjà pour DDD ; les suppressions de lignes
+    fictives sont elles-mêmes des no-op une fois faites une première
+    fois."""
+    for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_DEM_DIKK_2026:
+        existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
+                (nom, type_lieu, lat, lng, desc)
+            )
+
+    transport_row = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom = 'Dakar Dem Dikk'"
+    ).fetchone()
+    if not transport_row:
+        return
+    id_transport_ddd = transport_row[0]
+
+    for numero in NUMEROS_LIGNES_DDD_FICTIVES_SANS_EQUIVALENT_2026:
+        _supprimer_ligne_dem_dikk_2026(cursor, numero, id_transport_ddd)
+    for numero in NUMEROS_LIGNES_DDD_FICTIVES_A_REMPLACER_2026:
+        _supprimer_ligne_dem_dikk_2026(cursor, numero, id_transport_ddd)
+
+    for numero_officiel, terminus_a, terminus_b in LIGNES_DEM_DIKK_OFFICIELLES_2026:
+        numero_ligne = f"DDD {numero_officiel}"
+        deja_migree = cursor.execute(
+            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ? AND id_transport = ?",
+            (numero_ligne, id_transport_ddd)
+        ).fetchone()
+        if deja_migree:
+            continue
+
+        nom_ligne = f"{terminus_a} - {terminus_b}"
+        description = f"Dakar Dem Dikk reliant {terminus_a} à {terminus_b}."
+        cursor.execute(
+            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
+            "VALUES (?, ?, ?, 0, ?)",
+            (numero_ligne, nom_ligne, id_transport_ddd, description)
+        )
+        id_ligne = cursor.lastrowid
+
+        for ordre, nom_terminus in enumerate((terminus_a, terminus_b), start=1):
+            lieu_row = cursor.execute(
+                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_terminus,)
+            ).fetchone()
+            if not lieu_row:
+                continue
+            id_lieu, lat_arret, lng_arret = lieu_row
+            cursor.execute(
+                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
+                (f"Arrêt {nom_terminus} ({numero_ligne})", id_lieu, lat_arret, lng_arret)
+            )
+            id_arret = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
+                (id_ligne, id_arret, ordre)
+            )
+
+
 def _completer_images_transport_manquantes(cursor):
     """Complète l'image de certains moyens de transport ajoutée après le
     lancement initial (photos DDD et TER uploadées dans static/img/).
@@ -304,7 +597,7 @@ def _completer_images_transport_manquantes(cursor):
 # ---------------------------------------------------------------------
 # Tarifs 2026 : fourchettes réajustées vers des valeurs plus réalistes
 # (recherche de tarifs actuels pour Dakar — taxi en ville, hausse des
-# tickets Tata/AFTU, tarif TER Dakar-Diamniadio, BRT à tarif fixe...).
+# tickets Tata, tarif TER Dakar-Diamniadio, BRT à tarif fixe...).
 # Appliqué par UPDATE conditionné au contenu actuel (voir
 # _mettre_a_jour_tarifs_2026), donc sûr à rejouer sur une base qui a déjà
 # ces tarifs.
@@ -314,7 +607,7 @@ TARIFS_2026 = {
     "Clando": (200, 800),
     "Dakar Dem Dikk": (150, 350),
     "Car rapide": (100, 300),
-    "Minibus Tata (AFTU)": (150, 300),
+    "Minibus Tata": (150, 300),
     "Jakarta (moto-taxi)": (1000, 3000),
     "TER": (1500, 2500),
     "BRT (Bus Rapid Transit)": (400, 500),
@@ -383,7 +676,7 @@ AVANTAGES_INCONVENIENTS_2026 = {
         "Aucun horaire fixe, "
         "Confort et sécurité limités",
     ),
-    "Minibus Tata (AFTU)": (
+    "Minibus Tata": (
         "Tarif fixe et très abordable, "
         "Réseau dense dans tous les quartiers, "
         "Bon rapport prix/fiabilité",
@@ -435,7 +728,7 @@ def _corriger_disponibilite_tata(cursor):
     nouvelle_disponibilite = "Tôt le matin, selon l'affluence"
     cursor.execute(
         "UPDATE moyens_transport SET disponibilite = ? "
-        "WHERE nom = 'Minibus Tata (AFTU)' AND disponibilite != ?",
+        "WHERE nom = 'Minibus Tata' AND disponibilite != ?",
         (nouvelle_disponibilite, nouvelle_disponibilite)
     )
 
@@ -461,7 +754,7 @@ def _aligner_avantages_inconvenients_transports(cursor):
 DESCRIPTIONS_NATURELLES = {
     "Taxi": "Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.",
     "Clando": "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
-    "Minibus Tata (AFTU)": "Le minibus qui dessert la quasi-totalité des quartiers de Dakar, à prix fixe et très abordable.",
+    "Minibus Tata": "Le minibus qui dessert la quasi-totalité des quartiers de Dakar, à prix fixe et très abordable.",
     # Version raccourcie : l'original listait le châssis Mercedes-Benz et le
     # détail des banlieues desservies (déjà couvert par les avantages),
     # ce qui rendait la carte /transports nettement plus longue que ses
@@ -471,7 +764,7 @@ DESCRIPTIONS_NATURELLES = {
     # page /transports (détails d'opérateur / de lignes déjà présents dans
     # les avantages) : résumées ici pour rester au même gabarit que leurs
     # voisines.
-    "Dakar Dem Dikk": "Bus officiel de la ville de Dakar (DDD), lignes numérotées à tarif fixe, distinct du réseau Tata/AFTU.",
+    "Dakar Dem Dikk": "Bus officiel de la ville de Dakar (DDD), lignes numérotées à tarif fixe, distinct du réseau Tata.",
     "BRT (Bus Rapid Transit)": "Bus électrique à haut niveau de service, reliant Petersen à Guédiawaye (lignes B1 et B2).",
 }
 
@@ -574,13 +867,13 @@ def _corriger_id_transport_errones(cursor):
 
     Corrige chaque ligne en se basant sur le texte de sa propre
     description (qui, lui, a toujours été correct, ex. "Minibus Tata
-    (AFTU) reliant..."), plutôt que sur un décalage numérique supposé —
+    reliant..."), plutôt que sur un décalage numérique supposé —
     fonctionne donc quel que soit l'état exact de la base. Idempotent : ne
     modifie que les lignes encore mal rattachées."""
     corrections = [
         ('Dakar Dem Dikk', 'Dakar Dem Dikk %'),
         ('Car rapide', 'Car rapide %'),
-        ('Minibus Tata (AFTU)', 'Minibus Tata (AFTU) %'),
+        ('Minibus Tata', 'Minibus Tata %'),
         ('TER', 'TER %'),
         ('BRT (Bus Rapid Transit)', 'BRT (Bus Rapid Transit) %'),
     ]
@@ -1008,41 +1301,151 @@ def _reorganiser_lexique_wolof_transport(cursor):
             )
 
 
+# ---------------------------------------------------------------------
+# CORRECTION DU LEXIQUE WOLOF (2026-07-17) — à la demande de l'utilisateur,
+# locuteur natif, qui a fourni la liste des formulations réellement
+# employées à Dakar en remplacement de plusieurs phrases approximatives
+# introduites lors des vagues précédentes (ex. "Wesaare" pour "monnaie" au
+# lieu de "Wéthiét", "Taxawal fii" au lieu de "Mayma fi", contresens sur
+# "Kañ nga dem ?" pris pour un futur alors que c'est un passé...).
+#
+# CORRECTIONS_TEXTE_PHRASES_WOLOF : (ancien_wolof, nouveau_wolof,
+# nouveau_francais ou None si inchangé, nouveau_phonetique ou None si
+# inchangé). La clé de correspondance est l'ancien texte wolof exact, donc
+# rejouable sans risque (une fois corrigée, la ligne ne matche plus
+# l'ancien texte et la seconde exécution ne fait rien).
+# ---------------------------------------------------------------------
+CORRECTIONS_TEXTE_PHRASES_WOLOF = [
+    ('Amuma wesaare', 'Amuma wéthiét', None, 'a-mou-ma wé-thi-ét'),
+    ('Wesaareal ma', 'Wéthi ma', 'Rends-moi ma monnaie', 'wé-thi ma'),
+    ('Wesaare', 'Wéthiét', 'Monnaie', 'wé-thi-ét'),
+    ('Su la neexee', 'Su la neex', None, 'sou la néx'),
+    ('Baal ma, dama bëgg laa laaj', 'Baal ma, dama la bëgg laaj', None, 'baal ma dama la beug laadj'),
+    ('Waxuma wolof', 'Degguma wolof', None, 'dé-gou-ma wo-lof'),
+    ('Ba beneen yoon', 'Ba benen', 'Au revoir', 'ba bé-nén'),
+    ('Dama metti', 'Dama metti', 'Ça me fait mal / J\'ai mal', None),
+    ('Sama xel dafa tang', 'Sama xel dafa jaxaso', 'Je suis inquiet(ète)', 'sa-ma xèl da-fa dja-xa-so'),
+    ('Wallal ma !', 'Wallouma', 'Aide-moi', 'wa-lou-ma'),
+    ('Fabu police bi', 'Wo len police', 'Appelez la police', 'wo lén po-lis'),
+    ('Jëm ci kanam', 'Foubaleul ci kanam', None, 'fou-ba-lél ci ka-nam'),
+    ('Jëm ci kaw', 'Felleul sa ndey-djoor', None, 'fè-lél sa ndèy-djor'),
+    ('Jëm ci ndey', 'Felleul sa thiamon', None, 'fè-lél sa thia-mon'),
+    ('Yagg na ?', 'Yagg na ?', 'Ça dure ?', None),
+    ('Wallal ma, su la neexee', 'Neun nga ma diapalé ?', None, 'neun nga ma dia-pa-lé'),
+    ('Dama wut universite bi', 'Damay weur université bi', None, 'da-may wér u-ni-vèr-si-té bi'),
+    ('Dama wut opitaal bi', 'Opitaal bi lay wër ou seet', None, 'o-pi-tal bi lay wér ou séét'),
+    ('Dama wut marse bi', 'Marse bi lay weur ou weet', None, 'mar-sé bi lay wér ou wéét'),
+    ('Dama wut Plateau bi', 'Plateau bi lay weur ou weet', None, 'pla-to bi lay wér ou wéét'),
+    ('Dama wut tefes bi', 'Guédj bi lay seet', None, 'guédj bi lay séét'),
+    ('Dama wut station bi', 'Station bi lay seet', None, 'sta-syon bi lay séét'),
+    ('Dina dem', 'Bayil ma dem', None, 'ba-yil ma dem'),
+    ('Fii laa fey ?', 'Fi laay feyé', 'Je paie ici', 'fi laay fé-yé'),
+    ('Fan laa mëna jël BRT bi ?', 'Fann la mëna jëler BRT bi ?', None, 'fann la mè-na djè-lér bi-èr-té bi'),
+    ('Fan laa mëna jël TER bi ?', 'Fann la mëna jëler TER bi ?', None, 'fann la mè-na djè-lér té-euh-èr bi'),
+    ('Ñaata waxtu la war ?', 'Ñaata waxtu no war ?', None, 'nya-ta wakh-tou no war'),
+    ('Xibaar ma bu nu egsee', 'Meun nga ma wax bu nu egée', None, 'meun nga ma wakh bou nou é-gé'),
+    ('Ana yow ?', 'Yaw nak, nodef ?', None, 'yaw nak no-déf'),
+    ('Naka guddi gi ?', 'Naka guddii gi', 'Comment se passe la soirée ?', 'na-ka gou-dii gui'),
+    ('Kañ nga dem ?', 'Kañ nga dem ?', 'Quand est-ce que tu es parti ? (il est déjà parti)', None),
+    ('Ban gaal moo dem [lieu] ?', 'Ban mooy dem [lieu] ?', None, 'ban mo-y dem'),
+    ('Tata bii, dafa dem [lieu] ?', 'Tata bi dafay dem [lieu] ?', None, 'ta-ta bi da-fay dem'),
+    ('Ban ligne moo dem [lieu] ?', 'Ban ligne mooy dem [lieu] ?', None, 'ban ligne mo-y dem'),
+    ('Ligne bii, dafa jaar ci [lieu] ?', 'Ligne bi dafay jaar [lieu] ?', None, 'ligne bi da-fay diar'),
+    ('Taxawal fii !', 'Mayma fi', 'Arrêtez-vous ici', 'may-ma fi'),
+    ('Yëgël ma ci...', 'Wathié ma ci...', None, 'wa-thi-é ma si...'),
+    ('Wàcc fi !', 'Wàccal fi !', None, 'wa-tchal fi'),
+    ('Ban arrêt bu topp ?', 'Ban arrêt mo ci toog ?', None, 'ban a-rè mo ci tog'),
+]
+
+# Nouvelles expressions signalées par l'utilisateur et absentes du lexique
+# jusqu'ici (formes complémentaires : tutoiement/vouvoiement, urgence vs
+# usage courant...). Même format que NOUVELLES_PHRASES_WOLOF_TRANSPORT.
+NOUVELLES_PHRASES_WOLOF_REELLES_2026 = [
+    ('Wéthi ko', 'Donne sa monnaie', 'wé-thi ko', 'Payer et connaître le tarif', None),
+    ('Wéthi woma', "Vous ne m'avez pas rendu la monnaie", 'wé-thi wo-ma', 'Payer et connaître le tarif', None),
+    ('Wéthi woko', "Il ne lui a pas rendu la monnaie", 'wé-thi wo-ko', 'Payer et connaître le tarif', None),
+    ('Nguir Yàlla', "S'il te plaît", 'ngir yal-la', 'Poser une question', "Autre façon de dire « s'il te plaît »"),
+    ('Dama feebar', 'Je suis malade', 'da-ma fé-bar', "Situations d'urgence", "À distinguer de « Dama metti » (j'ai mal)"),
+    ('Walloo !', 'Aidez-moi ! (urgence)', 'wa-lo', "Situations d'urgence", "À crier en cas d'urgence réelle"),
+    ('Kay len wallouma', "Venez m'aider !", 'kay lén wa-lou-ma', "Situations d'urgence", None),
+    ('Wo waal police', 'Appelle la police', 'wo wal po-lis', "Situations d'urgence", "Forme au tutoiement"),
+    ('Sori na ?', "C'est loin ?", 'so-ri na', 'Demander son chemin', None),
+    ('Université bi lay weet', "Je cherche l'université", 'u-ni-vèr-si-té bi lay wéét', 'Demander son chemin', "Forme plus polie"),
+    ('Waxma bou nu egée', 'Dis-moi quand nous arrivons', 'wakh-ma bou nou é-gé', 'Monter dans un Tata', None),
+    ('Yaw nak', 'Et toi ?', 'yaw nak', 'Saluer', None),
+    ('Kañ ngay dem ?', 'Quand pars-tu ?', 'kagn ngay dem', 'Monter dans un Tata', "À demander au chauffeur qui attend encore des passagers"),
+    ('Ci tay wathie', "C'est ici que je descends", 'ci tay wa-thi-é', 'Demander un arrêt', None),
+]
+
+
+def _corriger_lexique_wolof_reel_2026(cursor):
+    """Applique les corrections fournies par l'utilisateur (locuteur natif)
+    sur le lexique wolof existant, et ajoute les expressions manquantes.
+    Idempotent : chaque UPDATE cible l'ancien texte wolof exact (une fois
+    corrigée, la ligne ne matche plus et la ré-exécution est un no-op) ; les
+    ajouts sont conditionnés à l'absence de la phrase (vérification par
+    texte wolof)."""
+    for ancien_wolof, nouveau_wolof, nouveau_francais, nouveau_phonetique in CORRECTIONS_TEXTE_PHRASES_WOLOF:
+        cursor.execute(
+            "UPDATE phrases_wolof SET wolof = ?, francais = COALESCE(?, francais), "
+            "phonetique = COALESCE(?, phonetique) WHERE wolof = ?",
+            (nouveau_wolof, nouveau_francais, nouveau_phonetique, ancien_wolof)
+        )
+
+    # "Kañ nga dem ?" ne signifie pas "quand pars-tu ?" mais "quand es-tu
+    # parti ?" (passé) : le contexte "à demander au chauffeur qui attend
+    # encore des passagers", hérité du sens fautif, ne s'applique plus et
+    # est retiré (il est repris par le nouveau "Kañ ngay dem ?" ci-dessus).
+    cursor.execute(
+        "UPDATE phrases_wolof SET contexte = NULL "
+        "WHERE wolof = 'Kañ nga dem ?' "
+        "AND contexte = 'À demander au chauffeur qui attend encore des passagers'"
+    )
+
+    for wolof, francais, phonetique, situation, contexte in NOUVELLES_PHRASES_WOLOF_REELLES_2026:
+        existe = cursor.execute("SELECT 1 FROM phrases_wolof WHERE wolof = ?", (wolof,)).fetchone()
+        if not existe:
+            cursor.execute(
+                "INSERT INTO phrases_wolof (wolof, francais, phonetique, situation, contexte) VALUES (?, ?, ?, ?, ?)",
+                (wolof, francais, phonetique, situation, contexte)
+            )
+
+
 NOUVELLES_LIGNES_MINIBUS = [
     {
         "numero_ligne": "Ligne 23", "nom_ligne": "Petersen - Yoff Layène",
-        "description": "Minibus Tata (AFTU) reliant Petersen à Yoff Layène via Sacré-Cœur, Ouest Foire, Yoff",
+        "description": "Minibus Tata reliant Petersen à Yoff Layène via Sacré-Cœur, Ouest Foire, Yoff",
         "arrets": ["Petersen", "Sacré-Cœur", "Ouest Foire", "Yoff", "Yoff Layène"],
     },
     {
         "numero_ligne": "Ligne 31", "nom_ligne": "Grand Yoff - Cité Djily Mbaye",
-        "description": "Minibus Tata (AFTU) reliant Grand Yoff à Cité Djily Mbaye via Liberté 6, Liberté 6 Extension",
+        "description": "Minibus Tata reliant Grand Yoff à Cité Djily Mbaye via Liberté 6, Liberté 6 Extension",
         "arrets": ["Grand Yoff", "Liberté 6", "Liberté 6 Extension", "Cité Djily Mbaye"],
     },
     {
         "numero_ligne": "Ligne 33", "nom_ligne": "Ouakam - Village des Arts",
-        "description": "Minibus Tata (AFTU) reliant Ouakam au Village des Arts via Virage Ouakam et le Monument de la Renaissance Africaine",
+        "description": "Minibus Tata reliant Ouakam au Village des Arts via Virage Ouakam et le Monument de la Renaissance Africaine",
         "arrets": ["Ouakam", "Virage Ouakam", "Monument de la Renaissance Africaine", "Village des Arts", "Cité Fadia"],
     },
     {
         "numero_ligne": "Ligne 51", "nom_ligne": "Colobane - Zac Mbao",
-        "description": "Minibus Tata (AFTU) reliant Colobane à Zac Mbao via Hann, Mbao, Petit Mbao",
+        "description": "Minibus Tata reliant Colobane à Zac Mbao via Hann, Mbao, Petit Mbao",
         "arrets": ["Colobane", "Hann", "Mbao", "Petit Mbao", "Zac Mbao"],
     },
     {
         "numero_ligne": "Ligne 61", "nom_ligne": "Pikine - Yeumbeul Sud",
-        "description": "Minibus Tata (AFTU) reliant Pikine à Yeumbeul Sud via Thiaroye, Yeumbeul",
+        "description": "Minibus Tata reliant Pikine à Yeumbeul Sud via Thiaroye, Yeumbeul",
         "arrets": ["Pikine", "Thiaroye", "Yeumbeul", "Yeumbeul Sud"],
     },
     {
         "numero_ligne": "Ligne 68", "nom_ligne": "Médina - Gare de Dakar",
-        "description": "Minibus Tata (AFTU) reliant Médina à la Gare de Dakar via Tilène, Plateau",
+        "description": "Minibus Tata reliant Médina à la Gare de Dakar via Tilène, Plateau",
         "arrets": ["Médina", "Tilène", "Plateau", "Gare de Dakar"],
     },
 ]
 
 # ---------------------------------------------------------------------
-# Deuxième vague d'enrichissement du réseau Minibus Tata (AFTU) : le
+# Deuxième vague d'enrichissement du réseau Minibus Tata : le
 # réseau est le moyen de transport en commun le moins cher de Dakar et le
 # plus adapté au budget étudiant, mais restait sous-représenté par rapport
 # au nombre réel de lignes AFTU. On densifie ici la couverture de quartiers
@@ -1052,52 +1455,52 @@ NOUVELLES_LIGNES_MINIBUS = [
 NOUVELLES_LIGNES_MINIBUS_2 = [
     {
         "numero_ligne": "Ligne 81", "nom_ligne": "Petersen - Hann Maristes",
-        "description": "Minibus Tata (AFTU) reliant Petersen à Hann Maristes via Hann, Hann Bel-Air",
+        "description": "Minibus Tata reliant Petersen à Hann Maristes via Hann, Hann Bel-Air",
         "arrets": ["Petersen", "Hann", "Hann Bel-Air", "Hann Maristes"],
     },
     {
         "numero_ligne": "Ligne 82", "nom_ligne": "Sandaga - Sicap Liberté",
-        "description": "Minibus Tata (AFTU) reliant Sandaga à Sicap Liberté via Colobane, HLM, Liberté 1",
+        "description": "Minibus Tata reliant Sandaga à Sicap Liberté via Colobane, HLM, Liberté 1",
         "arrets": ["Sandaga", "Colobane", "HLM", "Liberté 1", "Sicap Liberté"],
     },
     {
         "numero_ligne": "Ligne 83", "nom_ligne": "Médina - Fenêtre Mermoz",
-        "description": "Minibus Tata (AFTU) reliant Médina à Fenêtre Mermoz via Fass, Point E, Amitié",
+        "description": "Minibus Tata reliant Médina à Fenêtre Mermoz via Fass, Point E, Amitié",
         "arrets": ["Médina", "Fass", "Point E", "Amitié", "Fenêtre Mermoz"],
     },
     {
         "numero_ligne": "Ligne 84", "nom_ligne": "Grand Yoff - Cité Assemblée",
-        "description": "Minibus Tata (AFTU) reliant Grand Yoff à Cité Assemblée via Zone de Captage",
+        "description": "Minibus Tata reliant Grand Yoff à Cité Assemblée via Zone de Captage",
         "arrets": ["Grand Yoff", "Zone de Captage", "Cité Assemblée"],
     },
     {
         "numero_ligne": "Ligne 85", "nom_ligne": "Colobane - Yarakh",
-        "description": "Minibus Tata (AFTU) reliant Colobane à Yarakh via Hann",
+        "description": "Minibus Tata reliant Colobane à Yarakh via Hann",
         "arrets": ["Colobane", "Hann", "Yarakh"],
     },
     {
         "numero_ligne": "Ligne 86", "nom_ligne": "Petersen - Cité Comico",
-        "description": "Minibus Tata (AFTU) reliant Petersen à Cité Comico via Grand Dakar, Dieuppeul",
+        "description": "Minibus Tata reliant Petersen à Cité Comico via Grand Dakar, Dieuppeul",
         "arrets": ["Petersen", "Grand Dakar", "Dieuppeul", "Cité Comico"],
     },
     {
         "numero_ligne": "Ligne 87", "nom_ligne": "Pikine - Cité Aliou Sow",
-        "description": "Minibus Tata (AFTU) reliant Pikine à Cité Aliou Sow via Thiaroye Gare",
+        "description": "Minibus Tata reliant Pikine à Cité Aliou Sow via Thiaroye Gare",
         "arrets": ["Pikine", "Thiaroye Gare", "Cité Aliou Sow"],
     },
     {
         "numero_ligne": "Ligne 88", "nom_ligne": "Mbao - Cité Millionnaire",
-        "description": "Minibus Tata (AFTU) reliant Mbao à Cité Millionnaire via Petit Mbao",
+        "description": "Minibus Tata reliant Mbao à Cité Millionnaire via Petit Mbao",
         "arrets": ["Mbao", "Petit Mbao", "Cité Millionnaire"],
     },
     {
         "numero_ligne": "Ligne 89", "nom_ligne": "Rufisque - Diokoul",
-        "description": "Minibus Tata (AFTU) reliant Rufisque à Diokoul via Rufisque Nord",
+        "description": "Minibus Tata reliant Rufisque à Diokoul via Rufisque Nord",
         "arrets": ["Rufisque", "Rufisque Nord", "Diokoul"],
     },
     {
         "numero_ligne": "Ligne 90", "nom_ligne": "Rufisque - Arafat",
-        "description": "Minibus Tata (AFTU) reliant Rufisque à Arafat via Rufisque Est",
+        "description": "Minibus Tata reliant Rufisque à Arafat via Rufisque Est",
         "arrets": ["Rufisque", "Rufisque Est", "Arafat"],
     },
 ]
@@ -1406,7 +1809,7 @@ def _ajouter_universite_amadou_mahtar_mbow(cursor):
 
 
 # ---------------------------------------------------------------------
-# Réseau Tata (AFTU) réel — remplacement des lignes fictives par les 70
+# Réseau Tata réel — remplacement des lignes fictives par les 70
 # vraies lignes officielles publiées par l'AFTU (Association de
 # Financement des professionnels du Transport Urbain), opérateur officiel
 # du réseau, sur aftu-senegal.org/infos-pratiques/ (relevé du 2026-07-17).
@@ -1608,12 +2011,14 @@ def _remplacer_par_lignes_aftu_reelles_2026(cursor):
     arrêts (terminus de départ / terminus d'arrivée) plutôt que
     d'inventer un tracé intermédiaire fictif.
 
-    Idempotent et non-destructif vis-à-vis des données réelles : chaque
-    ligne recréée est marquée dans sa description par
-    MARQUEUR_LIGNE_AFTU_REELLE_2026 ; si ce marqueur est déjà présent pour
-    le numéro de ligne concerné, la fonction ne touche plus jamais à cette
-    ligne (elle ne supprime donc que l'ancien contenu FICTIF, une seule
-    fois, jamais les vraies données une fois en place)."""
+    Idempotent et non-destructif vis-à-vis des données réelles : si une
+    ligne existe déjà pour ce numéro avec le nom exact
+    "{terminus_a} - {terminus_b}", elle est considérée comme déjà migrée
+    et la fonction ne la retouche plus jamais (elle ne supprime donc que
+    l'ancien contenu FICTIF, une seule fois, jamais les vraies données une
+    fois en place). Le nom de ligne (deux vrais terminus) sert lui-même de
+    marqueur — pas besoin d'exposer de mention de source ni le nom de
+    l'opérateur dans la description affichée aux visiteurs."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_AFTU_REEL_2026:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -1630,9 +2035,10 @@ def _remplacer_par_lignes_aftu_reelles_2026(cursor):
     id_transport_tata = ligne_transport[0]
 
     for numero_ligne, terminus_a, terminus_b in LIGNES_AFTU_OFFICIELLES_2026:
+        nom_ligne_reelle = f"{terminus_a} - {terminus_b}"
         deja_migree = cursor.execute(
-            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ? AND description LIKE ?",
-            (numero_ligne, f"%{MARQUEUR_LIGNE_AFTU_REELLE_2026}%")
+            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ? AND nom_ligne = ?",
+            (numero_ligne, nom_ligne_reelle)
         ).fetchone()
         if deja_migree:
             continue
@@ -1669,12 +2075,7 @@ def _remplacer_par_lignes_aftu_reelles_2026(cursor):
             cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ancienne,))
 
         nom_ligne = f"{terminus_a} - {terminus_b}"
-        description = (
-            f"Minibus Tata (AFTU) reliant {terminus_a} à {terminus_b}. "
-            f"Ligne officielle réelle de l'AFTU (source aftu-senegal.org, relevé 2026-07-17) ; "
-            f"seuls les deux terminus sont cartographiés, l'AFTU ne publiant pas le détail des "
-            f"arrêts intermédiaires pour cette ligne. {MARQUEUR_LIGNE_AFTU_REELLE_2026}"
-        )
+        description = f"Minibus Tata reliant {terminus_a} à {terminus_b}."
         cursor.execute(
             "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
             "VALUES (?, ?, ?, 1, ?)",
@@ -1933,31 +2334,31 @@ NOUVEAUX_LIEUX_3 = [
 ]
 
 NOUVELLES_LIGNES_MINIBUS_3 = [
-    {"numero_ligne": "Ligne 17", "nom_ligne": "Sandaga - Grande Mosquée de Dakar", "description": "Minibus Tata (AFTU) reliant Sandaga à la Grande Mosquée de Dakar via Médina.", "arrets": ["Sandaga", "Médina", "Grande Mosquée de Dakar"]},
-    {"numero_ligne": "Ligne 35", "nom_ligne": "Ouakam - Almadies (via Route de l'Aéroport)", "description": "Minibus Tata (AFTU) reliant Ouakam à Almadies via Virage Ouakam et Mamelles.", "arrets": ["Ouakam", "Virage Ouakam", "Mamelles", "Almadies"]},
-    {"numero_ligne": "Ligne 37", "nom_ligne": "Guédiawaye - Golf", "description": "Minibus Tata (AFTU) reliant Guédiawaye à Golf via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Golf"]},
-    {"numero_ligne": "Ligne 54", "nom_ligne": "Pikine - Thiaroye sur Mer", "description": "Minibus Tata (AFTU) reliant Pikine à Thiaroye sur Mer via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Thiaroye sur Mer"]},
-    {"numero_ligne": "Ligne 59", "nom_ligne": "Wakhinane - Médina Gounass", "description": "Minibus Tata (AFTU) reliant Wakhinane à Médina Gounass, liaison locale de Guédiawaye.", "arrets": ["Wakhinane", "Médina Gounass"]},
-    {"numero_ligne": "Ligne 62", "nom_ligne": "Rufisque Nord - Bargny", "description": "Minibus Tata (AFTU) reliant Rufisque Nord à Bargny.", "arrets": ["Rufisque Nord", "Bargny"]},
-    {"numero_ligne": "Ligne 69", "nom_ligne": "Colobane - CICES", "description": "Minibus Tata (AFTU) reliant Colobane au CICES via Grand Dakar et Nord Foire.", "arrets": ["Colobane", "Grand Dakar", "Nord Foire", "CICES"]},
-    {"numero_ligne": "Ligne 71", "nom_ligne": "Gueule Tapée - Keur Massar (via Grand Dakar)", "description": "Minibus Tata (AFTU) reliant Gueule Tapée à Keur Massar via Grand Dakar, Pikine et Diacksao.", "arrets": ["Gueule Tapée", "Grand Dakar", "Pikine", "Diacksao", "Keur Massar"]},
-    {"numero_ligne": "Ligne 73", "nom_ligne": "Fann - Village Artisanal de Soumbédioune", "description": "Minibus Tata (AFTU) reliant Fann au Village Artisanal de Soumbédioune, le long de la Corniche.", "arrets": ["Fann", "Village Artisanal de Soumbédioune"]},
-    {"numero_ligne": "Ligne 74", "nom_ligne": "Médina - Stade Iba Mar Diop", "description": "Minibus Tata (AFTU) reliant Médina au Stade Iba Mar Diop via Tilène.", "arrets": ["Médina", "Tilène", "Stade Iba Mar Diop"]},
-    {"numero_ligne": "Ligne 76", "nom_ligne": "Liberté 6 - Sicap Baobab", "description": "Minibus Tata (AFTU) reliant Liberté 6 à Sicap Baobab.", "arrets": ["Liberté 6", "Sicap Baobab"]},
-    {"numero_ligne": "Ligne 77", "nom_ligne": "Grand Yoff - Stade Léopold Sédar Senghor", "description": "Minibus Tata (AFTU) reliant Grand Yoff au Stade Léopold Sédar Senghor via Zone de Captage et Fenêtre Mermoz.", "arrets": ["Grand Yoff", "Zone de Captage", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
-    {"numero_ligne": "Ligne 79", "nom_ligne": "Cambérène - Cimetière de Yoff", "description": "Minibus Tata (AFTU) reliant Cambérène au secteur du Cimetière de Yoff.", "arrets": ["Cambérène", "Cimetière de Yoff"]},
-    {"numero_ligne": "Ligne 91", "nom_ligne": "Plateau - Hôpital Principal de Dakar", "description": "Minibus Tata (AFTU) reliant le Plateau à l'Hôpital Principal de Dakar.", "arrets": ["Plateau", "Hôpital Principal de Dakar"]},
-    {"numero_ligne": "Ligne 92", "nom_ligne": "Petersen - Place de l'Indépendance", "description": "Minibus Tata (AFTU) reliant Petersen à la Place de l'Indépendance via le Plateau.", "arrets": ["Petersen", "Plateau", "Place de l'Indépendance"]},
-    {"numero_ligne": "Ligne 93", "nom_ligne": "Yoff - Cimetière de Yoff", "description": "Minibus Tata (AFTU), courte liaison locale du village de Yoff.", "arrets": ["Yoff", "Cimetière de Yoff"]},
-    {"numero_ligne": "Ligne 94", "nom_ligne": "Ouest Foire - CICES", "description": "Minibus Tata (AFTU) reliant Ouest Foire au CICES via Nord Foire.", "arrets": ["Ouest Foire", "Nord Foire", "CICES"]},
-    {"numero_ligne": "Ligne 95", "nom_ligne": "Sacré-Cœur - Stade Léopold Sédar Senghor", "description": "Minibus Tata (AFTU) reliant Sacré-Cœur au Stade Léopold Sédar Senghor via Fenêtre Mermoz.", "arrets": ["Sacré-Cœur", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
-    {"numero_ligne": "Ligne 96", "nom_ligne": "Rufisque - Sébikotane", "description": "Minibus Tata (AFTU) reliant Rufisque à Sébikotane via Rufisque Est et Bargny.", "arrets": ["Rufisque", "Rufisque Est", "Bargny", "Sébikotane"]},
-    {"numero_ligne": "Ligne 97", "nom_ligne": "Bargny - Diamniadio", "description": "Minibus Tata (AFTU) reliant Bargny à Diamniadio.", "arrets": ["Bargny", "Diamniadio"]},
-    {"numero_ligne": "Ligne 98", "nom_ligne": "Yenne - Bargny", "description": "Minibus Tata (AFTU) reliant Yenne à Bargny.", "arrets": ["Yenne", "Bargny"]},
-    {"numero_ligne": "Ligne 99", "nom_ligne": "Diamniadio - Sangalkam", "description": "Minibus Tata (AFTU) reliant Diamniadio à Sangalkam.", "arrets": ["Diamniadio", "Sangalkam"]},
-    {"numero_ligne": "Ligne 100", "nom_ligne": "Guédiawaye - Hôpital Dalal Jamm", "description": "Minibus Tata (AFTU) reliant Guédiawaye à l'Hôpital Dalal Jamm via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Hôpital Dalal Jamm"]},
-    {"numero_ligne": "Ligne 101", "nom_ligne": "Ngor - Village Artisanal de Soumbédioune", "description": "Minibus Tata (AFTU) reliant Ngor au Village Artisanal de Soumbédioune via la Corniche Ouest et Fann.", "arrets": ["Ngor", "Corniche Ouest", "Fann", "Village Artisanal de Soumbédioune"]},
-    {"numero_ligne": "Ligne 102", "nom_ligne": "Colobane - Grande Mosquée de Dakar", "description": "Minibus Tata (AFTU) reliant Colobane à la Grande Mosquée de Dakar via Médina.", "arrets": ["Colobane", "Médina", "Grande Mosquée de Dakar"]},
+    {"numero_ligne": "Ligne 17", "nom_ligne": "Sandaga - Grande Mosquée de Dakar", "description": "Minibus Tata reliant Sandaga à la Grande Mosquée de Dakar via Médina.", "arrets": ["Sandaga", "Médina", "Grande Mosquée de Dakar"]},
+    {"numero_ligne": "Ligne 35", "nom_ligne": "Ouakam - Almadies (via Route de l'Aéroport)", "description": "Minibus Tata reliant Ouakam à Almadies via Virage Ouakam et Mamelles.", "arrets": ["Ouakam", "Virage Ouakam", "Mamelles", "Almadies"]},
+    {"numero_ligne": "Ligne 37", "nom_ligne": "Guédiawaye - Golf", "description": "Minibus Tata reliant Guédiawaye à Golf via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Golf"]},
+    {"numero_ligne": "Ligne 54", "nom_ligne": "Pikine - Thiaroye sur Mer", "description": "Minibus Tata reliant Pikine à Thiaroye sur Mer via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Thiaroye sur Mer"]},
+    {"numero_ligne": "Ligne 59", "nom_ligne": "Wakhinane - Médina Gounass", "description": "Minibus Tata reliant Wakhinane à Médina Gounass, liaison locale de Guédiawaye.", "arrets": ["Wakhinane", "Médina Gounass"]},
+    {"numero_ligne": "Ligne 62", "nom_ligne": "Rufisque Nord - Bargny", "description": "Minibus Tata reliant Rufisque Nord à Bargny.", "arrets": ["Rufisque Nord", "Bargny"]},
+    {"numero_ligne": "Ligne 69", "nom_ligne": "Colobane - CICES", "description": "Minibus Tata reliant Colobane au CICES via Grand Dakar et Nord Foire.", "arrets": ["Colobane", "Grand Dakar", "Nord Foire", "CICES"]},
+    {"numero_ligne": "Ligne 71", "nom_ligne": "Gueule Tapée - Keur Massar (via Grand Dakar)", "description": "Minibus Tata reliant Gueule Tapée à Keur Massar via Grand Dakar, Pikine et Diacksao.", "arrets": ["Gueule Tapée", "Grand Dakar", "Pikine", "Diacksao", "Keur Massar"]},
+    {"numero_ligne": "Ligne 73", "nom_ligne": "Fann - Village Artisanal de Soumbédioune", "description": "Minibus Tata reliant Fann au Village Artisanal de Soumbédioune, le long de la Corniche.", "arrets": ["Fann", "Village Artisanal de Soumbédioune"]},
+    {"numero_ligne": "Ligne 74", "nom_ligne": "Médina - Stade Iba Mar Diop", "description": "Minibus Tata reliant Médina au Stade Iba Mar Diop via Tilène.", "arrets": ["Médina", "Tilène", "Stade Iba Mar Diop"]},
+    {"numero_ligne": "Ligne 76", "nom_ligne": "Liberté 6 - Sicap Baobab", "description": "Minibus Tata reliant Liberté 6 à Sicap Baobab.", "arrets": ["Liberté 6", "Sicap Baobab"]},
+    {"numero_ligne": "Ligne 77", "nom_ligne": "Grand Yoff - Stade Léopold Sédar Senghor", "description": "Minibus Tata reliant Grand Yoff au Stade Léopold Sédar Senghor via Zone de Captage et Fenêtre Mermoz.", "arrets": ["Grand Yoff", "Zone de Captage", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
+    {"numero_ligne": "Ligne 79", "nom_ligne": "Cambérène - Cimetière de Yoff", "description": "Minibus Tata reliant Cambérène au secteur du Cimetière de Yoff.", "arrets": ["Cambérène", "Cimetière de Yoff"]},
+    {"numero_ligne": "Ligne 91", "nom_ligne": "Plateau - Hôpital Principal de Dakar", "description": "Minibus Tata reliant le Plateau à l'Hôpital Principal de Dakar.", "arrets": ["Plateau", "Hôpital Principal de Dakar"]},
+    {"numero_ligne": "Ligne 92", "nom_ligne": "Petersen - Place de l'Indépendance", "description": "Minibus Tata reliant Petersen à la Place de l'Indépendance via le Plateau.", "arrets": ["Petersen", "Plateau", "Place de l'Indépendance"]},
+    {"numero_ligne": "Ligne 93", "nom_ligne": "Yoff - Cimetière de Yoff", "description": "Minibus Tata, courte liaison locale du village de Yoff.", "arrets": ["Yoff", "Cimetière de Yoff"]},
+    {"numero_ligne": "Ligne 94", "nom_ligne": "Ouest Foire - CICES", "description": "Minibus Tata reliant Ouest Foire au CICES via Nord Foire.", "arrets": ["Ouest Foire", "Nord Foire", "CICES"]},
+    {"numero_ligne": "Ligne 95", "nom_ligne": "Sacré-Cœur - Stade Léopold Sédar Senghor", "description": "Minibus Tata reliant Sacré-Cœur au Stade Léopold Sédar Senghor via Fenêtre Mermoz.", "arrets": ["Sacré-Cœur", "Fenêtre Mermoz", "Stade Léopold Sédar Senghor"]},
+    {"numero_ligne": "Ligne 96", "nom_ligne": "Rufisque - Sébikotane", "description": "Minibus Tata reliant Rufisque à Sébikotane via Rufisque Est et Bargny.", "arrets": ["Rufisque", "Rufisque Est", "Bargny", "Sébikotane"]},
+    {"numero_ligne": "Ligne 97", "nom_ligne": "Bargny - Diamniadio", "description": "Minibus Tata reliant Bargny à Diamniadio.", "arrets": ["Bargny", "Diamniadio"]},
+    {"numero_ligne": "Ligne 98", "nom_ligne": "Yenne - Bargny", "description": "Minibus Tata reliant Yenne à Bargny.", "arrets": ["Yenne", "Bargny"]},
+    {"numero_ligne": "Ligne 99", "nom_ligne": "Diamniadio - Sangalkam", "description": "Minibus Tata reliant Diamniadio à Sangalkam.", "arrets": ["Diamniadio", "Sangalkam"]},
+    {"numero_ligne": "Ligne 100", "nom_ligne": "Guédiawaye - Hôpital Dalal Jamm", "description": "Minibus Tata reliant Guédiawaye à l'Hôpital Dalal Jamm via Wakhinane.", "arrets": ["Guédiawaye", "Wakhinane", "Hôpital Dalal Jamm"]},
+    {"numero_ligne": "Ligne 101", "nom_ligne": "Ngor - Village Artisanal de Soumbédioune", "description": "Minibus Tata reliant Ngor au Village Artisanal de Soumbédioune via la Corniche Ouest et Fann.", "arrets": ["Ngor", "Corniche Ouest", "Fann", "Village Artisanal de Soumbédioune"]},
+    {"numero_ligne": "Ligne 102", "nom_ligne": "Colobane - Grande Mosquée de Dakar", "description": "Minibus Tata reliant Colobane à la Grande Mosquée de Dakar via Médina.", "arrets": ["Colobane", "Médina", "Grande Mosquée de Dakar"]},
 ]
 
 NOUVELLES_LIGNES_CAR_RAPIDE_2 = [
@@ -2031,7 +2432,7 @@ def _enrichir_reseau_vague_3(cursor):
 
 
 # ---------------------------------------------------------------------
-# Quatrième vague d'enrichissement, focalisée sur le réseau Tata (AFTU)
+# Quatrième vague d'enrichissement, focalisée sur le réseau Tata
 # spécifiquement : nouveaux lieux (campus, terminus, marchés de quartier)
 # et 28 nouvelles lignes Tata supplémentaires, avec la même règle de
 # numérotation que la vague 3 (numéros jamais réutilisés : 103 à 130).
@@ -2048,34 +2449,34 @@ NOUVEAUX_LIEUX_4 = [
 ]
 
 NOUVELLES_LIGNES_MINIBUS_4 = [
-    {"numero_ligne": "Ligne 103", "nom_ligne": "Petersen - Technopole (via Cité Keur Gorgui)", "description": "Minibus Tata (AFTU) reliant Petersen à Technopole via Sacré-Cœur et Cité Keur Gorgui.", "arrets": ["Petersen", "Sacré-Cœur", "Cité Keur Gorgui", "Technopole"]},
-    {"numero_ligne": "Ligne 104", "nom_ligne": "Sandaga - Parc Zoologique de Hann", "description": "Minibus Tata (AFTU) reliant Sandaga au Parc Zoologique de Hann via Colobane et Hann.", "arrets": ["Sandaga", "Colobane", "Hann", "Parc Zoologique de Hann"]},
-    {"numero_ligne": "Ligne 105", "nom_ligne": "Pikine - Ouagou Niayes", "description": "Minibus Tata (AFTU) reliant Pikine à Ouagou Niayes via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Ouagou Niayes"]},
-    {"numero_ligne": "Ligne 106", "nom_ligne": "Yoff - Terminus Yoff", "description": "Minibus Tata (AFTU), liaison locale du village de Yoff.", "arrets": ["Yoff", "Terminus Yoff"]},
-    {"numero_ligne": "Ligne 107", "nom_ligne": "UCAD - École Supérieure Polytechnique", "description": "Minibus Tata (AFTU), navette du campus universitaire.", "arrets": ["UCAD", "École Supérieure Polytechnique"]},
-    {"numero_ligne": "Ligne 108", "nom_ligne": "Guédiawaye - Marché Syndicat", "description": "Minibus Tata (AFTU) reliant Guédiawaye au Marché Syndicat.", "arrets": ["Guédiawaye", "Marché Syndicat"]},
-    {"numero_ligne": "Ligne 109", "nom_ligne": "Rufisque - Terminus Rufisque", "description": "Minibus Tata (AFTU), liaison locale de Rufisque.", "arrets": ["Rufisque", "Terminus Rufisque"]},
-    {"numero_ligne": "Ligne 110", "nom_ligne": "Ngor - Ngor Plage", "description": "Minibus Tata (AFTU), courte liaison vers la plage de Ngor.", "arrets": ["Ngor", "Ngor Plage"]},
-    {"numero_ligne": "Ligne 111", "nom_ligne": "Médina - Fann (direct)", "description": "Minibus Tata (AFTU) reliant Médina à Fann via Fass.", "arrets": ["Médina", "Fass", "Fann"]},
-    {"numero_ligne": "Ligne 112", "nom_ligne": "Colobane - Point E", "description": "Minibus Tata (AFTU) reliant Colobane à Point E via Fass.", "arrets": ["Colobane", "Fass", "Point E"]},
-    {"numero_ligne": "Ligne 113", "nom_ligne": "HLM - Grand Médine", "description": "Minibus Tata (AFTU) reliant HLM à Grand Médine via Front de Terre.", "arrets": ["HLM", "Front de Terre", "Grand Médine"]},
-    {"numero_ligne": "Ligne 114", "nom_ligne": "Sicap Baobab - Zone de Captage", "description": "Minibus Tata (AFTU) reliant Sicap Baobab à Zone de Captage.", "arrets": ["Sicap Baobab", "Zone de Captage"]},
-    {"numero_ligne": "Ligne 115", "nom_ligne": "Liberté 1 - Amitié", "description": "Minibus Tata (AFTU) reliant Liberté 1 à Amitié.", "arrets": ["Liberté 1", "Amitié"]},
-    {"numero_ligne": "Ligne 116", "nom_ligne": "Dieuppeul - Derklé", "description": "Minibus Tata (AFTU) reliant Dieuppeul à Derklé.", "arrets": ["Dieuppeul", "Derklé"]},
-    {"numero_ligne": "Ligne 117", "nom_ligne": "Grand Dakar - Castors", "description": "Minibus Tata (AFTU) reliant Grand Dakar à Castors.", "arrets": ["Grand Dakar", "Castors"]},
-    {"numero_ligne": "Ligne 118", "nom_ligne": "Parcelles Assainies - Cambérène (direct)", "description": "Minibus Tata (AFTU) reliant Parcelles Assainies à Cambérène via Grand Médine.", "arrets": ["Parcelles Assainies", "Grand Médine", "Cambérène"]},
-    {"numero_ligne": "Ligne 119", "nom_ligne": "Golf - Wakhinane", "description": "Minibus Tata (AFTU) reliant Golf à Wakhinane.", "arrets": ["Golf", "Wakhinane"]},
-    {"numero_ligne": "Ligne 120", "nom_ligne": "Thiaroye - Djidah Thiaroye Kao", "description": "Minibus Tata (AFTU) reliant Thiaroye à Djidah Thiaroye Kao.", "arrets": ["Thiaroye", "Djidah Thiaroye Kao"]},
-    {"numero_ligne": "Ligne 121", "nom_ligne": "Yeumbeul - Malika", "description": "Minibus Tata (AFTU) reliant Yeumbeul à Malika.", "arrets": ["Yeumbeul", "Malika"]},
-    {"numero_ligne": "Ligne 122", "nom_ligne": "Keur Massar - Diacksao", "description": "Minibus Tata (AFTU) reliant Keur Massar à Diacksao.", "arrets": ["Keur Massar", "Diacksao"]},
-    {"numero_ligne": "Ligne 123", "nom_ligne": "Rufisque Est - Diokoul", "description": "Minibus Tata (AFTU) reliant Rufisque Est à Diokoul.", "arrets": ["Rufisque Est", "Diokoul"]},
-    {"numero_ligne": "Ligne 124", "nom_ligne": "Arafat - Rufisque Nord", "description": "Minibus Tata (AFTU) reliant Arafat à Rufisque Nord.", "arrets": ["Arafat", "Rufisque Nord"]},
-    {"numero_ligne": "Ligne 125", "nom_ligne": "Bargny - Sangalkam", "description": "Minibus Tata (AFTU) reliant Bargny à Sangalkam.", "arrets": ["Bargny", "Sangalkam"]},
-    {"numero_ligne": "Ligne 126", "nom_ligne": "Sébikotane - Bambilor", "description": "Minibus Tata (AFTU) reliant Sébikotane à Bambilor.", "arrets": ["Sébikotane", "Bambilor"]},
-    {"numero_ligne": "Ligne 127", "nom_ligne": "Almadies - Corniche Ouest", "description": "Minibus Tata (AFTU) reliant Almadies à la Corniche Ouest.", "arrets": ["Almadies", "Corniche Ouest"]},
-    {"numero_ligne": "Ligne 128", "nom_ligne": "Mermoz - Fenêtre Mermoz", "description": "Minibus Tata (AFTU), liaison locale du secteur Mermoz.", "arrets": ["Mermoz", "Fenêtre Mermoz"]},
-    {"numero_ligne": "Ligne 129", "nom_ligne": "Point E - Amitié", "description": "Minibus Tata (AFTU) reliant Point E à Amitié.", "arrets": ["Point E", "Amitié"]},
-    {"numero_ligne": "Ligne 130", "nom_ligne": "Sacré-Cœur 3 - Liberté 6 Extension", "description": "Minibus Tata (AFTU) reliant Sacré-Cœur 3 à Liberté 6 Extension.", "arrets": ["Sacré-Cœur 3", "Liberté 6 Extension"]},
+    {"numero_ligne": "Ligne 103", "nom_ligne": "Petersen - Technopole (via Cité Keur Gorgui)", "description": "Minibus Tata reliant Petersen à Technopole via Sacré-Cœur et Cité Keur Gorgui.", "arrets": ["Petersen", "Sacré-Cœur", "Cité Keur Gorgui", "Technopole"]},
+    {"numero_ligne": "Ligne 104", "nom_ligne": "Sandaga - Parc Zoologique de Hann", "description": "Minibus Tata reliant Sandaga au Parc Zoologique de Hann via Colobane et Hann.", "arrets": ["Sandaga", "Colobane", "Hann", "Parc Zoologique de Hann"]},
+    {"numero_ligne": "Ligne 105", "nom_ligne": "Pikine - Ouagou Niayes", "description": "Minibus Tata reliant Pikine à Ouagou Niayes via Guinaw Rail.", "arrets": ["Pikine", "Guinaw Rail", "Ouagou Niayes"]},
+    {"numero_ligne": "Ligne 106", "nom_ligne": "Yoff - Terminus Yoff", "description": "Minibus Tata, liaison locale du village de Yoff.", "arrets": ["Yoff", "Terminus Yoff"]},
+    {"numero_ligne": "Ligne 107", "nom_ligne": "UCAD - École Supérieure Polytechnique", "description": "Minibus Tata, navette du campus universitaire.", "arrets": ["UCAD", "École Supérieure Polytechnique"]},
+    {"numero_ligne": "Ligne 108", "nom_ligne": "Guédiawaye - Marché Syndicat", "description": "Minibus Tata reliant Guédiawaye au Marché Syndicat.", "arrets": ["Guédiawaye", "Marché Syndicat"]},
+    {"numero_ligne": "Ligne 109", "nom_ligne": "Rufisque - Terminus Rufisque", "description": "Minibus Tata, liaison locale de Rufisque.", "arrets": ["Rufisque", "Terminus Rufisque"]},
+    {"numero_ligne": "Ligne 110", "nom_ligne": "Ngor - Ngor Plage", "description": "Minibus Tata, courte liaison vers la plage de Ngor.", "arrets": ["Ngor", "Ngor Plage"]},
+    {"numero_ligne": "Ligne 111", "nom_ligne": "Médina - Fann (direct)", "description": "Minibus Tata reliant Médina à Fann via Fass.", "arrets": ["Médina", "Fass", "Fann"]},
+    {"numero_ligne": "Ligne 112", "nom_ligne": "Colobane - Point E", "description": "Minibus Tata reliant Colobane à Point E via Fass.", "arrets": ["Colobane", "Fass", "Point E"]},
+    {"numero_ligne": "Ligne 113", "nom_ligne": "HLM - Grand Médine", "description": "Minibus Tata reliant HLM à Grand Médine via Front de Terre.", "arrets": ["HLM", "Front de Terre", "Grand Médine"]},
+    {"numero_ligne": "Ligne 114", "nom_ligne": "Sicap Baobab - Zone de Captage", "description": "Minibus Tata reliant Sicap Baobab à Zone de Captage.", "arrets": ["Sicap Baobab", "Zone de Captage"]},
+    {"numero_ligne": "Ligne 115", "nom_ligne": "Liberté 1 - Amitié", "description": "Minibus Tata reliant Liberté 1 à Amitié.", "arrets": ["Liberté 1", "Amitié"]},
+    {"numero_ligne": "Ligne 116", "nom_ligne": "Dieuppeul - Derklé", "description": "Minibus Tata reliant Dieuppeul à Derklé.", "arrets": ["Dieuppeul", "Derklé"]},
+    {"numero_ligne": "Ligne 117", "nom_ligne": "Grand Dakar - Castors", "description": "Minibus Tata reliant Grand Dakar à Castors.", "arrets": ["Grand Dakar", "Castors"]},
+    {"numero_ligne": "Ligne 118", "nom_ligne": "Parcelles Assainies - Cambérène (direct)", "description": "Minibus Tata reliant Parcelles Assainies à Cambérène via Grand Médine.", "arrets": ["Parcelles Assainies", "Grand Médine", "Cambérène"]},
+    {"numero_ligne": "Ligne 119", "nom_ligne": "Golf - Wakhinane", "description": "Minibus Tata reliant Golf à Wakhinane.", "arrets": ["Golf", "Wakhinane"]},
+    {"numero_ligne": "Ligne 120", "nom_ligne": "Thiaroye - Djidah Thiaroye Kao", "description": "Minibus Tata reliant Thiaroye à Djidah Thiaroye Kao.", "arrets": ["Thiaroye", "Djidah Thiaroye Kao"]},
+    {"numero_ligne": "Ligne 121", "nom_ligne": "Yeumbeul - Malika", "description": "Minibus Tata reliant Yeumbeul à Malika.", "arrets": ["Yeumbeul", "Malika"]},
+    {"numero_ligne": "Ligne 122", "nom_ligne": "Keur Massar - Diacksao", "description": "Minibus Tata reliant Keur Massar à Diacksao.", "arrets": ["Keur Massar", "Diacksao"]},
+    {"numero_ligne": "Ligne 123", "nom_ligne": "Rufisque Est - Diokoul", "description": "Minibus Tata reliant Rufisque Est à Diokoul.", "arrets": ["Rufisque Est", "Diokoul"]},
+    {"numero_ligne": "Ligne 124", "nom_ligne": "Arafat - Rufisque Nord", "description": "Minibus Tata reliant Arafat à Rufisque Nord.", "arrets": ["Arafat", "Rufisque Nord"]},
+    {"numero_ligne": "Ligne 125", "nom_ligne": "Bargny - Sangalkam", "description": "Minibus Tata reliant Bargny à Sangalkam.", "arrets": ["Bargny", "Sangalkam"]},
+    {"numero_ligne": "Ligne 126", "nom_ligne": "Sébikotane - Bambilor", "description": "Minibus Tata reliant Sébikotane à Bambilor.", "arrets": ["Sébikotane", "Bambilor"]},
+    {"numero_ligne": "Ligne 127", "nom_ligne": "Almadies - Corniche Ouest", "description": "Minibus Tata reliant Almadies à la Corniche Ouest.", "arrets": ["Almadies", "Corniche Ouest"]},
+    {"numero_ligne": "Ligne 128", "nom_ligne": "Mermoz - Fenêtre Mermoz", "description": "Minibus Tata, liaison locale du secteur Mermoz.", "arrets": ["Mermoz", "Fenêtre Mermoz"]},
+    {"numero_ligne": "Ligne 129", "nom_ligne": "Point E - Amitié", "description": "Minibus Tata reliant Point E à Amitié.", "arrets": ["Point E", "Amitié"]},
+    {"numero_ligne": "Ligne 130", "nom_ligne": "Sacré-Cœur 3 - Liberté 6 Extension", "description": "Minibus Tata reliant Sacré-Cœur 3 à Liberté 6 Extension.", "arrets": ["Sacré-Cœur 3", "Liberté 6 Extension"]},
 ]
 
 
@@ -2246,7 +2647,7 @@ def get_lignes_sonatel():
 
 
 def get_toutes_les_lignes_tata():
-    """Retourne l'intégralité des lignes du réseau Minibus Tata (AFTU) —
+    """Retourne l'intégralité des lignes du réseau Minibus Tata —
     utilisée par la page /minibus, qui référence désormais tout le réseau
     et non plus seulement les itinéraires curés SONATEL. Le Car rapide,
     bien que marqué est_minibus=1 en base pour le calcul d'itinéraires,

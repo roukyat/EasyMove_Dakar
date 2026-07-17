@@ -59,7 +59,7 @@ relance `python app.py`.
 | Table              | Rôle |
 |--------------------|------|
 | `lieux`            | Tous les points sur la carte (quartiers, villes, aéroport...) |
-| `moyens_transport` | Taxi, DDD, Car rapide, Minibus Tata (AFTU), Jakarta, TER, BRT |
+| `moyens_transport` | Taxi, DDD, Car rapide, Minibus Tata, Jakarta, TER, BRT |
 | `lignes_bus`       | Les lignes précises (ex: Ligne 14 Plateau–UCAD) |
 | `arrets`           | Les arrêts physiques, reliés à un lieu |
 | `ligne_arrets`     | Association ligne ↔ arrêts (avec ordre de passage) |

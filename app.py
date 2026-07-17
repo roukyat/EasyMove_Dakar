@@ -72,7 +72,7 @@ def get_niveau_prix(cout_min, cout_max):
 # au quotidien par les Dakarois (flexibilité porte-à-porte du taxi et du
 # clando, densité du réseau Tata), plutôt qu'une liste exhaustive qui
 # n'aiderait pas à se décider rapidement.
-TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata (AFTU)"]
+TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata"]
 
 # Ordre d'affichage des catégories du lexique Wolof (page /wolof) : suit le
 # déroulé naturel d'un trajet (saluer, monter dans un Tata, ...) plutôt que
@@ -182,7 +182,7 @@ def resultat_trajet():
 
 @app.route("/minibus")
 def minibus():
-    """Page de référence du réseau Tata (AFTU) : l'ensemble des lignes
+    """Page de référence du réseau Tata : l'ensemble des lignes
     disponibles à Dakar, quartier par quartier."""
     lignes = database.get_toutes_les_lignes_tata()
 

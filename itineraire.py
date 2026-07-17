@@ -75,7 +75,7 @@ def _arrondi_prix(x, base=50):
     return int(round(x / base) * base)
 
 
-# Car rapide / Minibus Tata (AFTU) : les tarifs enregistrés dans
+# Car rapide / Minibus Tata : les tarifs enregistrés dans
 # moyens_transport (cout_min/cout_max) correspondent à un tronçon court
 # (~3 km, le cas le plus fréquent du réseau). Sans ajustement, un trajet
 # direct de 15-20 km sur une seule ligne affichait exactement le même prix
@@ -546,7 +546,7 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
             if opt_transit:
                 options.append(opt_transit)
 
-        # Le réseau Minibus (Tata/AFTU + Cars rapides) est le moyen de
+        # Le réseau Minibus (Tata + Cars rapides) est le moyen de
         # transport en commun le moins cher de Dakar : on calcule
         # systématiquement une alternative dédiée qui n'emprunte que ce
         # réseau, pour qu'elle apparaisse dans les résultats même quand un
