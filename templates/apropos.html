@@ -3,9 +3,7 @@
 {% block meta_description %}EasyMove Dakar, le comparateur de trajets né d'un besoin concret : simplifier les déplacements dans la capitale sénégalaise.{% endblock %}
 
 {% block content %}
-     {# ============================================================
-       1. HERO
-       ============================================================ #}
+    {# Section d'accueil. #}
     <section class="about-hero">
         <div class="container">
             <div class="about-hero-inner">
@@ -15,7 +13,7 @@
                     </div>
                     <h1>Choisissez votre destination, EasyMove s'occupe du reste.</h1>
                     <p class="lead">
-                        Comparez les trajets, les prix et les temps de parcours en quelques secondes.
+                    Obtenez en un coup d'œil une estimation du prix et de la durée de votre déplacement.
                     </p>
                     <div class="hero-btns">
                         <a href="{{ url_for('trajets') }}" class="btn-primary">
@@ -24,7 +22,6 @@
                         <a href="{{ url_for('minibus') }}" class="btn-secondary">
                             <i class="fa-solid fa-map-location-dot" style="margin-right: 6px;"></i> Voir la carte
                         </a>
-                        
                     </div>
                 </div>
 
@@ -40,9 +37,7 @@
         </div>
     </section>
 
-    {# ============================================================
-       2. POURQUOI EASYMOVE EXISTE — storytelling probleme -> reponse
-       ============================================================ #}
+    {# Pourquoi EasyMove existe : le constat, puis la réponse. #}
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">
@@ -80,9 +75,7 @@
         </div>
     </section>
 
-    {# ============================================================
-       NOTRE HISTOIRE — bref rappel des origines du projet
-       ============================================================ #}
+    {# Notre histoire. #}
     <section class="section" style="padding-bottom: 24px;">
         <div class="container">
             <div class="section-header reveal">
@@ -190,9 +183,7 @@
         </div>
     </section>
 
-    {# ============================================================
-       12. CONTACT
-       ============================================================ #}
+    {# Contact. #}
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">

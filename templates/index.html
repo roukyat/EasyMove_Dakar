@@ -86,10 +86,7 @@
         </div>
     </section>
 
-    {# ============================================================
-        COMMENT ÇA MARCHE — trois étapes, avant même de choisir un
-        transport, pour que la valeur du produit soit visible d'emblée.
-       ============================================================ #}
+    {# Comment ça marche : les trois étapes pour trouver un trajet. #}
     <section class="section" style="padding-top: 64px;">
         <div class="container">
             <div class="section-header reveal">
@@ -119,11 +116,7 @@
         </div>
     </section>
 
-    {# ============================================================
-        LES 3 TRANSPORTS LES PLUS UTILISÉS — présentation éditoriale,
-        sans icône par mode : le prix et une phrase suffisent pour se
-        décider, le détail (avantages/inconvénients) reste sur /transports.
-       ============================================================ #}
+    {# Les 3 transports les plus utilisés, sans détail (ça reste sur /transports). #}
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">
@@ -157,12 +150,7 @@
         </div>
     </section>
 
-    {# ============================================================
-        RESEAU TATA — référence générale du réseau minibus. La carte de
-        droite illustre le principe d'EasyMove (départ/destination ->
-        ligne, temps, prix, arrêt de descente) avec un trajet réel
-        (Sacré-Cœur -> Mermoz, Tata Ligne 15), pas une simple photo.
-       ============================================================ #}
+    {# Aperçu du réseau Tata, avec un exemple de trajet trouvé par le site. #}
     <section class="section">
         <div class="container">
             <div class="tata-teaser reveal">
@@ -197,9 +185,7 @@
         </div>
     </section>
 
-    {# ============================================================
-       POURQUOI EASYMOVE
-       ============================================================ #}
+    {# Pourquoi EasyMove. #}
     <section class="section section-alt">
         <div class="container">
             <div class="section-header reveal">
@@ -231,9 +217,7 @@
         </div>
     </section>
 
-    {# ============================================================
-       LEXIQUE WOLOF
-       ============================================================ #}
+    {# Aperçu du lexique wolof. #}
     {% if phrases_apercu %}
     <section class="section section-alt">
         <div class="container">
@@ -254,9 +238,7 @@
     </section>
     {% endif %}
 
-    {# ============================================================
-       CTA FINAL
-       ============================================================ #}
+    {# Appel à l'action final. #}
     <section class="section">
         <div class="container">
             <div class="cta-banner reveal">
@@ -273,9 +255,7 @@
 
 {% block scripts %}
 <script>
-// "Partir de ma position GPS actuelle" : détecte le lieu enregistré le plus
-// proche de l'utilisateur et le présélectionne comme point de départ, avant
-// qu'il ne choisisse sa destination.
+// Détecte le lieu enregistré le plus proche et le présélectionne comme départ.
 (function () {
     const lieuxGPS = [];
     document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {
@@ -286,9 +266,7 @@
         });
     });
 
-    // distanceKm(lat1, lng1, lat2, lng2) : utilitaire global défini dans
-    // base.html (partagé avec /trajets, /minibus, /trajets/resultat).
-
+    // distanceKm() vient de base.html.
     const btnMaPosition = document.getElementById('btnMaPosition');
     if (!btnMaPosition) return;
 
@@ -331,9 +309,7 @@
     });
 })();
 
-// Mini-carte Leaflet du hero : pas une maquette, un vrai apercu du reseau
-// de lieux references, dans le meme esprit que les cartes de
-// /trajets/resultat et /minibus (memes tuiles CartoDB Voyager que /minibus).
+// Mini-carte Leaflet du hero : un vrai aperçu du réseau, pas une maquette.
 document.addEventListener("DOMContentLoaded", function () {
     const carteEl = document.getElementById('accueilCarte');
     if (!carteEl || typeof L === 'undefined') return;

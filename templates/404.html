@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Page introuvable — EasyMove Dakar{% endblock %}
+{% block meta_description %}Cette page n'existe pas ou plus sur EasyMove Dakar.{% endblock %}
+
+{% block content %}
+
+<div class="container" style="padding: 80px 0; max-width: 1050px;">
+    <div class="bento-card" style="text-align: center; padding: 60px 20px;">
+        <div style="width: 80px; height: 80px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+            <i class="fa-solid fa-map-location-dot" style="font-size: 2rem; color: var(--text-muted);"></i>
+        </div>
+        <h1 style="font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Page introuvable</h1>
+        <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto 24px auto; font-size: 0.95rem; line-height: 1.6;">
+            Cette page n'existe pas ou a été déplacée. Vérifiez l'adresse, ou repartez de l'accueil pour planifier votre trajet.
+        </p>
+        <a href="{{ url_for('accueil') }}" class="btn-primary" style="text-decoration: none;">
+            Retour à l'accueil <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

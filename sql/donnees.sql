@@ -743,8 +743,6 @@ INSERT INTO phrases_wolof (wolof, francais, phonetique, situation) VALUES
 
 -- ---------------------------------------------------------------------
 -- ENRICHISSEMENT : nouvelles lignes minibus (Tata) + arrêts
--- Utilise des sous-requêtes par nom pour rester valide quelle que soit
--- la numérotation exacte des lignes/lieux déjà insérés ci-dessus.
 -- ---------------------------------------------------------------------
 INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) VALUES
 ('Ligne 23', 'Petersen - Yoff Layène', (SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'), 1, 'Minibus Tata reliant Petersen à Yoff Layène via Sacré-Cœur, Ouest Foire, Yoff'),
@@ -826,10 +824,7 @@ INSERT INTO conseils (categorie, titre, contenu, periode) VALUES
 ('Tata (bus)', 'Anticiper sa descente', 'Repérez les arrêts à l''avance pour ne pas dépasser votre destination.', 'Toute l''année');
 
 -- ---------------------------------------------------------------------
--- ENRICHISSEMENT : réseau minibus curé SONATEL (lieu + lignes SN-1 à SN-8)
--- Pôle SONATEL (siège social, VDN) vers les quartiers où les étudiants
--- sont les plus concentrés, plus deux destinations complémentaires
--- (Ouest Foire, Ngor).
+-- ENRICHISSEMENT 
 -- ---------------------------------------------------------------------
 INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES
 ('SONATEL', 'entreprise', 14.7259, -17.4793, 'Siège social SONATEL / Orange, sur la Voie de Dégagement Nord (VDN) — repère central pour les minibus vers les quartiers étudiants (UCAD, Sacré-Cœur, Liberté 5/6...)');

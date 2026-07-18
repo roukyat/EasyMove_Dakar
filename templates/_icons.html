@@ -30,10 +30,7 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# Bannière photo pour les cartes de la page /transports et /prix : bandeau
-   pleine largeur en haut de la carte, ratio fixe, dégradé de lisibilité —
-   juste la photo du véhicule, sans icône incrustée par-dessus. Voir la
-   classe .tc-media dans style.css. #}
+{# Bannière photo en haut des cartes /transports et /prix (voir .tc-media dans style.css). #}
 {% macro vignette_transport(t) -%}
 <div class="tc-media">
     {% if t.image_url %}

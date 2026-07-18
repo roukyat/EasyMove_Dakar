@@ -55,7 +55,7 @@
 
                     <div style="display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--text-muted);">
                         <span>
-                            <i class="fa-regular fa-calendar" style="margin-right: 4px;"></i> {{ item.date_recherche }}
+                            <i class="fa-regular fa-calendar" style="margin-right: 4px;"></i> {{ item.date_affichee }}
                         </span>
                         {% if item.lat_depart and item.lat_arrivee %}
                         <span style="color: var(--border-color);">|</span>
@@ -85,9 +85,7 @@
 
 {% block scripts %}
 <script>
-// "Vider l'historique" : confirmation native avant suppression définitive,
-// puis rechargement de la page pour afficher l'état vide côté serveur
-// (même logique que le reste du site, pas de gestion d'état JS dupliquée).
+// Vide l'historique après confirmation, puis recharge la page.
 (function () {
     const btn = document.getElementById('btnViderHistorique');
     if (!btn) return;

@@ -162,10 +162,7 @@
             }, 3200);
         }
 
-        // Distance approximative (formule de Haversine) entre deux points GPS,
-        // en kilomètres. Utilitaire global partagé : évite de dupliquer la
-        // même formule sur chaque page qui calcule une distance (accueil,
-        // trajets, résultat de trajet, minibus).
+        // Distance à vol d'oiseau entre deux points GPS (formule de Haversine).
         function distanceKm(lat1, lng1, lat2, lng2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -174,8 +171,7 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // Aperçu agrandi d'un moyen de transport au clic (mobile / tactile).
-        // Sur ordinateur, le survol (CSS :hover) suffit déjà.
+        // Zoom au clic sur les icônes de transport (le survol suffit sur ordinateur).
         document.addEventListener('click', function (e) {
             const trigger = e.target.closest('.tc-icon-img');
             document.querySelectorAll('.tc-icon-img.zoom-active').forEach(el => {
@@ -186,9 +182,7 @@
             }
         });
 
-        // Menu mobile (hamburger) : la navbar masquait tous les liens sauf le
-        // CTA sous 860px sans aucun remplacement, rendant la navigation
-        // inaccessible sur téléphone. On bascule ici un panneau déroulant.
+        // Menu mobile (hamburger) : sous 860px, les liens passent dans un panneau déroulant.
         (function () {
             const toggle = document.getElementById('navbarToggle');
             const navLinks = document.getElementById('navLinks');
@@ -222,10 +216,7 @@
             });
         })();
 
-        // Apparition progressive au scroll (IntersectionObserver, sans dépendance)
-        // Utilitaire global : toute page peut ajouter la classe ".reveal" à un
-        // élément pour bénéficier de cette animation d'entrée, façon apps pro
-        // (Uber, etc.) plutôt qu'un simple affichage brut.
+        // Apparition progressive au scroll pour tout élément avec la classe ".reveal".
         document.addEventListener("DOMContentLoaded", function () {
             var reveals = document.querySelectorAll(".reveal");
             if ("IntersectionObserver" in window) {
@@ -236,11 +227,8 @@
                             observer.unobserve(entry.target);
                         }
                     });
-                    // threshold bas (0) : un conteneur très grand (ex. une longue
-                    // liste de cartes) ne dépasse parfois jamais un seuil de type
-                    // 0.15 (part visible / hauteur totale), ce qui le laissait
-                    // bloqué à opacity:0 en permanence. Avec 0, l'apparition se
-                    // déclenche dès qu'un seul pixel de l'élément entre à l'écran.
+                    // threshold à 0 : un très grand conteneur n'atteint parfois jamais
+                    // un seuil plus haut, et restait bloqué à opacity:0.
                 }, { threshold: 0, rootMargin: "0px 0px -40px 0px" });
                 reveals.forEach(function (el) { observer.observe(el); });
             } else {
@@ -267,8 +255,7 @@
                     requestAnimationFrame(step);
                 });
             }
-            // Compteurs animés au scroll, utilisés sur ".stats-band" (page à
-            // propos — seul endroit du site où les statistiques sont affichées).
+            // Déclenche les compteurs quand la bande de stats entre à l'écran.
             var statsBand = document.querySelector(".stats-band");
             if (statsBand && "IntersectionObserver" in window) {
                 var statsObserver = new IntersectionObserver(function (entries) {

@@ -99,9 +99,7 @@
 
 {% block scripts %}
 <script>
-// ---------------------------------------------------------------------
-// Suppression d'un favori
-// ---------------------------------------------------------------------
+// Suppression d'un favori.
 document.querySelectorAll('.favori-remove').forEach(button => {
     button.addEventListener('click', function(e) {
         e.preventDefault();
@@ -119,10 +117,7 @@ document.querySelectorAll('.favori-remove').forEach(button => {
     });
 });
 
-// ---------------------------------------------------------------------
-// "Partir de ma position GPS actuelle" : détecte le lieu enregistré
-// le plus proche de l'utilisateur et le présélectionne comme départ.
-// ---------------------------------------------------------------------
+// Détecte le lieu enregistré le plus proche et le présélectionne comme départ.
 const lieuxGPS = [];
 document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {
     lieuxGPS.push({
@@ -132,9 +127,7 @@ document.querySelectorAll("#donnees-lieux-data .js-lieu-item").forEach(el => {
     });
 });
 
-// distanceKm(lat1, lng1, lat2, lng2) : utilitaire global défini dans
-// base.html (partagé avec l'accueil, /minibus, /trajets/resultat).
-
+// distanceKm() vient de base.html.
 const btnMaPosition = document.getElementById('btnMaPosition');
 btnMaPosition.addEventListener('click', function () {
     if (!navigator.geolocation) {

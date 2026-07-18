@@ -328,11 +328,7 @@
 </style>
 
 <script>
-// ---------------------------------------------------------------------
-// Enregistrer / retirer ce trajet des favoris depuis la page de résultat
-// (remplace l'ancienne liste de trajets prédéfinis : on ne sauvegarde plus
-// que ce que l'utilisateur a réellement recherché).
-// ---------------------------------------------------------------------
+// Ajout / retrait du trajet en favori depuis la page de résultat.
 (function () {
     const btn = document.getElementById('btnFavoriResultat');
     if (!btn) return;
@@ -474,12 +470,7 @@
         );
     }
 
-    // 4. "Voir l'arrêt d'embarquement le plus proche de moi" : au clic sur
-    // une option bus / minibus / car rapide, géolocalise l'utilisateur,
-    // affiche la distance jusqu'à l'arrêt de montée de cette ligne et
-    // trace l'itinéraire piéton correspondant sur la carte ci-dessus.
-    // Alias local : distanceKm(...) est l'utilitaire global défini dans
-    // base.html, réutilisé ici plutôt que dupliqué.
+    // 4. "Arrêt le plus proche de moi" : géolocalise et trace l'itinéraire piéton.
     function distanceKmVersArret(lat1, lng1, lat2, lng2) {
         return distanceKm(lat1, lng1, lat2, lng2);
     }

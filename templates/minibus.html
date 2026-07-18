@@ -95,14 +95,8 @@
 <script>
 document.addEventListener("DOMContentLoaded", function() {
 
-    // ======================================================================
-    // Éléments partagés + onglets + recherche : ne dépendent pas de Leaflet.
-    // Un incident sur la carte (CDN bloqué, plugin en échec, etc.) ne doit
-    // jamais empêcher ces éléments de base de fonctionner — c'est ce qui
-    // s'est produit une première fois : une erreur survenue tôt dans
-    // l'initialisation de la carte interrompait tout le reste du script, y
-    // compris le bouton "Me géolocaliser" défini plus bas.
-    // ======================================================================
+    // Éléments partagés + onglets + recherche : ne dépendent pas de Leaflet,
+    // pour rester utilisables même si la carte plante.
     const tabLignes = document.getElementById("tabLignes");
     const tabProches = document.getElementById("tabProches");
     const panelLignes = document.getElementById("panelLignes");
@@ -144,9 +138,7 @@ document.addEventListener("DOMContentLoaded", function() {
         return total;
     }
 
-    // La recherche ne filtre que l'onglet "Toutes les lignes" (seul à
-    // porter data-search-pool) ; si on tape pendant qu'un autre onglet est
-    // actif, on y bascule automatiquement pour que le filtrage soit visible.
+    // La recherche filtre l'onglet "Toutes les lignes" et y bascule si besoin.
     const lignesRowsRecherche = document.querySelectorAll("#panelLignes .sn-route-card");
     searchInput.addEventListener("input", function() {
         const token = this.value.toLowerCase().trim();
@@ -159,12 +151,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // ======================================================================
-    // Géolocalisation & itinéraires à pied. `map`/`routingGroup`/`userIcon`
-    // sont renseignés plus bas si la carte s'initialise correctement ; ces
-    // fonctions restent utilisables (avec repli Google Maps) même si elle
-    // échoue.
-    // ======================================================================
+    // Géolocalisation & itinéraires à pied, avec repli Google Maps si la carte échoue.
     let map = null;
     let routingGroup = null;
     let walkingRoutingControl = null;
@@ -202,10 +189,8 @@ document.addEventListener("DOMContentLoaded", function() {
         window.open(lien, '_blank', 'noopener');
     }
 
-    // Itinéraire à pied vers un arrêt donné. Si la carte ou le plugin de
-    // routage n'est pas disponible, ou si le service de routage public
-    // (OSRM) ne répond pas sous 6 secondes, on bascule sur un repli plutôt
-    // que de laisser l'utilisateur sans réponse.
+    // Itinéraire à pied vers un arrêt. Bascule sur un repli si la carte est
+    // indisponible ou si OSRM ne répond pas sous 6 secondes.
     function tracerItineraireAPied(destLat, destLng, destNom) {
         obtenirPositionUtilisateur(function(pos) {
             if (!map || !routingGroup || typeof L.Routing === 'undefined') {
@@ -264,9 +249,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // Repli : trajet à vol d'oiseau tracé sur la carte + lien Google Maps
-    // pour un itinéraire à pied précis, utilisé quand le service de routage
-    // ne répond pas.
+    // Repli : ligne droite sur la carte + lien Google Maps pour le détail à pied.
     function tracerRepliLigneDroite(pos, destLat, destLng, destNom) {
         if (walkingRoutingControl) {
             map.removeControl(walkingRoutingControl);
@@ -291,10 +274,7 @@ document.addEventListener("DOMContentLoaded", function() {
         showToast(`Itinéraire détaillé indisponible — ${distanceVol} km à vol d'oiseau jusqu'à ${destNom}.`, "info");
     }
 
-    // ======================================================================
-    // Bouton "Me géolocaliser" (liste des arrêts proches) : indépendant de
-    // la carte, doit rester utilisable même si Leaflet a échoué.
-    // ======================================================================
+    // Bouton "Me géolocaliser", indépendant de la carte.
     btnGeoloc.addEventListener("click", function() {
         if (!navigator.geolocation) {
             showToast("Votre appareil ne supporte pas le GPS.", "error");
@@ -351,11 +331,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // ======================================================================
-    // Cartes d'itinéraires (onglet "Toutes les lignes") : les infos texte
-    // (départ/arrivée/distance/arrêts) s'affichent toujours ; le tracé sur
-    // la carte ne s'exécute que si celle-ci est disponible.
-    // ======================================================================
+    // Cartes d'itinéraires : les infos texte s'affichent toujours, le tracé
+    // sur la carte seulement si elle est disponible.
     const lignesRows = document.querySelectorAll(".sn-route-card");
     lignesRows.forEach(row => {
         rendreActivableAuClavier(row);
@@ -412,9 +389,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         lineCap: 'round'
                     }).addTo(routingGroup);
 
-                    // Départ (vert) et arrivée (indigo) marqués distinctement
-                    // du reste du tracé, pour lire le sens du trajet en un
-                    // coup d'œil.
+                    // Départ (vert) et arrivée (indigo) pour lire le sens du trajet.
                     L.circleMarker(polylinePoints[0], {
                         radius: 7, color: '#fff', weight: 2, fillColor: '#10b981', fillOpacity: 1
                     }).addTo(routingGroup);
@@ -427,11 +402,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // ======================================================================
-    // Carte Leaflet : isolée dans un try/catch. Un plugin externe qui ne
-    // charge pas (CDN bloqué, ad-blocker...) ne doit plus jamais faire
-    // planter tout ce qui précède (onglets, recherche, géolocalisation).
-    // ======================================================================
+    // Carte Leaflet isolée dans un try/catch : un plugin externe qui échoue
+    // (CDN bloqué...) ne doit pas planter le reste de la page.
     try {
         const arretsData = [];
         document.querySelectorAll(".js-arret-item").forEach(el => {
@@ -449,9 +421,7 @@ document.addEventListener("DOMContentLoaded", function() {
             scrollWheelZoom: true
         }).setView([14.7259, -17.4793], 12);
 
-        // Fond de carte clair et épuré (CartoDB Positron) : les couleurs de
-        // marque (dégradé indigo/corail) ressortent bien mieux sur un fond
-        // très sobre que sur un fond déjà chargé en couleurs.
+        // Fond de carte sobre (CartoDB Positron) pour faire ressortir les couleurs de marque.
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap &copy; CARTO',
             maxZoom: 19
@@ -462,12 +432,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
         routingGroup = L.layerGroup().addTo(map);
 
-        // Regroupement des arrêts en grappes (le réseau compte plusieurs
-        // centaines d'arrêts) : évite une carte illisible et invite à zoomer
-        // pour explorer un secteur précis. Si le plugin de clustering n'a
-        // pas pu se charger, on retombe sur un simple groupe de calques
-        // plutôt que de planter (voir historique : c'était la cause la plus
-        // probable de la panne totale de "Autour de moi").
+        // Regroupe les arrêts en grappes (des centaines au total), avec repli
+        // simple si le plugin de clustering ne charge pas.
         const markersGroup = (typeof L.markerClusterGroup === 'function')
             ? L.markerClusterGroup({
                 maxClusterRadius: 42,
@@ -522,9 +488,7 @@ document.addEventListener("DOMContentLoaded", function() {
             tracerPointsReseau(arretsData);
         }
 
-        // Bouton "Itinéraire à pied" à l'intérieur d'une popup : le contenu
-        // est recréé par Leaflet à chaque ouverture, donc on (ré)attache
-        // l'écouteur à chaque popupopen plutôt qu'une seule fois.
+        // Le contenu de la popup est recréé à chaque ouverture, donc on réattache l'écouteur ici.
         map.on('popupopen', function(e) {
             const btn = e.popup._contentNode && e.popup._contentNode.querySelector('.tata-popup-walk-btn');
             if (!btn) return;
@@ -538,9 +502,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         });
 
-        // Contrôle "Me géolocaliser" directement sur la carte (en plus du
-        // bouton de l'onglet "Autour de moi") : permet de demander sa
-        // position sans quitter la vue "Toutes les lignes".
+        // Contrôle "Me géolocaliser" directement sur la carte.
         const LocateControl = L.Control.extend({
             options: { position: 'bottomright' },
             onAdd: function() {

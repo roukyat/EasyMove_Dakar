@@ -5,14 +5,16 @@ Application Flask (Python) d'EasyMoveDakar.
 Fait le pont entre la base SQLite (database.py) et les templates Jinja2.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from collections import OrderedDict
+from datetime import datetime
 import math
+import os
 import database
 
 app = Flask(__name__)
 
-# Initialise la base de données au démarrage 
+# Initialise la base de données au démarrage.
 database.init_db()
 
 
@@ -51,11 +53,7 @@ def calculer_haversine(lat1, lon1, lat2, lon2):
 
 
 def get_niveau_prix(cout_min, cout_max):
-    """Classe un moyen de transport en Économique / Moyen / Cher à partir de
-    son prix moyen estimé (plutôt que du seul prix plancher, qui écraserait
-    des transports au tarif très variable comme le Taxi). Seuils calibrés
-    sur les tarifs réels du site : Tata/BRT/DDD/Car rapide/Clando restent
-    "Économique", le TER est "Moyen", Taxi et Jakarta sont "Cher"."""
+    """Classe un transport en Économique / Moyen / Cher selon son prix moyen."""
     moyenne = (cout_min + cout_max) / 2
     if moyenne <= 500:
         return {"label": "Économique", "classe": "badge-vert"}
@@ -64,44 +62,51 @@ def get_niveau_prix(cout_min, cout_max):
     return {"label": "Cher", "classe": "badge-rouge"}
 
 
-# ---------------------------------------------------------------------
-# ROUTES 
-# ---------------------------------------------------------------------
-
-# Les 3 moyens de transport mis en avant sur l'accueil : les plus utilisés
-# au quotidien par les Dakarois (flexibilité porte-à-porte du taxi et du
-# clando, densité du réseau Tata), plutôt qu'une liste exhaustive qui
-# n'aiderait pas à se décider rapidement.
-TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata"]
-
-# Ordre d'affichage des catégories du lexique Wolof (page /wolof) : suit le
-# déroulé naturel d'un trajet (saluer, monter dans un Tata, ...) plutôt que
-# l'ordre alphabétique renvoyé par la requête SQL. Icônes Font Awesome
-# associées à chaque catégorie : voir ICONES_CATEGORIES_WOLOF ci-dessous.
-ORDRE_CATEGORIES_WOLOF = [
-    "Saluer",
-    "Monter dans un Tata",
-    "Demander un arrêt",
-    "Demander son chemin",
-    "Payer et connaître le tarif",
-    "Poser une question",
-    "Remercier et prendre congé",
-    "Situations d'urgence",
+MOIS_ABREGES_FR = [
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc.",
 ]
 
-# Icône Font Awesome représentant chaque catégorie du lexique Wolof, dans le
-# même esprit que les icônes déjà utilisées ailleurs sur le site (ex. page
-# /conseils). Repli sur "fa-comments" si une catégorie imprévue apparaît.
+
+def formater_date_fr(date_sqlite):
+    """Transforme une date SQLite en texte lisible, genre '16 juil. 2026, 21:39'."""
+    try:
+        dt = datetime.strptime(date_sqlite, "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return date_sqlite
+    return f"{dt.day} {MOIS_ABREGES_FR[dt.month - 1]} {dt.year}, {dt:%H:%M}"
+
+
+# Routes principales
+
+# Les 3 transports mis en avant sur la page d'accueil.
+TRANSPORTS_POPULAIRES = ["Taxi", "Clando", "Minibus Tata"]
+
+# Ordre d'affichage des catégories du lexique wolof (page /wolof).
+ORDRE_CATEGORIES_WOLOF = [
+    "Salutations",
+    "Transport",
+    "Paiement",
+    "Orientation",
+    "Urgence",
+    "Politesse",
+]
+
+# Icône associée à chaque catégorie du lexique wolof.
 ICONES_CATEGORIES_WOLOF = {
-    "Saluer": "fa-comments",
-    "Monter dans un Tata": "fa-bus",
-    "Demander un arrêt": "fa-location-dot",
-    "Demander son chemin": "fa-map",
-    "Payer et connaître le tarif": "fa-coins",
-    "Poser une question": "fa-circle-question",
-    "Remercier et prendre congé": "fa-handshake",
-    "Situations d'urgence": "fa-triangle-exclamation",
+    "Salutations": "fa-comments",
+    "Transport": "fa-bus",
+    "Paiement": "fa-coins",
+    "Orientation": "fa-map",
+    "Urgence": "fa-triangle-exclamation",
+    "Politesse": "fa-handshake",
 }
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    """Sert robots.txt à la racine du site."""
+    return send_from_directory(app.static_folder, "robots.txt")
 
 
 @app.route("/")
@@ -114,7 +119,6 @@ def accueil():
     lieux = database.get_tous_les_lieux()
     historique = database.get_historique_recent(limite=3)
 
-    # Prise en compte du nom réel de votre index ('index.html' ou 'accueil.html')
     return render_template(
         "index.html",
         top_transports=top_transports,
@@ -152,9 +156,7 @@ def resultat_trajet():
 
     resultat = None
     if id_depart and id_arrivee:
-        # Le moteur d'itinéraire (itineraire.py) calcule désormais la route à la
-        # volée pour n'importe quelle paire de lieux : bus/Tata/BRT/TER avec
-        # correspondances plus Taxi/Jakarta toujours disponibles en secours.
+        # Calcule le trajet à la volée (bus, Tata, taxi...).
         data = database.rechercher_trajet(id_depart, id_arrivee)
         if data and data["trouve"]:
             t = data["trajet"]
@@ -182,8 +184,7 @@ def resultat_trajet():
 
 @app.route("/minibus")
 def minibus():
-    """Page de référence du réseau Tata : l'ensemble des lignes
-    disponibles à Dakar, quartier par quartier."""
+    """Page du réseau Tata, toutes les lignes de Dakar."""
     lignes = database.get_toutes_les_lignes_tata()
 
     lignes_avec_arrets = []
@@ -193,7 +194,7 @@ def minibus():
         arrets = database.get_arrets_par_ligne(ligne["id_ligne"])
         arrets_dicts = [dict(a) for a in arrets]
 
-        # Envoi des arrêts identifiés à la collection globale pour traitement cartographique
+        # Ajoute les arrêts à la liste globale pour la carte.
         for a in arrets_dicts:
             a["numero_ligne"] = ligne["numero_ligne"]
             tous_les_arrets.append(a)
@@ -211,17 +212,19 @@ def minibus():
 @app.route("/historique")
 def historique():
     """Page dédiée affichant l'historique complet des requêtes de l'utilisateur."""
+    entrees = [dict(h) for h in database.get_historique_recent(limite=50)]
+    for h in entrees:
+        h["date_affichee"] = formater_date_fr(h["date_recherche"])
     return render_template(
         "historique.html",
-        historique=database.get_historique_recent(limite=50),
+        historique=entrees,
         active_page="historique"
     )
 
 
 @app.route("/prix")
 def prix():
-    # Conversion en dict pour pouvoir greffer le badge de niveau de prix
-    # (Économique/Moyen/Cher) sans modifier le schéma de la base.
+    # Ajoute le badge de prix (Économique/Moyen/Cher) sans toucher à la base.
     transports = [dict(t) for t in database.get_tous_les_transports()]
     for t in transports:
         t["niveau_prix"] = get_niveau_prix(t["cout_min"], t["cout_max"])
@@ -254,7 +257,7 @@ def wolof():
     phrases_par_situation = OrderedDict(
         (cat, groupes[cat]) for cat in ORDRE_CATEGORIES_WOLOF if cat in groupes
     )
-    # Filet de sécurité : une catégorie imprévue reste visible (ajoutée en fin de liste).
+    # Sécurité : une catégorie imprévue reste visible, ajoutée à la fin.
     for cat, liste in groupes.items():
         phrases_par_situation.setdefault(cat, liste)
 
@@ -276,14 +279,11 @@ def apropos():
     )
 
 
-# ---------------------------------------------------------------------
-# ROUTES - API (JSON)
-# ---------------------------------------------------------------------
+# Routes API (JSON)
 
 @app.route("/api/arrets_proches")
 def api_arrets_proches():
-    """Retourne les 5 arrêts les plus proches parmi l'ensemble du réseau
-    Tata, selon une latitude et longitude données."""
+    """Retourne les 5 arrêts les plus proches d'une position GPS."""
     try:
         user_lat = request.args.get("lat", type=float)
         user_lng = request.args.get("lng", type=float)
@@ -309,7 +309,7 @@ def api_arrets_proches():
                 "distance": round(dist, 2)
             })
 
-    # Trier par distance  et renvoyer les 5 premiers
+    # Trie par distance et garde les 5 premiers.
     tous_arrets.sort(key=lambda x: x["distance"])
     return jsonify(tous_arrets[:5])
 
@@ -381,5 +381,12 @@ def api_vider_historique():
     return jsonify({"statut": "success", "message": "Historique vidé."})
 
 
+@app.errorhandler(404)
+def page_introuvable(erreur):
+    """Page 404 aux couleurs du site."""
+    return render_template("404.html", active_page=None), 404
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Debug désactivé par défaut, à activer avec FLASK_DEBUG=1 si besoin.
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")

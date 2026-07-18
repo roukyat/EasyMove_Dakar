@@ -27,20 +27,17 @@ def get_connection():
 
 
 def verifier_et_mettre_a_jour_schema():
-    """
-    Vérifie à la volée si les colonnes nécessaires (image_url, avantages, inconvenients, est_minibus)
-    et la table historique existent pour éviter les plantages 'OperationalError'.
-    """
+    """Vérifie que les colonnes et tables nécessaires existent bien, et les crée sinon."""
     if not os.path.exists(DB_PATH):
         return
 
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # 1. Vérification/Ajout des colonnes sur moyens_transport
+
+    # Colonnes de moyens_transport
     cursor.execute("PRAGMA table_info(moyens_transport)")
     colonnes_transport = [row["name"] for row in cursor.fetchall()]
-    
+
     if "image_url" not in colonnes_transport:
         cursor.execute("ALTER TABLE moyens_transport ADD COLUMN image_url TEXT DEFAULT ''")
     if "avantages" not in colonnes_transport:
@@ -50,16 +47,14 @@ def verifier_et_mettre_a_jour_schema():
     if "capacite_max" in colonnes_transport:
         _supprimer_colonne_capacite_max(cursor)
 
-
     cursor.execute("PRAGMA table_info(lignes_bus)")
     colonnes_lignes = [row["name"] for row in cursor.fetchall()]
-    
+
     if "est_minibus" not in colonnes_lignes:
         cursor.execute("ALTER TABLE lignes_bus ADD COLUMN est_minibus INTEGER DEFAULT 0")
-        # On met à 1 par défaut les lignes existantes si ce sont des Tata pour éviter qu'elles disparaissent
+        # Met à 1 par défaut les lignes Tata existantes pour ne pas les faire disparaître.
         cursor.execute("UPDATE lignes_bus SET est_minibus = 1 WHERE numero_ligne LIKE '%Tata%' OR nom_ligne LIKE '%Tata%'")
-        
-    
+
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='historique_recherches'")
     if not cursor.fetchone():
         cursor.execute("""
@@ -77,10 +72,7 @@ def verifier_et_mettre_a_jour_schema():
             )
         """)
 
-    # id_lieu_depart/id_lieu_arrivee ajoutés après le lancement initial, pour
-    # que "Revoir l'itinéraire" (page /historique) puisse rouvrir directement
-    # le bon résultat au lieu de ramener sur une recherche vide : les entrées
-    # d'historique plus anciennes gardent ces colonnes à NULL.
+    # Pour que "Revoir l'itinéraire" (page /historique) rouvre le bon résultat.
     cursor.execute("PRAGMA table_info(historique_recherches)")
     colonnes_historique = [row["name"] for row in cursor.fetchall()]
     if "id_lieu_depart" not in colonnes_historique:
@@ -88,187 +80,84 @@ def verifier_et_mettre_a_jour_schema():
     if "id_lieu_arrivee" not in colonnes_historique:
         cursor.execute("ALTER TABLE historique_recherches ADD COLUMN id_lieu_arrivee INTEGER")
 
-    # `contexte` ajoutée pour la refonte du lexique Wolof (page /wolof) :
-    # une courte indication d'usage par phrase ("À dire au chauffeur"...),
-    # affichée en petit sous la traduction sans changer la mise en page du
-    # tableau. NULL pour les phrases qui n'en ont pas besoin.
+    # Colonne "contexte" : petite indication d'usage sous la traduction.
     cursor.execute("PRAGMA table_info(phrases_wolof)")
     colonnes_phrases = [row["name"] for row in cursor.fetchall()]
     if "contexte" not in colonnes_phrases:
         cursor.execute("ALTER TABLE phrases_wolof ADD COLUMN contexte TEXT")
 
-    # Le Taxi et le Clando étaient historiquement fusionnés dans une seule
-    # ligne 'Taxi clando' : on les sépare ici en deux moyens de transport
-    # distincts (taxi officiel réglementé vs taxi clandestin/collectif
-    # informel), de façon idempotente pour ne jamais dupliquer sur une base
-    # déjà migrée.
+    # Sépare l'ancienne ligne "Taxi clando" en Taxi et Clando.
     _migrer_taxi_et_clando(cursor)
 
-    # Bug hérité de cette même scission Taxi/Clando : l'insertion de la
-    # nouvelle ligne 'Clando' juste après 'Taxi' a décalé d'un cran les
-    # id_transport de tous les moyens de transport suivants (Dakar Dem
-    # Dikk, Car rapide, Minibus Tata, Jakarta, TER, BRT), mais les lignes
-    # de bus de la donnée d'origine (donnees.sql) référençaient encore les
-    # anciens id_transport codés en dur — donc mal rattachées (les lignes
-    # Tata comptées comme Car rapide, etc.). Corrige les bases déjà créées
-    # avant ce correctif ; donnees.sql a aussi été corrigé pour les
-    # nouvelles bases. Idempotent (ne touche que ce qui est encore mal
-    # rattaché).
+    # Corrige les id_transport mal rattachés après la scission Taxi/Clando.
     _corriger_id_transport_errones(cursor)
 
-    # Certaines bases existantes ont été créées avant l'ajout des tables
-    # `conseils` / `infos_utiles` à donnees.sql : comme init_db() ne rejoue
-    # les INSERT que sur une base neuve, ces tables restaient vides (page
-    # /conseils sans numéros d'urgence). On les réamorce ici si nécessaire.
+    # Réamorce conseils/infos_utiles sur les bases créées avant leur ajout.
     _reseeder_donnees_manquantes(cursor)
 
-    # Conseils "Cars rapides" et "Tata (bus)" ajoutés après le lancement
-    # initial : idempotent (vérification par titre), donc sûr à rejouer sur
-    # une base qui a déjà ces conseils.
+    # Conseils "Cars rapides" et "Tata (bus)" ajoutés après coup.
     _ajouter_conseils_cars_rapides_et_tata(cursor)
 
-    # Nouveau moyen de transport "Ndiaga Ndiaye" (page /transports) + ses
-    # conseils pratiques dédiés (page /conseils). Idempotent (vérification
-    # par nom / par titre).
+    # Transport "Ndiaga Ndiaye" + ses conseils dédiés.
     _ajouter_transport_ndiaga_ndiaye(cursor)
     _ajouter_conseils_ndiaga_ndiaye(cursor)
 
-    # Relecture éditoriale de quelques conseils trop longs pour une carte
-    # compacte : idempotent (UPDATE conditionné au contenu actuel), sûr à
-    # rejouer sur une base qui a déjà le texte raccourci.
+    # Raccourcit quelques conseils trop longs pour une carte compacte.
     _raccourcir_conseils_verbeux(cursor)
 
-    # Enrichissement du réseau (quartiers, lignes minibus, lexique wolof) :
-    # idempotent, vérifie l'existence par nom avant chaque insertion pour
-    # ne jamais dupliquer sur les bases qui ont déjà ces données.
+    # Enrichit quartiers, lignes minibus et lexique wolof.
     _enrichir_reseau_et_lexique(cursor)
 
-    # Réseau minibus curé autour du pôle SONATEL (VDN) : lieu + lignes vers
-    # les quartiers où les étudiants sont les plus concentrés (UCAD,
-    # Ouakam, Liberté 5/6, Sacré-Cœur, Cité Keur Gorgui) plus deux
-    # destinations complémentaires (Ouest Foire, Ngor). Idempotent.
+    # Réseau minibus autour du pôle SONATEL, côté étudiant.
     _ajouter_reseau_sonatel(cursor)
 
-    # Photos de transport ajoutées après le lancement initial (DDD, TER) :
-    # les bases déjà créées ont encore image_url = '' pour ces lignes, donc
-    # on complète uniquement si le champ est vide, sans jamais écraser une
-    # valeur déjà personnalisée.
+    # Complète les photos manquantes (DDD, TER) sans écraser l'existant.
     _completer_images_transport_manquantes(cursor)
 
-    # Nettoyage éditorial de la page /conseils (retrait de conseils jugés
-    # redondants/anecdotiques) + correction du numéro national du SAMU
-    # (1515, et non 15 qui est le numéro français) : idempotent, sûr à
-    # rejouer sur une base déjà à jour.
+    # Retire les conseils redondants et corrige le numéro du SAMU (1515).
     _purger_conseils_obsoletes(cursor)
 
-    # Réactualisation des tarifs (2026) vers des fourchettes plus réalistes :
-    # idempotent (UPDATE conditionné au contenu actuel), sûr à rejouer sur
-    # une base déjà à jour.
+    # Tarifs 2026 plus réalistes.
     _mettre_a_jour_tarifs_2026(cursor)
 
-    # Le Tata ne circule pas de façon fiable "tard le soir" (service qui se
-    # raréfie fortement en fin de journée) : la disponibilité affichée est
-    # recentrée sur le matin, plutôt que de laisser croire à un service
-    # tardif équivalent au matin. Idempotent, même logique que les tarifs.
+    # Le Tata circule surtout le matin, pas vraiment tard le soir.
     _corriger_disponibilite_tata(cursor)
 
-    # Alignement des avantages/inconvénients (3 + 3, par axe prix / couverture
-    # / confort) pour les 9 moyens de transport, y compris Ndiaga Ndiaye :
-    # idempotent (UPDATE conditionné au contenu actuel), sûr à rejouer sur
-    # une base déjà à jour.
+    # Harmonise les avantages/inconvénients des 9 moyens de transport.
     _aligner_avantages_inconvenients_transports(cursor)
 
-    # Descriptions plus naturelles pour Taxi/Clando/Tata (accueil + page
-    # /transports) : idempotent, même logique que les tarifs ci-dessus.
+    # Descriptions plus naturelles pour Taxi/Clando/Tata.
     _naturaliser_descriptions_transport(cursor)
 
-    # Retrait des lignes fictives 'DIT-1..5' créées lors d'une itération
-    # précédente (voir _retirer_lignes_dit_fictives). Idempotent.
+    # Retire les anciennes lignes fictives "DIT-1..5".
     _retirer_lignes_dit_fictives(cursor)
 
-    # Troisième vague d'enrichissement du réseau : nouveaux lieux et
-    # nouvelles lignes Tata/Car rapide couvrant l'ensemble de Dakar (voir
-    # _enrichir_reseau_vague_3). Idempotent.
+    # Vagues 3 et 4 d'enrichissement du réseau (nouveaux lieux et lignes).
     _enrichir_reseau_vague_3(cursor)
-
-    # Quatrième vague d'enrichissement, centrée spécifiquement sur le
-    # réseau Tata (28 lignes supplémentaires + nouveaux lieux). Idempotent.
     _enrichir_reseau_vague_4(cursor)
 
-    # Refonte du lexique Wolof (page /wolof) : les phrases existantes sont
-    # reclassées dans des catégories pensées pour un déplacement réel
-    # (saluer, monter dans un Tata, demander un arrêt...) plutôt que des
-    # intitulés grammaticaux, et le lexique est enrichi de nouvelles
-    # expressions utiles + d'un contexte d'usage. Idempotent (UPDATE par
-    # texte wolof exact + INSERT conditionné à l'absence de la phrase).
-    _reorganiser_lexique_wolof_transport(cursor)
-
-    # Ajout de l'Université Amadou Mahtar Mbow (UAM), pôle universitaire de
-    # Diamniadio distinct de l'UCAD, pour permettre des trajets réels comme
-    # "Colobane -> Université Amadou Mahtar Mbow" (page /prix). Idempotent
-    # (vérification par nom), même logique que les autres enrichissements
-    # de lieux ci-dessus.
+    # Ajoute l'Université Amadou Mahtar Mbow (UAM), à Diamniadio.
     _ajouter_universite_amadou_mahtar_mbow(cursor)
 
-    # Remplacement des lignes Tata par les 70 lignes réelles officielles de
-    # l'AFTU (opérateur officiel du réseau, source aftu-senegal.org, relevé
-    # 2026-07-17), à la demande explicite de l'utilisateur ("les vraies
-    # lignes officielles, terminus réels seulement"). Pour chaque numéro de
-    # ligne officiel qui entre en collision avec une ligne fictive existante
-    # (ce qui concerne la quasi-totalité des 70 lignes), l'ancien tracé
-    # inventé est retiré et remplacé par les deux vrais terminus publiés par
-    # l'AFTU — voir _remplacer_par_lignes_aftu_reelles_2026 pour le détail
-    # et les niveaux de confiance des coordonnées. Idempotent (marqueur de
-    # description dédié empêchant toute ré-exécution destructive).
+    # Remplace les lignes Tata par les 70 lignes officielles de l'AFTU.
     _remplacer_par_lignes_aftu_reelles_2026(cursor)
 
-    # Retrait des ~60 lignes Tata restées fictives (numéros 6-23, 39, 47,
-    # 90, 92-130 : la partie du réseau imaginé lors d'itérations
-    # précédentes qui ne correspond à AUCUN numéro publié par l'AFTU,
-    # contrairement aux 70 lignes ci-dessus). Décision explicite de
-    # l'utilisateur après qu'on lui a montré que /minibus affichait ces
-    # lignes inventées à côté des vraies sans distinction possible : plutôt
-    # que de les garder ou de les flaguer, il a choisi de les retirer pour
-    # que le réseau affiché soit intégralement réel. Idempotent (ne fait
-    # rien si ces lignes ont déjà été retirées).
+    # Retire les lignes Tata restées fictives (aucun numéro AFTU réel).
     _retirer_lignes_tata_non_officielles_2026(cursor)
 
-    # Enrichissement des lignes BRT (B1/B2) avec les vraies stations
-    # SunuBRT (CETUD + presse + OSM network=SunuBRT), à la demande de
-    # l'utilisateur après avoir remarqué l'absence du BRT comme option pour
-    # un trajet Sacré-Cœur -> Liberté 6 — la station Liberté 6 (réelle)
-    # manquait du tracé. Voir _enrichir_lignes_brt_2026 pour le détail des
-    # sources et des niveaux de confiance. Idempotent (marqueur dédié).
+    # Vraies stations BRT (SunuBRT), notamment Liberté 6 qui manquait.
     _enrichir_lignes_brt_2026(cursor)
 
-    # Nettoyage (audit du 2026-07-17) : `trajets` et `trajet_options`
-    # n'ont jamais été alimentées depuis que le moteur d'itinéraire calcule
-    # tout à la volée (voir itineraire.py) — retirées de schema.sql, et
-    # supprimées ici sur les bases déjà créées. Idempotent (vérifie
-    # l'existence avant de DROP).
+    # `trajets`/`trajet_options` ne servent plus (calcul à la volée) : supprimées.
     _supprimer_tables_mortes(cursor)
 
-    # Retrait de toute mention de l'opérateur AFTU et de la clause "seuls
-    # les deux terminus sont cartographiés..." dans les descriptions des
-    # lignes Tata (page /minibus), et renommage de 'Minibus Tata (AFTU)'
-    # en 'Minibus Tata' : l'utilisateur ne veut voir apparaître ni la
-    # source des données ni le nom de l'opérateur aux visiteurs du site,
-    # juste les deux terminus. Idempotent (chaque étape est un no-op sur
-    # les lignes déjà nettoyées).
+    # Descriptions des lignes Tata sans mention de l'AFTU, juste les terminus.
     _retirer_source_description_tata_2026(cursor)
 
-    # Corrections du lexique wolof (page /wolof) fournies par l'utilisateur,
-    # locuteur natif : remplace plusieurs formulations approximatives par
-    # les vraies expressions employées à Dakar, corrige un contresens
-    # ("Kañ nga dem ?" pris pour un futur) et ajoute les tournures
-    # manquantes (tutoiement/vouvoiement, urgence...). Idempotent (voir
-    # _corriger_lexique_wolof_reel_2026).
-    _corriger_lexique_wolof_reel_2026(cursor)
+    # Lexique wolof : synchronise vers la liste finale, sans doublons.
+    _synchroniser_lexique_wolof(cursor)
 
-    # Vraies lignes urbaines et banlieue de Dakar Dem Dikk (demdikk.sn),
-    # à la demande de l'utilisateur, pour que DDD apparaisse dans les
-    # suggestions de recherche d'itinéraire au même titre que Tata/Car
-    # rapide/BRT. Idempotent (voir _ajouter_lignes_dem_dikk_reelles_2026).
+    # Vraies lignes DDD, pour qu'elles sortent dans les suggestions de trajet.
     _ajouter_lignes_dem_dikk_reelles_2026(cursor)
 
     conn.commit()
@@ -276,12 +165,7 @@ def verifier_et_mettre_a_jour_schema():
 
 
 def _supprimer_colonne_capacite_max(cursor):
-    """Retire la colonne `capacite_max` de `moyens_transport` (le nombre
-    max de passagers n'est plus affiché ni utilisé nulle part dans le
-    site). Utilise DROP COLUMN (SQLite >= 3.35) ; si la version de SQLite
-    est trop ancienne pour le supporter, on reconstruit la table sans la
-    colonne plutôt que de planter. Idempotent : n'est appelée que si la
-    colonne existe encore (voir verifier_et_mettre_a_jour_schema)."""
+    """Retire la colonne capacite_max, plus utilisée nulle part sur le site."""
     try:
         cursor.execute("ALTER TABLE moyens_transport DROP COLUMN capacite_max")
         return
@@ -312,12 +196,7 @@ def _supprimer_colonne_capacite_max(cursor):
 
 
 def _supprimer_tables_mortes(cursor):
-    """Supprime les tables `trajets` et `trajet_options` : elles n'ont
-    jamais été alimentées depuis que le moteur d'itinéraire (itineraire.py)
-    calcule tout à la volée plutôt que de lire des trajets pré-calculés en
-    base. Retirées de schema.sql pour les nouvelles installations ; cette
-    fonction les retire aussi des bases déjà créées avant ce nettoyage.
-    Idempotent : vérifie l'existence de chaque table avant de la DROP."""
+    """Supprime trajets/trajet_options, plus utilisées (calcul à la volée)."""
     for nom_table in ("trajet_options", "trajets"):
         existe = cursor.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (nom_table,)
@@ -327,23 +206,8 @@ def _supprimer_tables_mortes(cursor):
 
 
 def _retirer_source_description_tata_2026(cursor):
-    """Retire de toute description déjà en base les formulations qui
-    indiquent explicitement d'où vient l'information sur le réseau Tata
-    (site aftu-senegal.org, mention "officiel"/"publié par l'AFTU",
-    "l'AFTU ne publiant pas le détail des arrêts..."...), retire la phrase
-    "Seuls les deux terminus sont cartographiés..." dans son intégralité
-    (l'utilisateur ne veut plus voir cette précision du tout, pas
-    seulement la partie qui cite l'AFTU comme source), et retire la
-    mention "(AFTU)" partout où elle accolait le nom de l'opérateur à
-    "Minibus Tata" ou "Tata" (nom de ligne affiché : "Minibus Tata"
-    seul). Renomme aussi la ligne 'Minibus Tata (AFTU)' de
-    `moyens_transport` en 'Minibus Tata'.
-
-    Basé sur des regex (pas des REPLACE de chaîne exacte) pour rester
-    robuste aux variantes d'apostrophe (' vs ’) et d'espacement qui
-    peuvent exister selon la version du texte déjà stockée en base.
-    Idempotent : ne modifie une ligne que si son contenu change
-    réellement."""
+    """Retire les mentions de l'AFTU dans les descriptions (regex pour
+    couvrir les variantes d'apostrophe et d'espacement)."""
     motif_prefixe_source = re.compile(
         r"Ligne officielle r[ée]elle de l['’]AFTU\s*\(source[^)]*\)\s*;?\s*",
         re.IGNORECASE,
@@ -388,38 +252,8 @@ def _retirer_source_description_tata_2026(cursor):
                 )
 
 
-# ---------------------------------------------------------------------
-# ENRICHISSEMENT DAKAR DEM DIKK (2026-07-17) — à la demande de l'utilisateur
-# ("la base de données du site officiel de Dem Dikk... pour que lorsqu'on
-# fait des recherches on ait aussi Dem Dikk dans les suggestions"). Source :
-# demdikk.sn/reseau-urbain-dakar/ (lignes urbaines et banlieue), relevé
-# 2026-07-17.
-#
-# Dakar Dem Dikk (DDD) avait 7 lignes fictives dans la donnée d'origine
-# (numéros bruts "Ligne 7/9/14/18/22/25/28", inventées comme le reste du
-# réseau à l'époque). Trois d'entre elles (7, 9, 18) correspondent à un
-# vrai numéro DDD mais avec un tracé complètement différent de la ligne
-# réelle publiée — remplacées ci-dessous. Les quatre autres (14, 22, 25,
-# 28) n'ont aucun équivalent dans la numérotation officielle DDD trouvée
-# sur le site — retirées, même logique que pour les ~60 lignes Tata non
-# officielles (l'utilisateur veut un réseau affiché intégralement réel).
-#
-# Comme pour les lignes AFTU, seuls les deux terminus publiés sont
-# modélisés (pas de tracé intermédiaire inventé) : le site liste souvent
-# les arrêts intermédiaires, mais ceux-ci sont des points de rue trop fins
-# (« Rond point JVC », « Marché HLM »...) pour être ajoutés comme lieux
-# fiables sans coordonnées propres.
-#
-# Numérotation stockée avec le préfixe "DDD " (ex. "DDD 7") plutôt que le
-# numéro brut ("Ligne 7") : la numérotation officielle DDD (1, 2, 4, 5...)
-# chevauche largement celle, purement inventée, du réseau Minibus Tata
-# (qui utilise aussi "Ligne 1", "Ligne 2"...) — sans préfixe distinct, une
-# ligne DDD et une ligne Tata pourraient partager le même `numero_ligne`
-# et se confondre dans toute requête qui ne filtre pas aussi par
-# `id_transport` (déjà le cas de `_remplacer_par_lignes_aftu_reelles_2026`
-# pour Tata, mais ce risque ne s'est jamais matérialisé côté Tata car son
-# numérotage n'a jamais recoupé celui de DDD jusqu'ici).
-# ---------------------------------------------------------------------
+# Vraies lignes Dakar Dem Dikk (DDD), source demdikk.sn.
+# Préfixe "DDD " sur les numéros pour ne pas les confondre avec les lignes Tata.
 NOUVEAUX_LIEUX_DEM_DIKK_2026 = [
     ('Place Leclerc', 'site_touristique', 14.6935, -17.4245, "Rond-point et terminus historique du Plateau, près de l'Embarcadère de Gorée"),
     ('Palais 1', 'site_touristique', 14.6699, -17.4257, "Terminus DDD proche du Palais présidentiel, côté Avenue Léopold Sédar Senghor"),
@@ -470,23 +304,16 @@ LIGNES_DEM_DIKK_OFFICIELLES_2026 = [
     ("501", "Palais 2", "Place Leclerc"),
 ]
 
-# Anciennes lignes DDD fictives sans aucun équivalent dans la numérotation
-# officielle relevée sur demdikk.sn : retirées (numéro brut, sans préfixe,
-# tel qu'inséré à l'origine par donnees.sql).
+# Anciennes lignes DDD fictives sans équivalent réel : à retirer.
 NUMEROS_LIGNES_DDD_FICTIVES_SANS_EQUIVALENT_2026 = ['Ligne 14', 'Ligne 22', 'Ligne 25', 'Ligne 28']
 
-# Anciennes lignes DDD fictives dont le numéro correspond à une vraie ligne
-# DDD mais avec un tracé différent : retirées puis recréées ci-dessous sous
-# leur numéro préfixé ("DDD 7", "DDD 9", "DDD 18") avec le vrai tracé.
+# Anciennes lignes DDD fictives à remplacer par le vrai tracé (préfixé "DDD ").
 NUMEROS_LIGNES_DDD_FICTIVES_A_REMPLACER_2026 = ['Ligne 7', 'Ligne 9', 'Ligne 18']
 
 
 def _supprimer_ligne_dem_dikk_2026(cursor, numero_ligne, id_transport_ddd):
-    """Retire une ligne DDD (et ses arrêts devenus orphelins) en ne
-    cherchant que parmi les lignes de DDD (`id_transport` filtré) : le
-    même texte de `numero_ligne` ("Ligne 7"...) peut exister pour un autre
-    opérateur (Minibus Tata), qu'il ne faut surtout pas toucher. No-op si
-    la ligne n'existe pas ou plus (idempotent)."""
+    """Retire une ligne DDD et ses arrêts orphelins (filtré par id_transport
+    pour ne pas toucher une ligne Tata qui aurait le même numéro)."""
     ligne = cursor.execute(
         "SELECT id_ligne FROM lignes_bus WHERE numero_ligne = ? AND id_transport = ?",
         (numero_ligne, id_transport_ddd)
@@ -509,14 +336,7 @@ def _supprimer_ligne_dem_dikk_2026(cursor, numero_ligne, id_transport_ddd):
 
 
 def _ajouter_lignes_dem_dikk_reelles_2026(cursor):
-    """Ajoute les vraies lignes urbaines et banlieue de Dakar Dem Dikk
-    (voir LIGNES_DEM_DIKK_OFFICIELLES_2026), après avoir retiré les
-    quelques lignes DDD fictives de la donnée d'origine (voir les deux
-    listes NUMEROS_LIGNES_DDD_FICTIVES_* ci-dessus). Idempotent : chaque
-    ligne réelle n'est insérée que si son `numero_ligne` préfixé
-    ("DDD 7"...) n'existe pas déjà pour DDD ; les suppressions de lignes
-    fictives sont elles-mêmes des no-op une fois faites une première
-    fois."""
+    """Retire les lignes DDD fictives et ajoute les vraies lignes DDD."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_DEM_DIKK_2026:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -574,15 +394,8 @@ def _ajouter_lignes_dem_dikk_reelles_2026(cursor):
 
 
 def _completer_images_transport_manquantes(cursor):
-    """Complète l'image de certains moyens de transport ajoutée après le
-    lancement initial (photos DDD et TER uploadées dans static/img/).
-    Ne touche que les lignes où image_url est encore vide, pour ne jamais
-    écraser une valeur déjà personnalisée."""
+    """Ajoute les photos manquantes sans écraser une image déjà personnalisée."""
     images_par_defaut = {
-        # Corrigé : le fichier réel livré dans static/img/ est "ddd.png"
-        # (minuscules, extension .png) — l'ancien chemin "/static/img/DDD.jpg"
-        # ne correspondait à aucun fichier existant et aurait affiché une
-        # image cassée sur toute base migrée avant l'ajout de cette photo.
         "Dakar Dem Dikk": "/static/img/ddd.png",
         "TER": "/static/img/TER.jpg",
         "Ndiaga Ndiaye": "/static/img/Ndiaga_Ndiaye.png",
@@ -594,14 +407,7 @@ def _completer_images_transport_manquantes(cursor):
         )
 
 
-# ---------------------------------------------------------------------
-# Tarifs 2026 : fourchettes réajustées vers des valeurs plus réalistes
-# (recherche de tarifs actuels pour Dakar — taxi en ville, hausse des
-# tickets Tata, tarif TER Dakar-Diamniadio, BRT à tarif fixe...).
-# Appliqué par UPDATE conditionné au contenu actuel (voir
-# _mettre_a_jour_tarifs_2026), donc sûr à rejouer sur une base qui a déjà
-# ces tarifs.
-# ---------------------------------------------------------------------
+# Fourchettes de prix 2026, plus réalistes.
 TARIFS_2026 = {
     "Taxi": (1000, 5000),
     "Clando": (200, 800),
@@ -615,10 +421,7 @@ TARIFS_2026 = {
 
 
 def _mettre_a_jour_tarifs_2026(cursor):
-    """Recale les fourchettes de prix de chaque moyen de transport vers des
-    valeurs 2026 plus réalistes. Fonctionne par UPDATE sur le nom, comme
-    _raccourcir_conseils_verbeux : met bien à jour les lignes déjà
-    présentes sur une base existante (pas seulement à la création)."""
+    """Recale les prix de chaque transport vers les valeurs 2026."""
     for nom, (cout_min, cout_max) in TARIFS_2026.items():
         cursor.execute(
             "UPDATE moyens_transport SET cout_min = ?, cout_max = ? "
@@ -627,22 +430,8 @@ def _mettre_a_jour_tarifs_2026(cursor):
         )
 
 
-# Avantages / inconvénients retravaillés pour les 9 moyens de transport de
-# la page /transports : exactement 3 avantages et 3 inconvénients par
-# transport, alignés terme à terme sur les mêmes 3 axes (prix, couverture/
-# disponibilité, confort/sécurité) pour une lecture plus structurée en
-# vis-à-vis.
-#
-# Chaque item est un résumé court (une poignée de mots), pas une phrase
-# complète : la première version (voir historique) tenait sur des phrases
-# de 70-100 caractères qui s'étalaient sur 2-3 lignes dans la colonne
-# étroite de la carte, rendant les cartes très inégales en hauteur. Le
-# contenu est raccourci à la source (résumé), pas coupé visuellement en CSS.
-#
-# Important : le template (/transports) sépare les items avec
-# `avantages.split(',')` — un item ne doit donc jamais contenir de virgule
-# interne (utiliser "et"/parenthèses à la place), sous peine d'être découpé
-# en plus de 3 puces à l'affichage.
+# 3 avantages + 3 inconvénients par transport, courts (le template les
+# sépare avec avantages.split(',') donc pas de virgule dans un item).
 AVANTAGES_INCONVENIENTS_2026 = {
     "Taxi": (
         "Tarif négociable, "
@@ -720,11 +509,7 @@ AVANTAGES_INCONVENIENTS_2026 = {
 
 
 def _corriger_disponibilite_tata(cursor):
-    """Recentre la disponibilité affichée du Tata sur le matin : le service
-    se raréfie nettement en soirée, donc "tard le soir" donnait une
-    impression de couverture tardive trompeuse. Fonctionne par UPDATE sur
-    le nom, comme _mettre_a_jour_tarifs_2026 : met bien à jour les lignes
-    déjà présentes sur une base existante (pas seulement à la création)."""
+    """Recentre la disponibilité du Tata sur le matin (le service se raréfie le soir)."""
     nouvelle_disponibilite = "Tôt le matin, selon l'affluence"
     cursor.execute(
         "UPDATE moyens_transport SET disponibilite = ? "
@@ -734,11 +519,7 @@ def _corriger_disponibilite_tata(cursor):
 
 
 def _aligner_avantages_inconvenients_transports(cursor):
-    """Recale les avantages/inconvénients de chaque moyen de transport vers
-    exactement 3 avantages et 3 inconvénients alignés terme à terme (prix,
-    couverture/disponibilité, confort/sécurité). Fonctionne par UPDATE sur
-    le nom, comme _mettre_a_jour_tarifs_2026 : met bien à jour les lignes
-    déjà présentes sur une base existante (pas seulement à la création)."""
+    """Recale chaque transport sur exactement 3 avantages et 3 inconvénients."""
     for nom, (avantages, inconvenients) in AVANTAGES_INCONVENIENTS_2026.items():
         cursor.execute(
             "UPDATE moyens_transport SET avantages = ?, inconvenients = ? "
@@ -747,32 +528,19 @@ def _aligner_avantages_inconvenients_transports(cursor):
         )
 
 
-# Descriptions retravaillées pour les 3 transports mis en avant sur
-# l'accueil (Taxi, Clando, Minibus Tata) : les phrases d'origine, denses et
-# à rallonge, sont remplacées par un ton plus direct et parlé. Ce champ
-# étant partagé avec /transports, le bénéfice profite à tout le site.
+# Descriptions plus naturelles pour Taxi, Clando, Tata, Ndiaga Ndiaye, DDD et BRT.
 DESCRIPTIONS_NATURELLES = {
     "Taxi": "Le taxi jaune et noir de Dakar, pour un trajet direct sans détour. Le prix se négocie avec le chauffeur avant de monter.",
     "Clando": "Une voiture partagée sur un axe fixe, à tarif divisé entre passagers. Moins cher qu'un taxi, un peu moins confortable.",
     "Minibus Tata": "Le minibus qui dessert la quasi-totalité des quartiers de Dakar, à prix fixe et très abordable.",
-    # Version raccourcie : l'original listait le châssis Mercedes-Benz et le
-    # détail des banlieues desservies (déjà couvert par les avantages),
-    # ce qui rendait la carte /transports nettement plus longue que ses
-    # voisines et cassait l'alignement des prix/avantages sur la même ligne.
     "Ndiaga Ndiaye": "Minibus blanc traditionnel, pilier du transport collectif vers Dakar et sa banlieue, surtout le matin et aux heures de pointe.",
-    # DDD et BRT étaient les descriptions les plus longues restantes de la
-    # page /transports (détails d'opérateur / de lignes déjà présents dans
-    # les avantages) : résumées ici pour rester au même gabarit que leurs
-    # voisines.
     "Dakar Dem Dikk": "Bus officiel de la ville de Dakar (DDD), lignes numérotées à tarif fixe, distinct du réseau Tata.",
     "BRT (Bus Rapid Transit)": "Bus électrique à haut niveau de service, reliant Petersen à Guédiawaye (lignes B1 et B2).",
 }
 
 
 def _naturaliser_descriptions_transport(cursor):
-    """Recale la description de quelques transports vers un ton plus
-    naturel et moins encyclopédique (UPDATE conditionné au contenu actuel,
-    donc sûr à rejouer sur une base déjà à jour)."""
+    """Passe la description de quelques transports sur un ton plus naturel."""
     for nom, description in DESCRIPTIONS_NATURELLES.items():
         cursor.execute(
             "UPDATE moyens_transport SET description = ? WHERE nom = ? AND description != ?",
@@ -781,18 +549,8 @@ def _naturaliser_descriptions_transport(cursor):
 
 
 def _migrer_taxi_et_clando(cursor):
-    """Le taxi (officiel, réglementé) et le clando (taxi clandestin,
-    informel et collectif) étaient historiquement regroupés dans une seule
-    ligne 'Taxi clando' de `moyens_transport`. On les traite désormais comme
-    deux moyens de transport distincts et synchronisés avec le reste de la
-    base (mêmes colonnes, mêmes conventions).
-
-    Migration idempotente :
-    - si 'Taxi clando' existe encore, on la renomme en 'Taxi' (on conserve
-      son id_transport pour ne rien casser côté relations existantes) ;
-    - si 'Clando' n'existe pas encore, on l'insère avec ses propres tarifs,
-      photo et capacité.
-    """
+    """Sépare l'ancienne ligne 'Taxi clando' en deux transports distincts,
+    Taxi et Clando, chacun avec ses propres tarifs et infos."""
     ancien = cursor.execute(
         "SELECT id_transport FROM moyens_transport WHERE nom = 'Taxi clando'"
     ).fetchone()
@@ -829,9 +587,7 @@ def _migrer_taxi_et_clando(cursor):
 
 
 def _ajouter_transport_ndiaga_ndiaye(cursor):
-    """Ajoute le Ndiaga Ndiaye (minibus blanc de transport collectif, souvent
-    construit sur d'anciens châssis Mercedes-Benz) à la page /transports.
-    Idempotent : n'insère que si ce moyen de transport n'existe pas déjà."""
+    """Ajoute le Ndiaga Ndiaye à /transports s'il n'existe pas déjà."""
     existe = cursor.execute(
         "SELECT 1 FROM moyens_transport WHERE nom = 'Ndiaga Ndiaye'"
     ).fetchone()
@@ -857,19 +613,8 @@ def _ajouter_transport_ndiaga_ndiaye(cursor):
 
 
 def _corriger_id_transport_errones(cursor):
-    """Corrige un bug hérité de la scission Taxi/Clando : l'insertion de la
-    nouvelle ligne 'Clando' juste après 'Taxi' dans moyens_transport a
-    décalé d'un cran les id_transport de tous les moyens suivants (Dakar
-    Dem Dikk, Car rapide, Minibus Tata, Jakarta, TER, BRT), mais les lignes
-    de bus de la donnée d'origine référençaient encore les anciens
-    id_transport codés en dur. Résultat : des lignes Tata comptées comme
-    Car rapide, des lignes Car rapide comptées comme Dakar Dem Dikk, etc.
-
-    Corrige chaque ligne en se basant sur le texte de sa propre
-    description (qui, lui, a toujours été correct, ex. "Minibus Tata
-    reliant..."), plutôt que sur un décalage numérique supposé —
-    fonctionne donc quel que soit l'état exact de la base. Idempotent : ne
-    modifie que les lignes encore mal rattachées."""
+    """La scission Taxi/Clando a décalé les id_transport des lignes de bus :
+    on les recale d'après le texte de leur description, qui lui est resté juste."""
     corrections = [
         ('Dakar Dem Dikk', 'Dakar Dem Dikk %'),
         ('Car rapide', 'Car rapide %'),
@@ -951,11 +696,7 @@ def _reseeder_donnees_manquantes(cursor):
         )
 
 
-# ---------------------------------------------------------------------
-# Conseils "Cars rapides" et "Tata (bus)" : retours de terrain sur les
-# usages réels à bord (tarifs, rôle de l'apprenti, paiement, descente),
-# ajoutés après le lancement initial de la page /conseils.
-# ---------------------------------------------------------------------
+# Conseils "Cars rapides" et "Tata (bus)" : usages réels à bord (tarifs, apprenti, paiement, descente).
 NOUVEAUX_CONSEILS_CARS_RAPIDES_ET_TATA = [
     (
         'Cars rapides', 'Le tarif de base tourne autour de 100 FCFA',
@@ -1096,11 +837,7 @@ def _ajouter_conseils_ndiaga_ndiaye(cursor):
 
 
 def _raccourcir_conseils_verbeux(cursor):
-    """Recale le texte de quelques conseils vers une version plus concise
-    (relecture éditoriale pour la soutenance). Fonctionne par UPDATE sur le
-    titre : contrairement à _ajouter_conseils_cars_rapides_et_tata (qui
-    n'insère que si le titre est absent), cette fonction met bien à jour le
-    contenu des lignes déjà présentes sur une base existante."""
+    """Recale le texte de quelques conseils vers une version plus concise."""
     for titre, contenu in NOUVEAUX_CONSEILS_TEXTE_RACCOURCI:
         cursor.execute(
             "UPDATE conseils SET contenu = ? WHERE titre = ? AND contenu != ?",
@@ -1108,12 +845,7 @@ def _raccourcir_conseils_verbeux(cursor):
         )
 
 
-# ---------------------------------------------------------------------
-# Enrichissement du réseau : nouveaux quartiers, lignes minibus et
-# phrases wolof. Ajoutés de façon idempotente (vérification par nom)
-# pour pouvoir être appliqués en toute sécurité sur une base existante.
-# ---------------------------------------------------------------------
-
+# Nouveaux quartiers, lignes minibus et phrases wolof ajoutés au réseau.
 NOUVEAUX_LIEUX = [
     ('Yoff Layène', 'quartier', 14.7550, -17.4830, "Quartier historique de la confrérie layène, en bord de mer à Yoff"),
     ('Cité Djily Mbaye', 'quartier', 14.7130, -17.4550, "Cité résidentielle proche de Liberté 6 et Grand Yoff"),
@@ -1129,282 +861,141 @@ NOUVEAUX_LIEUX = [
     ('Gare de Dakar', 'gare', 14.6743, -17.4372, "Ancienne gare ferroviaire de Dakar, à proximité du Plateau"),
 ]
 
-NOUVELLES_PHRASES_WOLOF = [
-    ('Jamm ak jamm', 'Tout va bien (réponse classique à « Nanga def ? »)', 'diam ak diam', 'Salutations'),
-    ('Naka nga tudd ?', "Comment tu t'appelles ?", 'na-ka nga toud', 'Salutations'),
-    ('Su la neexee', "S'il te plaît", 'sou la né-é', 'Politesse'),
-    ('Baal ma, dama bëgg laa laaj', 'Excusez-moi, je voudrais vous demander', 'baal ma dama beug la ladj', 'Politesse'),
-    ('Wesaare', 'Faire la monnaie / rendre la monnaie', 'wé-sa-ré', 'Négociation'),
-    ('Dafa yomb', "C'est raisonnable, pas cher", 'da-fa yomb', 'Négociation'),
-    ('Dama bëgg dem [lieu]', 'Je voudrais aller à [lieu]', 'da-ma beug dem', 'Transport'),
-    ('Ban gaal moo dem [lieu] ?', 'Quel véhicule va à [lieu] ?', 'ban gaal mo dem', 'Transport'),
-    ('Fan la gare bi nekk ?', 'Où se trouve la gare routière ?', 'fan la gar bi nèk', 'Transport'),
-    ('Wàcc fi !', 'Descendez ici !', 'watch fi', 'Direction'),
-    ('Ci kanam rekk', 'Continuez tout droit', 'ci ka-nam rèk', 'Direction'),
-    ('Fukk ak juróom', 'Quinze', 'fouk ak dioróm', 'Nombres'),
-    ('Téeméer', 'Cent', 'té-mér', 'Nombres'),
-    ('Wallal ma !', 'Aidez-moi !', 'wa-lal ma', 'Urgence'),
-    ('Fabu police bi', 'Appelez la police', 'fabou po-lis bi', 'Urgence'),
-]
-
-# ---------------------------------------------------------------------
-# REFONTE DU LEXIQUE WOLOF (page /wolof) — voir _reorganiser_lexique_wolof_transport
-# ---------------------------------------------------------------------
-# Les intitulés grammaticaux d'origine ('Salutations', 'Politesse',
-# 'Négociation', 'Transport', 'Direction', 'Nombres', 'Urgence') sont
-# remplacés par des catégories pensées autour d'une situation réelle de
-# déplacement à Dakar. Chaque entrée : (wolof, nouvelle_situation, contexte
-# ou None). Le texte wolof sert de clé (inchangé) : cette table ne modifie
-# jamais le wolof/français/phonétique déjà validés, seulement le
-# classement et, pour certaines phrases, un petit contexte d'usage.
-RECLASSEMENT_PHRASES_WOLOF = [
-    ('Salaam aleekum', 'Saluer', "Salutation standard, à toute heure de la journée"),
-    ('Maleekum salaam', 'Saluer', "Réponse automatique à « Salaam aleekum »"),
-    ('Nanga def ?', 'Saluer', None),
-    ('Maa ngi fi', 'Saluer', "Réponse à « Nanga def ? »"),
-    ('Jamm ak jamm', 'Saluer', "Autre réponse possible à « Nanga def ? »"),
-    ('Ana yow ?', 'Saluer', None),
-    ('Naka nga tudd ?', 'Saluer', None),
-
-    ('Jërejëf', 'Remercier et prendre congé', None),
-    ('Amul solo', 'Remercier et prendre congé', "Réponse habituelle à un merci"),
-    ('Ba beneen yoon', 'Remercier et prendre congé', None),
-    ('Ballago', 'Remercier et prendre congé', None),
-    ('Ma mangi dem', 'Remercier et prendre congé', None),
-
-    ('Baal ma', 'Poser une question', "À dire avant toute question à un inconnu"),
-    ('Waaw', 'Poser une question', None),
-    ('Déedéet', 'Poser une question', None),
-    ('Ndank ndank', 'Poser une question', "Pour demander de répéter ou de ralentir"),
-    ('Baal ma, dama bëgg laa laaj', 'Poser une question', None),
-    ('Su la neexee', 'Poser une question', None),
-
-    ('Nak bu baax ?', 'Payer et connaître le tarif', None),
-    ('Ñaata la ?', 'Payer et connaître le tarif', None),
-    ('Dafa seer', 'Payer et connaître le tarif', None),
-    ('Dafa seer lool', 'Payer et connaître le tarif', None),
-    ('Baax na', 'Payer et connaître le tarif', "Pour valider un prix négocié"),
-    ('Dina dem', 'Payer et connaître le tarif', "Argument de négociation si le prix reste trop élevé"),
-    ('Dafa yomb', 'Payer et connaître le tarif', None),
-    ('Wesaare', 'Payer et connaître le tarif', None),
-    ('Benn, ñaar, ñett', 'Payer et connaître le tarif', "Utile pour comprendre un prix annoncé"),
-    ('Ñeent, juróom', 'Payer et connaître le tarif', None),
-    ('Juróom-benn', 'Payer et connaître le tarif', None),
-    ('Fukk', 'Payer et connaître le tarif', None),
-    ('Fukk ak juróom', 'Payer et connaître le tarif', None),
-    ('Téeméer', 'Payer et connaître le tarif', None),
-
-    ('Dem ci [lieu]', 'Monter dans un Tata', "À dire directement au chauffeur ou au receveur"),
-    ('Dama bëgg dem [lieu]', 'Monter dans un Tata', "Variante un peu plus polie de « Dem ci »"),
-    ('Ban gaal moo dem [lieu] ?', 'Monter dans un Tata', "Utile si plusieurs véhicules attendent au même endroit"),
-    ('Fan la gare bi nekk ?', 'Monter dans un Tata', None),
-    ('Kañ nga dem ?', 'Monter dans un Tata', "À demander au chauffeur qui attend encore des passagers"),
-    ('Bus bi dafa fees', 'Monter dans un Tata', None),
-    ('Ana taxi yi ?', 'Monter dans un Tata', None),
-
-    ('Taxawal fii !', 'Demander un arrêt', None),
-    ('Yëgël ma ci...', 'Demander un arrêt', None),
-    ('Wàcc fi !', 'Demander un arrêt', "Peut être dit par le receveur pour indiquer votre arrêt"),
-
-    ('Fan la [lieu] nekk ?', 'Demander son chemin', None),
-    ('Jëm ci kanam', 'Demander son chemin', None),
-    ('Ci kanam rekk', 'Demander son chemin', None),
-    ('Jëm ci ndey', 'Demander son chemin', None),
-    ('Jëm ci kaw', 'Demander son chemin', None),
-    ('Yagg na ?', 'Demander son chemin', None),
-    ('Foofu la', 'Demander son chemin', None),
-    ('Fii la', 'Demander son chemin', None),
-
-    ('Dama metti', 'Situations d\'urgence', None),
-    ('Wóoy !', 'Situations d\'urgence', None),
-    ('Sama xel dafa tang', 'Situations d\'urgence', None),
-    ('Wallal ma !', 'Situations d\'urgence', "Interpellation directe, pour une urgence réelle"),
-    ('Fabu police bi', 'Situations d\'urgence', None),
-]
-
-# Nouvelles expressions ajoutées pour couvrir les situations concrètes d'un
-# trajet en Tata/taxi/Jakarta à Dakar (montée, arrêt, chemin, paiement,
-# urgence). Wolof standard tel qu'employé à Dakar — y compris les emprunts
-# au français (« arrêt », « gare », « BRT », « TER »...) couramment utilisés
-# tels quels dans une phrase wolof, comme c'est réellement le cas au
-# quotidien pour le vocabulaire des transports modernes.
+# Lexique wolof (page /wolof), liste canonique unique.
 # Chaque entrée : (wolof, francais, phonetique, situation, contexte ou None).
-NOUVELLES_PHRASES_WOLOF_TRANSPORT = [
-    ('Naka guddi gi ?', 'Bonsoir, comment se passe la soirée ?', 'na-ka gou-di gui', 'Saluer', "Salutation utilisée en fin de journée"),
+LEXIQUE_WOLOF_FINAL = [
+    # --- Salutations ---
+    ('Salaam aleekum', 'Bonjour / La paix soit avec vous', 'sa-lam a-lé-koum', 'Salutations',
+     "Salutation standard, à toute heure de la journée"),
+    ('Maleekum salaam', 'Réponse à la salutation (paix sur vous aussi)', 'ma-lé-koum sa-lam', 'Salutations',
+     "Réponse automatique à « Salaam aleekum »"),
+    ('Nanga def ?', 'Comment vas-tu ?', 'na-nga déf', 'Salutations', None),
+    ('Maa ngi fi', 'Je suis ici / Ça va bien (réponse)', 'ma-ngi-fi', 'Salutations',
+     "Réponse à « Nanga def ? »"),
+    ('Jamm ak jamm', 'Tout va bien (réponse classique à « Nanga def ? »)', 'diam ak diam', 'Salutations', None),
+    ('Yaw nak, nodef ?', 'Et toi, comment ça va ?', 'yaw nak no-déf', 'Salutations', None),
+    ('No tudd ?', "Comment tu t'appelles ?", 'no toudou', 'Salutations', None),
 
-    ('Tata bii, dafa dem [lieu] ?', 'Ce Tata va-t-il à [lieu] ?', 'ta-ta bii da-fa dem', 'Monter dans un Tata', "À demander avant de monter"),
-    ('Ban ligne moo dem [lieu] ?', 'Quelle ligne va à [lieu] ?', 'ban ligne mo dem', 'Monter dans un Tata', None),
-    ('Ligne bii, dafa jaar ci [lieu] ?', 'Cette ligne passe-t-elle par [lieu] ?', 'ligne bii da-fa diar si', 'Monter dans un Tata', None),
-    ('Fan la bus bii di jaar ?', 'Où passe cette ligne ?', 'fan la bous bii di diar', 'Monter dans un Tata', None),
-    ('Fan la terminus bi nekk ?', 'Où est le terminus ?', 'fan la ter-mi-nuss bi nèk', 'Monter dans un Tata', None),
-    ('Fan laa mëna jël BRT bi ?', 'Où puis-je prendre le BRT ?', 'fan la mè-na djël bi-èr-té bi', 'Monter dans un Tata', None),
-    ('Fan laa mëna jël TER bi ?', 'Où puis-je prendre le TER ?', 'fan la mè-na djël té-euh-èr bi', 'Monter dans un Tata', None),
-    ('Am na correspondance ?', 'Y a-t-il une correspondance ?', 'am na kor-res-pon-dans', 'Monter dans un Tata', None),
-    ('Ñaata waxtu la war ?', 'Combien de temps faut-il ?', 'nya-ta wakh-tou la war', 'Monter dans un Tata', None),
-    ('Xibaar ma bu nu egsee', 'Pouvez-vous me prévenir quand nous arrivons ?', 'xi-baar ma bou nou èg-sé', 'Monter dans un Tata', "À dire en montant si vous ne connaissez pas le trajet"),
+    # --- Transport (monter, ligne, arrêt, descendre) ---
+    ('Dama bëgg dem [lieu]', 'Je voudrais aller à [lieu]', 'da-ma beug dem', 'Transport',
+     "À dire directement au chauffeur ou au receveur"),
+    ('Tata bi dafay dem [lieu] ?', 'Ce Tata va-t-il à [lieu] ?', 'ta-ta bi da-fay dem', 'Transport',
+     "À demander avant de monter"),
+    ('Ban ligne mooy dem [lieu] ?', 'Quelle ligne va à [lieu] ?', 'ban ligne mo-y dem', 'Transport',
+     "Utile si plusieurs véhicules attendent au même endroit"),
+    ('Ligne bi dafay jaar [lieu] ?', 'Cette ligne passe-t-elle par [lieu] ?', 'ligne bi da-fay diar', 'Transport', None),
+    ('Fan la terminus bi nekk ?', 'Où est le terminus ?', 'fan la ter-mi-nuss bi nèk', 'Transport', None),
+    ('Am na correspondance ?', 'Y a-t-il une correspondance ?', 'am na kor-res-pon-dans', 'Transport', None),
+    ('Ñaata waxtu no war ?', 'Combien de temps faut-il ?', 'nya-ta wakh-tou no war', 'Transport', None),
+    ('Meun nga ma wax bu nu egée ?', 'Pouvez-vous me prévenir quand nous arrivons ?',
+     'meun nga ma wakh bou nou é-gé', 'Transport', "À dire en montant si vous ne connaissez pas le trajet"),
+    ('Kañ ngay dem ?', 'Quand pars-tu ?', 'kagn ngay dem', 'Transport',
+     "À demander au chauffeur qui attend encore des passagers"),
+    ('Bus bi dafa fees', 'Le bus est plein', 'bous bi da-fa fès', 'Transport', None),
+    ('Fan la gare bi nekk ?', 'Où se trouve la gare routière ?', 'fan la gar bi nèk', 'Transport', None),
+    ('Mayma fi', 'Arrêtez-vous ici', 'may-ma fi', 'Transport', None),
+    ('Wathié ma ci...', 'Déposez-moi à...', 'wa-thi-é ma si...', 'Transport', None),
+    ('Wàccal fi !', 'Descendez ici !', 'wa-tchal fi', 'Transport',
+     "Peut être dit par le receveur pour indiquer votre arrêt"),
+    ('Fan la arrêt bi nekk ?', 'Où est cet arrêt ?', 'fan la a-rè bi nèk', 'Transport', None),
+    ('Fan laa wara wàcc ?', 'Où dois-je descendre ?', 'fan la wa-ra watch', 'Transport', None),
+    ('Fii, mooy sama arrêt ?', 'Cet arrêt est-il le bon ?', 'fi-i mo-y sa-ma a-rè', 'Transport',
+     "Pour confirmer avant de descendre"),
+    ('Ban arrêt mo ci toog ?', 'Quel est le prochain arrêt ?', 'ban a-rè mo ci tog', 'Transport', None),
 
-    ('Fan la arrêt bi nekk ?', 'Où est cet arrêt ?', 'fan la a-rè bi nèk', 'Demander un arrêt', None),
-    ('Fan laa wara wàcc ?', 'Où dois-je descendre ?', 'fan la wa-ra watch', 'Demander un arrêt', None),
-    ('Fii, mooy sama arrêt ?', 'Cet arrêt est-il le bon ?', 'fi-i mo-y sa-ma a-rè', 'Demander un arrêt', "Pour confirmer avant de descendre"),
-    ('Ban arrêt bu topp ?', 'Quel est le prochain arrêt ?', 'ban a-rè bou top', 'Demander un arrêt', None),
+    # --- Paiement ---
+    ('Ñaata la trajet bi ?', 'Combien coûte le trajet ?', 'nya-ta la tra-djè bi', 'Paiement', None),
+    ('Dafa seer', "C'est trop cher", 'da-fa sèr', 'Paiement', None),
+    ('Dafa yomb', "C'est raisonnable, pas cher", 'da-fa yomb', 'Paiement', None),
+    ('Baax na', "C'est bon, d'accord", 'baax na', 'Paiement', "Pour valider un prix négocié"),
+    ('Bayil ma dem', "Je vais partir (si le prix n'est pas accepté)", 'ba-yil ma dem', 'Paiement',
+     "Argument de négociation si le prix reste trop élevé"),
+    ('Wéthiét', 'Monnaie', 'wé-thi-ét', 'Paiement', None),
+    ('Amuma wéthiét', "Je n'ai pas de monnaie", 'a-mou-ma wé-thi-ét', 'Paiement', None),
+    ('Wéthi ma', 'Rends-moi ma monnaie', 'wé-thi ma', 'Paiement', None),
+    ('Wéthi woma', "Vous ne m'avez pas rendu la monnaie", 'wé-thi wo-ma', 'Paiement', None),
+    ('Fi laay feyé', 'Je paie ici', 'fi laay fé-yé', 'Paiement', None),
+    ('Benn, ñaar, ñett', 'Un, deux, trois', 'bèn, nyar, nyèt', 'Paiement', "Utile pour comprendre un prix annoncé"),
+    ('Ñeent, juróom', 'Quatre, cinq', 'nyènt, dju-rom', 'Paiement', None),
+    ('Juróom-benn', 'Six', 'dju-rom-bèn', 'Paiement', None),
+    ('Fukk', 'Dix', 'fouk', 'Paiement', None),
+    ('Fukk ak juróom', 'Quinze', 'fouk ak dioróm', 'Paiement', None),
+    ('Téeméer', 'Cent', 'té-mér', 'Paiement', None),
 
-    ('Réer naa', 'Je suis perdu(e)', 'ré-èr na', 'Demander son chemin', None),
-    ('Wallal ma, su la neexee', 'Pouvez-vous m\'aider ?', 'wa-lal ma sou la né-é', 'Demander son chemin', "Formule polie, à distinguer du « Wallal ma ! » d'urgence"),
-    ('Dama wut universite bi', 'Je cherche l\'université', 'da-ma wout u-ni-vèr-si-té bi', 'Demander son chemin', None),
-    ('Dama wut opitaal bi', 'Je cherche l\'hôpital', 'da-ma wout o-pi-tal bi', 'Demander son chemin', None),
-    ('Dama wut marse bi', 'Je cherche le marché', 'da-ma wout mar-sé bi', 'Demander son chemin', None),
-    ('Dama wut Plateau bi', 'Je cherche le centre-ville (le Plateau)', 'da-ma wout pla-to bi', 'Demander son chemin', None),
-    ('Dama wut tefes bi', 'Je cherche la plage', 'da-ma wout té-fess bi', 'Demander son chemin', None),
-    ('Dama wut station bi', 'Je cherche la station', 'da-ma wout sta-syon bi', 'Demander son chemin', None),
+    # --- Orientation (chemin, distance, lieux recherchés) ---
+    ('Fan la [lieu] nekk ?', 'Où se trouve [lieu] ?', 'fan la [lieu] nèk', 'Orientation', None),
+    ('Foubaleul ci kanam', 'Aller tout droit', 'fou-ba-lél ci ka-nam', 'Orientation', None),
+    ('Felleul sa thiamon', 'Tourner à gauche', 'fè-lél sa thia-mon', 'Orientation', None),
+    ('Felleul sa ndey-djoor', 'Tourner à droite', 'fè-lél sa ndèy-djor', 'Orientation', None),
+    ('Foofu la', "C'est là-bas", 'fo-fu la', 'Orientation', None),
+    ('Fii la', "C'est ici", 'fi la', 'Orientation', None),
+    ('Réer naa', 'Je suis perdu(e)', 'ré-èr na', 'Orientation', None),
+    ('Neun nga ma diapalé ?', "Pouvez-vous m'aider ?", 'neun nga ma dia-pa-lé', 'Orientation',
+     "Formule polie, à distinguer du « Wallouma » d'urgence"),
+    ('Sori na ?', "C'est loin ?", 'so-ri na', 'Orientation', None),
+    ('Université bi lay weet', "Je cherche l'université", 'u-ni-vèr-si-té bi lay wéét', 'Orientation', None),
+    ('Opitaal bi lay wër ou seet', "Je cherche l'hôpital", 'o-pi-tal bi lay wér ou séét', 'Orientation', None),
+    ('Marse bi lay weur ou weet', 'Je cherche le marché', 'mar-sé bi lay wér ou wéét', 'Orientation', None),
+    ('Plateau bi lay weur ou weet', 'Je cherche le centre-ville (le Plateau)', 'pla-to bi lay wér ou wéét',
+     'Orientation', None),
+    ('Guédj bi lay seet', 'Je cherche la plage', 'guédj bi lay séét', 'Orientation', None),
+    ('Station bi lay seet', 'Je cherche la station', 'sta-syon bi lay séét', 'Orientation', None),
 
-    ('Ñaata la trajet bi ?', 'Combien coûte le trajet ?', 'nya-ta la tra-djè bi', 'Payer et connaître le tarif', None),
-    ('Fii laa fey ?', 'Je paie ici ?', 'fi-i la féy', 'Payer et connaître le tarif', None),
-    ('Amuma wesaare', "Je n'ai pas de monnaie", 'a-mou-ma wé-sa-ré', 'Payer et connaître le tarif', None),
-    ('Wesaareal ma', 'Pouvez-vous rendre la monnaie ?', 'wé-sa-ré-al ma', 'Payer et connaître le tarif', None),
+    # --- Urgence ---
+    ('Dama metti', "Ça me fait mal / J'ai mal", 'da-ma mét-ti', 'Urgence', None),
+    ('Wóoy !', 'Au secours ! (exclamation de détresse)', 'wooy', 'Urgence', None),
+    ('Sama xel dafa jaxaso', "Je suis inquiet(ète)", 'sa-ma xèl da-fa dja-xa-so', 'Urgence', None),
+    ('Wallouma', 'Aide-moi', 'wa-lou-ma', 'Urgence', "Interpellation directe, pour une urgence réelle"),
+    ('Wo len police', 'Appelez la police', 'wo lén po-lis', 'Urgence', None),
+    ('Dama feebar', 'Je suis malade', 'da-ma fé-bar', 'Urgence', "À distinguer de « Dama metti » (j'ai mal)"),
 
-    ('Waxuma wolof', 'Je ne parle pas wolof', 'wa-xou-ma wo-lof', 'Poser une question', "Pour prévenir tout de suite votre interlocuteur"),
-    ('Dégg nga farañse ?', 'Parlez-vous français ?', 'dègue nga fa-rañ-sé', 'Poser une question', None),
-    ('Dégg nga angale ?', 'Parlez-vous anglais ?', 'dègue nga an-ga-lé', 'Poser une question', None),
-
-    ('Jërejëf, chauffeur !', 'Merci chauffeur', 'djé-ré-djef so-fer', 'Remercier et prendre congé', None),
-    ('Jërejëf, apprenti !', 'Merci receveur', 'djé-ré-djef a-pran-ti', 'Remercier et prendre congé', "« Apprenti » désigne le receveur qui collecte les tickets dans le Tata"),
-    ('Fanaan ak jamm', 'Bonne soirée / bonne nuit', 'fa-naan ak diam', 'Remercier et prendre congé', "Pour se quitter en fin de journée"),
+    # --- Politesse (répondre, remercier, saluer en partant) ---
+    ('Waaw', 'Oui', 'waaw', 'Politesse', None),
+    ('Déedéet', 'Non', 'dé-dét', 'Politesse', None),
+    ('Baal ma', 'Excusez-moi / Pardon', 'ba-al ma', 'Politesse', "À dire avant toute question à un inconnu"),
+    ('Ndank ndank', 'Doucement, doucement (expression de patience)', 'ndank ndank', 'Politesse',
+     "Pour demander de répéter ou de ralentir"),
+    ('Su la neex', "S'il te plaît", 'sou la néx', 'Politesse', None),
+    ('Baal ma, dama la bëgg laaj', 'Excusez-moi, je voudrais vous demander', 'baal ma dama la beug laadj',
+     'Politesse', None),
+    ('Degguma wolof', 'Je ne parle pas wolof', 'dé-gou-ma wo-lof', 'Politesse',
+     "Pour prévenir tout de suite votre interlocuteur"),
+    ('Dégg nga farañse ?', 'Parlez-vous français ?', 'dègue nga fa-rañ-sé', 'Politesse', None),
+    ('Dégg nga angale ?', 'Parlez-vous anglais ?', 'dègue nga an-ga-lé', 'Politesse', None),
+    ('Ba benen', 'Au revoir', 'ba bé-nén', 'Politesse', None),
+    ('Jërejëf', 'Merci', 'djé-ré-djef', 'Politesse', None),
+    ('Amul solo', "Ce n'est rien / Pas de problème", 'a-moul so-lo', 'Politesse', "Réponse habituelle à un merci"),
+    ('Jërejëf, chauffeur !', 'Merci chauffeur', 'djé-ré-djef so-fer', 'Politesse', None),
+    ('Jërejëf, apprenti !', 'Merci receveur', 'djé-ré-djef a-pran-ti', 'Politesse',
+     "« Apprenti » désigne le receveur qui collecte les tickets dans le Tata"),
+    ('Fanaan ak jamm', 'Bonne soirée / bonne nuit', 'fa-naan ak diam', 'Politesse',
+     "Pour se quitter en fin de journée"),
 ]
 
 
-def _reorganiser_lexique_wolof_transport(cursor):
-    """Reclasse le lexique wolof existant dans des catégories orientées
-    situation de déplacement (voir RECLASSEMENT_PHRASES_WOLOF) et ajoute les
-    nouvelles expressions de NOUVELLES_PHRASES_WOLOF_TRANSPORT. Idempotent :
-    le reclassement est un UPDATE sans condition sur la valeur actuelle (sûr
-    à rejouer) ; pour les nouvelles phrases, `situation` est elle aussi
-    remise à jour si la phrase existe déjà (et pas seulement insérée si
-    absente), afin qu'un changement d'intitulé de catégorie se propage
-    toujours aux lignes déjà en base plutôt que de rester figé."""
-    for wolof, situation, contexte in RECLASSEMENT_PHRASES_WOLOF:
-        cursor.execute(
-            "UPDATE phrases_wolof SET situation = ?, contexte = COALESCE(contexte, ?) WHERE wolof = ?",
-            (situation, contexte, wolof)
-        )
+def _synchroniser_lexique_wolof(cursor):
+    """Aligne phrases_wolof sur LEXIQUE_WOLOF_FINAL : supprime ce qui n'y
+    est plus, déduplique, puis insère ou met à jour chaque phrase."""
+    wolof_canonique = {entree[0] for entree in LEXIQUE_WOLOF_FINAL}
 
-    for wolof, francais, phonetique, situation, contexte in NOUVELLES_PHRASES_WOLOF_TRANSPORT:
+    cursor.execute("SELECT id_phrase, wolof FROM phrases_wolof")
+    for row in cursor.fetchall():
+        if row["wolof"] not in wolof_canonique:
+            cursor.execute("DELETE FROM phrases_wolof WHERE id_phrase = ?", (row["id_phrase"],))
+
+    cursor.execute("""
+        DELETE FROM phrases_wolof
+        WHERE id_phrase NOT IN (SELECT MIN(id_phrase) FROM phrases_wolof GROUP BY wolof)
+    """)
+
+    for wolof, francais, phonetique, situation, contexte in LEXIQUE_WOLOF_FINAL:
         existe = cursor.execute("SELECT 1 FROM phrases_wolof WHERE wolof = ?", (wolof,)).fetchone()
         if existe:
             cursor.execute(
-                "UPDATE phrases_wolof SET situation = ?, contexte = COALESCE(contexte, ?) WHERE wolof = ?",
-                (situation, contexte, wolof)
+                "UPDATE phrases_wolof SET francais = ?, phonetique = ?, situation = ?, contexte = ? WHERE wolof = ?",
+                (francais, phonetique, situation, contexte, wolof)
             )
         else:
-            cursor.execute(
-                "INSERT INTO phrases_wolof (wolof, francais, phonetique, situation, contexte) VALUES (?, ?, ?, ?, ?)",
-                (wolof, francais, phonetique, situation, contexte)
-            )
-
-
-# ---------------------------------------------------------------------
-# CORRECTION DU LEXIQUE WOLOF (2026-07-17) — à la demande de l'utilisateur,
-# locuteur natif, qui a fourni la liste des formulations réellement
-# employées à Dakar en remplacement de plusieurs phrases approximatives
-# introduites lors des vagues précédentes (ex. "Wesaare" pour "monnaie" au
-# lieu de "Wéthiét", "Taxawal fii" au lieu de "Mayma fi", contresens sur
-# "Kañ nga dem ?" pris pour un futur alors que c'est un passé...).
-#
-# CORRECTIONS_TEXTE_PHRASES_WOLOF : (ancien_wolof, nouveau_wolof,
-# nouveau_francais ou None si inchangé, nouveau_phonetique ou None si
-# inchangé). La clé de correspondance est l'ancien texte wolof exact, donc
-# rejouable sans risque (une fois corrigée, la ligne ne matche plus
-# l'ancien texte et la seconde exécution ne fait rien).
-# ---------------------------------------------------------------------
-CORRECTIONS_TEXTE_PHRASES_WOLOF = [
-    ('Amuma wesaare', 'Amuma wéthiét', None, 'a-mou-ma wé-thi-ét'),
-    ('Wesaareal ma', 'Wéthi ma', 'Rends-moi ma monnaie', 'wé-thi ma'),
-    ('Wesaare', 'Wéthiét', 'Monnaie', 'wé-thi-ét'),
-    ('Su la neexee', 'Su la neex', None, 'sou la néx'),
-    ('Baal ma, dama bëgg laa laaj', 'Baal ma, dama la bëgg laaj', None, 'baal ma dama la beug laadj'),
-    ('Waxuma wolof', 'Degguma wolof', None, 'dé-gou-ma wo-lof'),
-    ('Ba beneen yoon', 'Ba benen', 'Au revoir', 'ba bé-nén'),
-    ('Dama metti', 'Dama metti', 'Ça me fait mal / J\'ai mal', None),
-    ('Sama xel dafa tang', 'Sama xel dafa jaxaso', 'Je suis inquiet(ète)', 'sa-ma xèl da-fa dja-xa-so'),
-    ('Wallal ma !', 'Wallouma', 'Aide-moi', 'wa-lou-ma'),
-    ('Fabu police bi', 'Wo len police', 'Appelez la police', 'wo lén po-lis'),
-    ('Jëm ci kanam', 'Foubaleul ci kanam', None, 'fou-ba-lél ci ka-nam'),
-    ('Jëm ci kaw', 'Felleul sa ndey-djoor', None, 'fè-lél sa ndèy-djor'),
-    ('Jëm ci ndey', 'Felleul sa thiamon', None, 'fè-lél sa thia-mon'),
-    ('Yagg na ?', 'Yagg na ?', 'Ça dure ?', None),
-    ('Wallal ma, su la neexee', 'Neun nga ma diapalé ?', None, 'neun nga ma dia-pa-lé'),
-    ('Dama wut universite bi', 'Damay weur université bi', None, 'da-may wér u-ni-vèr-si-té bi'),
-    ('Dama wut opitaal bi', 'Opitaal bi lay wër ou seet', None, 'o-pi-tal bi lay wér ou séét'),
-    ('Dama wut marse bi', 'Marse bi lay weur ou weet', None, 'mar-sé bi lay wér ou wéét'),
-    ('Dama wut Plateau bi', 'Plateau bi lay weur ou weet', None, 'pla-to bi lay wér ou wéét'),
-    ('Dama wut tefes bi', 'Guédj bi lay seet', None, 'guédj bi lay séét'),
-    ('Dama wut station bi', 'Station bi lay seet', None, 'sta-syon bi lay séét'),
-    ('Dina dem', 'Bayil ma dem', None, 'ba-yil ma dem'),
-    ('Fii laa fey ?', 'Fi laay feyé', 'Je paie ici', 'fi laay fé-yé'),
-    ('Fan laa mëna jël BRT bi ?', 'Fann la mëna jëler BRT bi ?', None, 'fann la mè-na djè-lér bi-èr-té bi'),
-    ('Fan laa mëna jël TER bi ?', 'Fann la mëna jëler TER bi ?', None, 'fann la mè-na djè-lér té-euh-èr bi'),
-    ('Ñaata waxtu la war ?', 'Ñaata waxtu no war ?', None, 'nya-ta wakh-tou no war'),
-    ('Xibaar ma bu nu egsee', 'Meun nga ma wax bu nu egée', None, 'meun nga ma wakh bou nou é-gé'),
-    ('Ana yow ?', 'Yaw nak, nodef ?', None, 'yaw nak no-déf'),
-    ('Naka guddi gi ?', 'Naka guddii gi', 'Comment se passe la soirée ?', 'na-ka gou-dii gui'),
-    ('Kañ nga dem ?', 'Kañ nga dem ?', 'Quand est-ce que tu es parti ? (il est déjà parti)', None),
-    ('Ban gaal moo dem [lieu] ?', 'Ban mooy dem [lieu] ?', None, 'ban mo-y dem'),
-    ('Tata bii, dafa dem [lieu] ?', 'Tata bi dafay dem [lieu] ?', None, 'ta-ta bi da-fay dem'),
-    ('Ban ligne moo dem [lieu] ?', 'Ban ligne mooy dem [lieu] ?', None, 'ban ligne mo-y dem'),
-    ('Ligne bii, dafa jaar ci [lieu] ?', 'Ligne bi dafay jaar [lieu] ?', None, 'ligne bi da-fay diar'),
-    ('Taxawal fii !', 'Mayma fi', 'Arrêtez-vous ici', 'may-ma fi'),
-    ('Yëgël ma ci...', 'Wathié ma ci...', None, 'wa-thi-é ma si...'),
-    ('Wàcc fi !', 'Wàccal fi !', None, 'wa-tchal fi'),
-    ('Ban arrêt bu topp ?', 'Ban arrêt mo ci toog ?', None, 'ban a-rè mo ci tog'),
-]
-
-# Nouvelles expressions signalées par l'utilisateur et absentes du lexique
-# jusqu'ici (formes complémentaires : tutoiement/vouvoiement, urgence vs
-# usage courant...). Même format que NOUVELLES_PHRASES_WOLOF_TRANSPORT.
-NOUVELLES_PHRASES_WOLOF_REELLES_2026 = [
-    ('Wéthi ko', 'Donne sa monnaie', 'wé-thi ko', 'Payer et connaître le tarif', None),
-    ('Wéthi woma', "Vous ne m'avez pas rendu la monnaie", 'wé-thi wo-ma', 'Payer et connaître le tarif', None),
-    ('Wéthi woko', "Il ne lui a pas rendu la monnaie", 'wé-thi wo-ko', 'Payer et connaître le tarif', None),
-    ('Nguir Yàlla', "S'il te plaît", 'ngir yal-la', 'Poser une question', "Autre façon de dire « s'il te plaît »"),
-    ('Dama feebar', 'Je suis malade', 'da-ma fé-bar', "Situations d'urgence", "À distinguer de « Dama metti » (j'ai mal)"),
-    ('Walloo !', 'Aidez-moi ! (urgence)', 'wa-lo', "Situations d'urgence", "À crier en cas d'urgence réelle"),
-    ('Kay len wallouma', "Venez m'aider !", 'kay lén wa-lou-ma', "Situations d'urgence", None),
-    ('Wo waal police', 'Appelle la police', 'wo wal po-lis', "Situations d'urgence", "Forme au tutoiement"),
-    ('Sori na ?', "C'est loin ?", 'so-ri na', 'Demander son chemin', None),
-    ('Université bi lay weet', "Je cherche l'université", 'u-ni-vèr-si-té bi lay wéét', 'Demander son chemin', "Forme plus polie"),
-    ('Waxma bou nu egée', 'Dis-moi quand nous arrivons', 'wakh-ma bou nou é-gé', 'Monter dans un Tata', None),
-    ('Yaw nak', 'Et toi ?', 'yaw nak', 'Saluer', None),
-    ('Kañ ngay dem ?', 'Quand pars-tu ?', 'kagn ngay dem', 'Monter dans un Tata', "À demander au chauffeur qui attend encore des passagers"),
-    ('Ci tay wathie', "C'est ici que je descends", 'ci tay wa-thi-é', 'Demander un arrêt', None),
-]
-
-
-def _corriger_lexique_wolof_reel_2026(cursor):
-    """Applique les corrections fournies par l'utilisateur (locuteur natif)
-    sur le lexique wolof existant, et ajoute les expressions manquantes.
-    Idempotent : chaque UPDATE cible l'ancien texte wolof exact (une fois
-    corrigée, la ligne ne matche plus et la ré-exécution est un no-op) ; les
-    ajouts sont conditionnés à l'absence de la phrase (vérification par
-    texte wolof)."""
-    for ancien_wolof, nouveau_wolof, nouveau_francais, nouveau_phonetique in CORRECTIONS_TEXTE_PHRASES_WOLOF:
-        cursor.execute(
-            "UPDATE phrases_wolof SET wolof = ?, francais = COALESCE(?, francais), "
-            "phonetique = COALESCE(?, phonetique) WHERE wolof = ?",
-            (nouveau_wolof, nouveau_francais, nouveau_phonetique, ancien_wolof)
-        )
-
-    # "Kañ nga dem ?" ne signifie pas "quand pars-tu ?" mais "quand es-tu
-    # parti ?" (passé) : le contexte "à demander au chauffeur qui attend
-    # encore des passagers", hérité du sens fautif, ne s'applique plus et
-    # est retiré (il est repris par le nouveau "Kañ ngay dem ?" ci-dessus).
-    cursor.execute(
-        "UPDATE phrases_wolof SET contexte = NULL "
-        "WHERE wolof = 'Kañ nga dem ?' "
-        "AND contexte = 'À demander au chauffeur qui attend encore des passagers'"
-    )
-
-    for wolof, francais, phonetique, situation, contexte in NOUVELLES_PHRASES_WOLOF_REELLES_2026:
-        existe = cursor.execute("SELECT 1 FROM phrases_wolof WHERE wolof = ?", (wolof,)).fetchone()
-        if not existe:
             cursor.execute(
                 "INSERT INTO phrases_wolof (wolof, francais, phonetique, situation, contexte) VALUES (?, ?, ?, ?, ?)",
                 (wolof, francais, phonetique, situation, contexte)
@@ -1444,14 +1035,7 @@ NOUVELLES_LIGNES_MINIBUS = [
     },
 ]
 
-# ---------------------------------------------------------------------
-# Deuxième vague d'enrichissement du réseau Minibus Tata : le
-# réseau est le moyen de transport en commun le moins cher de Dakar et le
-# plus adapté au budget étudiant, mais restait sous-représenté par rapport
-# au nombre réel de lignes AFTU. On densifie ici la couverture de quartiers
-# déjà référencés dans `lieux` mais encore mal desservis par une ligne
-# directe (Hann Maristes, Sicap Liberté, Rufisque profond, etc.).
-# ---------------------------------------------------------------------
+# Deuxième vague de lignes Tata, pour densifier les quartiers encore mal desservis.
 NOUVELLES_LIGNES_MINIBUS_2 = [
     {
         "numero_ligne": "Ligne 81", "nom_ligne": "Petersen - Hann Maristes",
@@ -1505,14 +1089,7 @@ NOUVELLES_LIGNES_MINIBUS_2 = [
     },
 ]
 
-# ---------------------------------------------------------------------
-# Enrichissement massif du réseau Car Rapide : à budget étudiant égal, le
-# car rapide reste le moyen de transport le moins cher de Dakar (100-200
-# FCFA la course) mais n'était couvert que par 4 lignes (CR-1 à CR-4),
-# très en retrait par rapport au réseau minibus Tata. On porte le réseau
-# à 20 lignes pour refléter la densité réelle du car rapide sur les grands
-# axes de la capitale et de la banlieue.
-# ---------------------------------------------------------------------
+# Le car rapide ne comptait que 4 lignes (CR-1 à CR-4) : on porte le réseau à 20.
 NOUVELLES_LIGNES_CAR_RAPIDE = [
     {
         "numero_ligne": "CR-5", "nom_ligne": "Colobane - Guédiawaye (Car rapide)",
@@ -1598,10 +1175,7 @@ NOUVELLES_LIGNES_CAR_RAPIDE = [
 
 
 def _enrichir_reseau_et_lexique(cursor):
-    """Ajoute de nouveaux quartiers/sites, phrases wolof et lignes minibus
-    s'ils n'existent pas déjà (vérification par nom / numéro de ligne),
-    afin d'enrichir la couverture du réseau sans jamais dupliquer les
-    données sur une base qui les aurait déjà."""
+    """Ajoute quartiers, phrases wolof et lignes minibus s'ils n'existent pas déjà."""
 
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
@@ -1609,14 +1183,6 @@ def _enrichir_reseau_et_lexique(cursor):
             cursor.execute(
                 "INSERT INTO lieux (nom, type_lieu, latitude, longitude, description) VALUES (?, ?, ?, ?, ?)",
                 (nom, type_lieu, lat, lng, desc)
-            )
-
-    for wolof, francais, phonetique, situation in NOUVELLES_PHRASES_WOLOF:
-        existe = cursor.execute("SELECT 1 FROM phrases_wolof WHERE wolof = ?", (wolof,)).fetchone()
-        if not existe:
-            cursor.execute(
-                "INSERT INTO phrases_wolof (wolof, francais, phonetique, situation) VALUES (?, ?, ?, ?)",
-                (wolof, francais, phonetique, situation)
             )
 
     ligne_transport = cursor.execute(
@@ -1630,10 +1196,7 @@ def _enrichir_reseau_et_lexique(cursor):
     id_transport_tata = ligne_transport[0]
     id_transport_car_rapide = ligne_transport_cr[0] if ligne_transport_cr else None
 
-    # Regroupe les 3 vagues d'enrichissement (Tata historique + Tata
-    # densification + Car rapide) : chaque lot est associé à l'id_transport
-    # correspondant, avec est_minibus=1 dans tous les cas (réseau minibus
-    # au sens large = Tata + Car rapide, le duo le moins cher de Dakar).
+    # Chaque lot de lignes est rattaché à son transport, en tant que minibus.
     lots = [(NOUVELLES_LIGNES_MINIBUS, id_transport_tata), (NOUVELLES_LIGNES_MINIBUS_2, id_transport_tata)]
     if id_transport_car_rapide:
         lots.append((NOUVELLES_LIGNES_CAR_RAPIDE, id_transport_car_rapide))
@@ -1671,13 +1234,7 @@ def _enrichir_reseau_et_lexique(cursor):
                 )
 
 
-# ---------------------------------------------------------------------
-# Réseau minibus curé autour du pôle SONATEL (siège social, sur la VDN
-# entre Ouest Foire, Sacré-Cœur et Cité Keur Gorgui). Remplace l'ancienne
-# liste générique de ~90 lignes Tata sur la page /minibus par une
-# sélection d'itinéraires réels, centrée sur les quartiers où les
-# étudiants sont les plus concentrés.
-# ---------------------------------------------------------------------
+# Réseau minibus curé autour du pôle SONATEL, côté quartiers étudiants.
 LIEU_SONATEL = (
     'SONATEL', 'entreprise', 14.7259, -17.4793,
     "Siège social SONATEL / Orange, sur la Voie de Dégagement Nord (VDN) — repère central pour les minibus "
@@ -1732,10 +1289,7 @@ LIGNES_MINIBUS_SONATEL = [
 
 
 def _ajouter_reseau_sonatel(cursor):
-    """Ajoute le lieu SONATEL et les lignes minibus curées SN-1 à SN-8
-    s'ils n'existent pas déjà (vérification par nom / numéro de ligne),
-    en réutilisant le même schéma (arrets + ligne_arrets) que
-    `_enrichir_reseau_et_lexique`."""
+    """Ajoute le lieu SONATEL et les lignes minibus SN-1 à SN-8 s'ils n'existent pas déjà."""
     nom_lieu, type_lieu, lat, lng, desc = LIEU_SONATEL
     existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom_lieu,)).fetchone()
     if not existe:
@@ -1783,9 +1337,7 @@ def _ajouter_reseau_sonatel(cursor):
             )
 
 
-# Coordonnées réelles de l'Université Amadou Mahtar Mbow (UAM), campus
-# universitaire du Pôle urbain de Diamniadio inauguré en 2022 — distinct de
-# l'UCAD (Dakar intra-muros). Source : OpenStreetMap (way 593944367).
+# Campus universitaire de Diamniadio, inauguré en 2022, distinct de l'UCAD.
 LIEU_UNIVERSITE_AMADOU_MAHTAR_MBOW = (
     'Université Amadou Mahtar Mbow', 'universite', 14.733981, -17.197246,
     "Université publique du Pôle urbain de Diamniadio, inaugurée en 2022 — distincte de l'UCAD"
@@ -1793,12 +1345,8 @@ LIEU_UNIVERSITE_AMADOU_MAHTAR_MBOW = (
 
 
 def _ajouter_universite_amadou_mahtar_mbow(cursor):
-    """Ajoute le lieu 'Université Amadou Mahtar Mbow' s'il n'existe pas déjà
-    (vérification par nom), sans lui associer d'arrêt/ligne dédié : à environ
-    30 km du centre de Dakar et à plus de 2 km du pôle TER de Diamniadio, ce
-    trajet reste couvert par les options Taxi/Clando/Jakarta/Ndiaga Ndiaye
-    (calculées à la volée par itineraire.py à partir de la distance), comme
-    pour tout lieu réel non desservi par une ligne cartographiée."""
+    """Ajoute l'UAM si elle n'existe pas déjà. Pas de ligne dédiée : le
+    trajet reste couvert par Taxi/Clando/Jakarta/Ndiaga Ndiaye (estimation à la distance)."""
     nom, type_lieu, lat, lng, desc = LIEU_UNIVERSITE_AMADOU_MAHTAR_MBOW
     existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
     if not existe:
@@ -1808,23 +1356,8 @@ def _ajouter_universite_amadou_mahtar_mbow(cursor):
         )
 
 
-# ---------------------------------------------------------------------
-# Réseau Tata réel — remplacement des lignes fictives par les 70
-# vraies lignes officielles publiées par l'AFTU (Association de
-# Financement des professionnels du Transport Urbain), opérateur officiel
-# du réseau, sur aftu-senegal.org/infos-pratiques/ (relevé du 2026-07-17).
-# Numéros officiels couverts : 1-5, 24-38, 40-46, 48-89, 91 (70 lignes ;
-# les numéros manquants entre 1 et 91 ne sont simplement pas publiés par
-# l'AFTU à ce jour).
-#
-# Niveau de confiance des coordonnées des nouveaux lieux ci-dessous :
-# - "position vérifiée" : coordonnées confirmées par une source
-#   indépendante (recherche web ciblée, carte).
-# - "position approximative" : aucune coordonnée précise publiée trouvée ;
-#   estimation au niveau du quartier/de la commune connue, à corriger si
-#   une source plus précise est un jour disponible. Ceci est explicitement
-#   documenté ici plutôt que présenté comme une donnée exacte.
-# ---------------------------------------------------------------------
+# Remplace les lignes Tata fictives par les 70 vraies lignes de l'AFTU.
+# "position vérifiée" = coordonnées confirmées, "position approximative" = estimée au niveau du quartier.
 NOUVEAUX_LIEUX_AFTU_REEL_2026 = [
     ('Terminus Lat Dior', 'quartier', 14.670416, -17.444279,
      "Terminus historique du réseau Tata, Plateau, à proximité du Palais de Justice (position approximative)"),
@@ -1918,13 +1451,7 @@ NOUVEAUX_LIEUX_AFTU_REEL_2026 = [
      "Quartier voisin de Liberté 6 (position approximative)"),
 ]
 
-# (numero_ligne, terminus A, terminus B) — noms de lieux devant exister
-# soit dans NOUVEAUX_LIEUX_AFTU_REEL_2026 ci-dessus, soit déjà dans la
-# table lieux (Petersen, UCAD, Colobane, Yoff, Ngor, Parcelles Assainies,
-# Nord Foire, Grand Mbao, Ouakam, Keur Massar, Sébikotane, Liberté 6,
-# Rufisque, Almadies, Bargny, Guédiawaye, Yeumbeul, Lac Rose (Retba),
-# Sangalkam, Cambérène, Bambilor, Arafat, Zone de Captage, Malika, Gueule
-# Tapée, Cité Comico, Stade Léopold Sédar Senghor, Pikine, Thiaroye).
+# (numero_ligne, terminus A, terminus B) : les terminus doivent exister dans `lieux`.
 LIGNES_AFTU_OFFICIELLES_2026 = [
     ("Ligne 1", "Terminus Lat Dior", "HLM Grand Yoff"),
     ("Ligne 2", "Parcelles Assainies", "Petersen"),
@@ -2002,23 +1529,9 @@ MARQUEUR_LIGNE_AFTU_REELLE_2026 = "[AFTU officiel 2026]"
 
 
 def _remplacer_par_lignes_aftu_reelles_2026(cursor):
-    """Remplace, pour chaque numéro officiel AFTU listé dans
-    LIGNES_AFTU_OFFICIELLES_2026, la ligne existante (fictive, inventée
-    lors d'itérations précédentes du projet) par la vraie ligne Tata
-    correspondante — mêmes deux vrais terminus que ceux publiés par
-    l'AFTU. Les lignes qui n'ont pas de détail d'arrêts intermédiaires
-    publié par l'AFTU sont volontairement modélisées comme des lignes à 2
-    arrêts (terminus de départ / terminus d'arrivée) plutôt que
-    d'inventer un tracé intermédiaire fictif.
-
-    Idempotent et non-destructif vis-à-vis des données réelles : si une
-    ligne existe déjà pour ce numéro avec le nom exact
-    "{terminus_a} - {terminus_b}", elle est considérée comme déjà migrée
-    et la fonction ne la retouche plus jamais (elle ne supprime donc que
-    l'ancien contenu FICTIF, une seule fois, jamais les vraies données une
-    fois en place). Le nom de ligne (deux vrais terminus) sert lui-même de
-    marqueur — pas besoin d'exposer de mention de source ni le nom de
-    l'opérateur dans la description affichée aux visiteurs."""
+    """Remplace chaque ligne fictive par la vraie ligne AFTU du même numéro
+    (2 arrêts, les deux terminus). Si le nom "{terminus_a} - {terminus_b}"
+    existe déjà, la ligne est considérée migrée et n'est plus retouchée."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_AFTU_REEL_2026:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -2107,20 +1620,9 @@ NUMEROS_LIGNES_TATA_NON_OFFICIELLES_2026 = (
 
 
 def _retirer_lignes_tata_non_officielles_2026(cursor):
-    """Retire les lignes Tata dont le numéro ne fait PAS partie des 70
-    numéros officiels publiés par l'AFTU (voir LIGNES_AFTU_OFFICIELLES_2026
-    ci-dessus) : ces ~60 lignes (numéros 6-23, 39, 47, 90, 92-130) restaient
-    du réseau inventé lors d'itérations précédentes du projet, sans aucune
-    correspondance avec un numéro AFTU réel — l'utilisateur a explicitement
-    demandé leur suppression plutôt que de les laisser affichées à côté des
-    70 vraies lignes sur /minibus sans distinction possible.
-
-    Même précaution que _remplacer_par_lignes_aftu_reelles_2026 : certains
-    arrêts de ces lignes fictives sont partagés avec d'autres lignes encore
-    présentes en base (arrêts-carrefour du réseau d'origine), donc un arrêt
-    n'est supprimé que s'il n'est plus référencé par aucune autre ligne
-    après le retrait de celle-ci. Idempotent : ne fait rien si ces lignes
-    ont déjà été retirées lors d'une exécution précédente."""
+    """Retire les lignes Tata dont le numéro ne fait pas partie des 70
+    lignes officielles AFTU. Un arrêt n'est supprimé que s'il n'est plus
+    référencé par aucune autre ligne encore présente."""
     for numero in NUMEROS_LIGNES_TATA_NON_OFFICIELLES_2026:
         numero_ligne = f"Ligne {numero}"
         ligne_row = cursor.execute(
@@ -2144,30 +1646,7 @@ def _retirer_lignes_tata_non_officielles_2026(cursor):
         cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
 
 
-# ---------------------------------------------------------------------
-# Enrichissement du réseau BRT (lignes B1/B2) avec les vraies stations
-# officielles du SunuBRT Petersen-Guédiawaye, à la demande de l'utilisateur
-# après avoir signalé que le BRT n'apparaissait pas comme option pour un
-# trajet Sacré-Cœur -> Liberté 6 alors que c'est le moyen le plus sûr pour
-# un étranger. Cause identifiée : la ligne B1 existante ne comportait que 8
-# arrêts (Petersen, Grand Dakar, Sacré-Cœur, Front de Terre, Patte d'Oie,
-# Parcelles Assainies, Golf Sud, Préfecture Guédiawaye) — "Front de Terre"
-# et "Patte d'Oie" ne correspondent à aucun nom de station BRT officielle
-# trouvé (CETUD, presse, OSM network=SunuBRT), et surtout aucun arrêt
-# n'existait près de Liberté 6, qui est pourtant une vraie station BRT (le
-# rond-point Liberté 6 lui-même — confirmé par CETUD et par la presse
-# locale lors du vandalisme de la station en 2024).
-#
-# Sources : CETUD (cetud.sn/les-caracteristiques-techniques-du-projet-brt),
-# liste des 14 gares au lancement (mai 2024, SENTV/Senego), annonces
-# d'ouverture de gares supplémentaires (2025), et les points OSM tagués
-# network=SunuBRT pour les coordonnées. La station "Gueule Tapée" citée
-# dans une annonce d'ouverture n'a pas été intégrée : sa localisation
-# annoncée (secteur de Guédiawaye) entre en conflit avec le quartier bien
-# connu du même nom près de la Médina, et aucune coordonnée fiable n'a pu
-# distinguer les deux — plutôt que de risquer une confusion, cette station
-# est délibérément omise pour l'instant.
-# ---------------------------------------------------------------------
+# Vraies stations du BRT (SunuBRT Petersen-Guédiawaye), notamment Liberté 6 qui manquait.
 NOUVEAUX_LIEUX_BRT_2026 = [
     ('Place de la Nation (BRT)', 'quartier', 14.694, -17.449,
      "Anciennement Place de l'Obélisque, boulevard Général de Gaulle (position vérifiée)"),
@@ -2191,11 +1670,7 @@ NOUVEAUX_LIEUX_BRT_2026 = [
      "Station BRT taguée dans OpenStreetMap (network=SunuBRT), Guédiawaye, ouverte en 2025 (position vérifiée)"),
 ]
 
-# Ordre géographique Petersen -> Préfecture de Guédiawaye. Les noms déjà
-# présents dans `lieux` (Petersen, Grande Mosquée de Dakar, Grand Dakar,
-# Liberté 1, Sacré-Cœur, Liberté 5, Liberté 6, Grand Médine, Parcelles
-# Assainies, Golf Sud, Hôpital Dalal Jamm, Guédiawaye) sont réutilisés tels
-# quels, sans créer de doublon.
+# Ordre géographique Petersen -> Préfecture de Guédiawaye.
 STATIONS_BRT_B1_OMNIBUS_2026 = [
     "Petersen", "Grande Mosquée de Dakar", "Place de la Nation (BRT)", "Dial Diop (BRT)",
     "Grand Dakar", "Liberté 1", "Sacré-Cœur", "Liberté 5", "Liberté 6",
@@ -2214,16 +1689,9 @@ MARQUEUR_BRT_ENRICHI_2026 = "[BRT enrichi 2026]"
 
 
 def _enrichir_lignes_brt_2026(cursor):
-    """Remplace le tracé (arrêts) des lignes B1 et B2 par la vraie liste de
-    stations SunuBRT ci-dessus, en conservant le même numero_ligne (B1/B2)
-    et donc le même id_ligne — contrairement au remplacement des lignes
-    Tata fictives, il ne s'agit pas de renuméroter quoi que ce soit, juste
-    de corriger le tracé d'une ligne réelle déjà existante.
-
-    Même précaution que pour les autres suppressions de ce module : un
-    arrêt n'est supprimé que s'il n'est plus référencé par aucune autre
-    ligne. Idempotent (marqueur dédié dans la description empêchant toute
-    ré-exécution destructive une fois le tracé réel en place)."""
+    """Remplace le tracé des lignes B1 et B2 par les vraies stations SunuBRT,
+    en gardant le même id_ligne. Un arrêt n'est supprimé que s'il n'est plus
+    référencé par aucune autre ligne."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_BRT_2026:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -2284,11 +1752,7 @@ def _enrichir_lignes_brt_2026(cursor):
 
 
 def _retirer_lignes_dit_fictives(cursor):
-    """Retire les lignes 'DIT-1' à 'DIT-5' créées lors d'une itération
-    précédente du projet : c'étaient des lignes inventées pour l'occasion,
-    cloisonnées dans un onglet à part, plutôt que des lignes réellement
-    exploitées par le réseau Tata. Idempotent : ne fait rien si ces lignes
-    n'existent pas ou plus."""
+    """Retire les lignes 'DIT-1' à 'DIT-5', inventées lors d'une itération précédente."""
     lignes = cursor.execute(
         "SELECT id_ligne FROM lignes_bus WHERE numero_ligne LIKE 'DIT-%'"
     ).fetchall()
@@ -2303,21 +1767,9 @@ def _retirer_lignes_dit_fictives(cursor):
         cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
 
 
-# ---------------------------------------------------------------------
-# Troisième vague d'enrichissement du réseau : nouveaux lieux (monuments,
-# hôpitaux, marchés, stades — des repères réels de Dakar encore absents de
-# la base) et nouvelles lignes Tata/Car rapide. Les numéros de ligne
-# utilisés ici (17, 35, 37, 54, 59, 62, 69, 71, 73, 74, 76, 77, 79, puis
-# 91+) ont été choisis pour ne JAMAIS entrer en collision avec les
-# numéros déjà pris par le reste du réseau (1-90 très majoritairement
-# occupés par la donnée d'origine et les deux premières vagues
-# d'enrichissement) — une précédente tentative avait réutilisé des
-# numéros déjà existants (Ligne 4, 42, 47, 67, 78), ce qui les faisait
-# silencieusement ignorer par la vérification d'idempotence. Ces lignes ne
-# reçoivent aucun traitement particulier : elles sont insérées exactement
-# comme toutes les autres, qu'elles passent ou non par le secteur VDN /
-# Sacré-Cœur / Cité Keur Gorgui.
-# ---------------------------------------------------------------------
+# Troisième vague : nouveaux lieux et lignes Tata/Car rapide.
+# Numéros de ligne choisis pour ne jamais réutiliser un numéro déjà pris
+# (sinon la vérification d'idempotence les ignore silencieusement).
 NOUVEAUX_LIEUX_3 = [
     ('Stade Léopold Sédar Senghor', 'site_touristique', 14.7196, -17.4780, "Principal stade national du Sénégal, proche de Fenêtre Mermoz"),
     ('Hôpital Principal de Dakar', 'site_touristique', 14.6819, -17.4342, "Grand hôpital militaire et civil du Plateau"),
@@ -2371,10 +1823,7 @@ NOUVELLES_LIGNES_CAR_RAPIDE_2 = [
 
 
 def _enrichir_reseau_vague_3(cursor):
-    """Troisième vague d'enrichissement du réseau (lieux + lignes Tata et
-    Car rapide), avec les mêmes garanties d'idempotence que
-    `_enrichir_reseau_et_lexique` (vérification par nom / numéro de ligne
-    avant chaque insertion)."""
+    """Troisième vague d'enrichissement (lieux + lignes Tata et Car rapide)."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_3:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -2431,12 +1880,7 @@ def _enrichir_reseau_vague_3(cursor):
                 )
 
 
-# ---------------------------------------------------------------------
-# Quatrième vague d'enrichissement, focalisée sur le réseau Tata
-# spécifiquement : nouveaux lieux (campus, terminus, marchés de quartier)
-# et 28 nouvelles lignes Tata supplémentaires, avec la même règle de
-# numérotation que la vague 3 (numéros jamais réutilisés : 103 à 130).
-# ---------------------------------------------------------------------
+# Quatrième vague, centrée sur le réseau Tata : nouveaux lieux et 28 lignes de plus.
 NOUVEAUX_LIEUX_4 = [
     ('Technopole', 'entreprise', 14.7280, -17.4550, "Zone d'activités technologiques et tertiaires proche de la VDN"),
     ('Parc Zoologique de Hann', 'site_touristique', 14.7255, -17.4285, "Parc zoologique et forestier de Hann"),
@@ -2481,9 +1925,7 @@ NOUVELLES_LIGNES_MINIBUS_4 = [
 
 
 def _enrichir_reseau_vague_4(cursor):
-    """Quatrième vague d'enrichissement, centrée sur le réseau Tata : mêmes
-    garanties d'idempotence que les vagues précédentes (vérification par
-    nom / numéro de ligne avant chaque insertion)."""
+    """Quatrième vague d'enrichissement, centrée sur le réseau Tata."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_4:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -2532,11 +1974,7 @@ def _enrichir_reseau_vague_4(cursor):
 
 
 def init_db(force=False):
-    """
-    Crée le fichier de base de données à partir de schema.sql et le remplit
-    avec donnees.sql. Si force=True, la base existante est supprimée et
-    recréée depuis zéro .
-    """
+    """Crée la base depuis schema.sql + donnees.sql (ou la recrée si force=True)."""
     if force and os.path.exists(DB_PATH):
         try:
             os.remove(DB_PATH)
@@ -2555,19 +1993,16 @@ def init_db(force=False):
         conn.commit()
 
     conn.close()
-    
-    # Lancement de la mise à jour de sécurité des colonnes
+
     verifier_et_mettre_a_jour_schema()
 
 
-# Appliquer les corrections directement dès l'importation de ce module
+# Applique les corrections dès l'importation du module.
 if os.path.exists(DB_PATH):
     verifier_et_mettre_a_jour_schema()
 
 
-# ---------------------------------------------------------------------
-# Fonctions de lecture utilisées par les pages du site
-# ---------------------------------------------------------------------
+# Fonctions de lecture utilisées par les pages du site.
 
 def get_tous_les_lieux():
     conn = get_connection()
@@ -2630,28 +2065,12 @@ def get_nombre_lieux():
     return n
 
 
-# ---------------------------------------------------------------------
-# Gestion Spécifique des Lignes et Arrêts (Minibus )
-# ---------------------------------------------------------------------
-
-def get_lignes_sonatel():
-    """Retourne uniquement les lignes minibus curées au départ du pôle
-    SONATEL (numéros SN-1 à SN-8). Conservé pour compatibilité ; la page
-    /minibus utilise désormais get_toutes_les_lignes_tata()."""
-    conn = get_connection()
-    lignes = conn.execute(
-        "SELECT * FROM lignes_bus WHERE numero_ligne LIKE 'SN-%' ORDER BY numero_ligne"
-    ).fetchall()
-    conn.close()
-    return lignes
+# Gestion des lignes et arrêts (réseau Minibus).
 
 
 def get_toutes_les_lignes_tata():
-    """Retourne l'intégralité des lignes du réseau Minibus Tata —
-    utilisée par la page /minibus, qui référence désormais tout le réseau
-    et non plus seulement les itinéraires curés SONATEL. Le Car rapide,
-    bien que marqué est_minibus=1 en base pour le calcul d'itinéraires,
-    est un moyen de transport distinct et n'est pas inclus ici."""
+    """Toutes les lignes du réseau Minibus Tata, pour la page /minibus
+    (le Car rapide est un transport distinct, exclu ici malgré est_minibus=1)."""
     conn = get_connection()
     lignes = conn.execute("""
         SELECT lb.* FROM lignes_bus lb
@@ -2689,9 +2108,7 @@ def get_arrets_par_ligne(id_ligne):
     return arrets
 
 
-# ---------------------------------------------------------------------
-# Gestion de l'Historique des Recherches et Favoris
-# ---------------------------------------------------------------------
+# Gestion de l'historique des recherches et des favoris.
 
 def ajouter_recherche_historique(dep_nom, arr_nom, dep_lat=None, dep_lng=None, arr_lat=None, arr_lng=None,
                                   id_lieu_depart=None, id_lieu_arrivee=None):
@@ -2712,8 +2129,8 @@ def get_historique_recent(limite=10):
     conn = get_connection()
     try:
         historique = conn.execute("""
-            SELECT * FROM historique_recherches 
-            ORDER BY date_recherche DESC 
+            SELECT * FROM historique_recherches
+            ORDER BY date_recherche DESC
             LIMIT ?
         """, (limite,)).fetchall()
     except sqlite3.OperationalError:
@@ -2771,30 +2188,11 @@ def get_tous_les_favoris():
     return favoris
 
 
-# ---------------------------------------------------------------------
-# Trajets et Moteur de Recherche d'itinéraires
-# ---------------------------------------------------------------------
-#
-# Depuis cette version, les itinéraires ne sont plus stockés un par un en
-# base : ils sont calculés à la volée par le module itineraire.py à partir
-# du graphe lieux / arrêts / lignes / correspondances. La table `trajets`
-# n'est donc plus utilisée pour la recherche (elle reste dans le schéma
-# pour compatibilité mais n'est plus alimentée).
-# ---------------------------------------------------------------------
+# Les itinéraires sont calculés à la volée par itineraire.py (graphe lieux /
+# arrêts / lignes / correspondances), la table `trajets` n'est plus utilisée.
 
-# Paires "populaires" affichées sur la page /trajets et /prix à titre
-# d'exemples/raccourcis. La recherche elle-même fonctionne pour n'importe
-# quelle paire de lieux de la table `lieux` (voir rechercher_trajet).
-#
-# Liste recalée sur les axes réellement les plus empruntés de l'agglomération
-# dakaroise, d'après le réseau AFTU/Tata (64 lignes, desserte Pikine/
-# Guédiawaye/Rufisque), le tracé du BRT Petersen-Guédiawaye (~18 km, l'un des
-# axes les plus denses de la ville) et les grands corridors identifiés par le
-# CETUD dans ses plans de déplacements urbains : Route des Niayes (Pikine -
-# Guédiawaye - Malika - Keur Massar), Route de Rufisque (Thiaroye - Rufisque
-# - Bargny), VDN/Corniche Ouest (Ouakam - Ngor - Almadies - Yoff) et l'axe
-# autoroutier TER Dakar - Diamniadio - AIBD. Sources : cetud.sn (Réseaux de
-# transport, Plan de Mobilité Urbaine Durable), demdikk.sn, aftu-senegal.org.
+# Paires "populaires" affichées sur /trajets et /prix. La recherche marche
+# pour n'importe quelle paire de lieux (voir rechercher_trajet).
 TRAJETS_POPULAIRES = [
     # Voyageurs et touristes : l'aéroport AIBD vers le centre-ville et le
     # pôle universitaire (le TER dessert déjà Diamniadio sur cet axe)
@@ -2819,9 +2217,8 @@ TRAJETS_POPULAIRES = [
 
 
 def _niveau_difficulte(options):
-    """Estime un niveau de difficulté à partir du meilleur itinéraire en
-    transport en commun trouvé (indépendamment de l'option recommandée,
-    qui peut être un taxi/Jakarta simplement plus rapide)."""
+    """Estime la difficulté à partir du meilleur itinéraire en transport en commun,
+    même si l'option recommandée est un taxi/Jakarta plus rapide."""
     meilleur_transit = None
     for o in options:
         if o["nom_transport"] not in ("Taxi", "Clando", "Jakarta (moto-taxi)", "À pied"):
@@ -2862,8 +2259,7 @@ def _construire_reponse(conn, lieu_depart, lieu_arrivee, graphe=None):
 
 
 def get_tous_les_trajets():
-    """Retourne une sélection de trajets populaires, calculés dynamiquement
-    par le moteur d'itinéraire (utilisé pour les pages /trajets et /prix)."""
+    """Trajets populaires, calculés dynamiquement (pages /trajets et /prix)."""
     conn = get_connection()
     lieux_par_nom = {l["nom"]: l for l in conn.execute("SELECT * FROM lieux").fetchall()}
     graphe = itineraire.Graphe(conn)
@@ -2880,11 +2276,7 @@ def get_tous_les_trajets():
 
 
 def rechercher_trajet(id_depart, id_arrivee):
-    """
-    Calcule dynamiquement le meilleur itinéraire entre deux lieux (bus/Tata/
-    BRT/TER avec correspondances, + options Taxi/Jakarta toujours
-    disponibles). Enregistre également la recherche dans l'historique.
-    """
+    """Calcule le meilleur itinéraire entre deux lieux et enregistre la recherche dans l'historique."""
     conn = get_connection()
 
     lieu_depart = conn.execute("SELECT * FROM lieux WHERE id_lieu = ?", (id_depart,)).fetchone()

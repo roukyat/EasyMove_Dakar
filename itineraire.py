@@ -1,45 +1,30 @@
 """
 itineraire.py
 --------------
-Moteur de calcul d'itinéraires pour EasyMoveDakar.
-
-Au lieu de piocher dans une table statique de trajets pré-enregistrés,
-ce module construit un graphe de transport (arrêts + lignes + correspondances
-à pied) à partir des tables lieux / arrets / lignes_bus / ligne_arrets,
-puis calcule le meilleur chemin avec l'algorithme de Dijkstra.
-
-Il propose systématiquement, en plus de l'itinéraire en transport en commun
-trouvé (s'il existe), des options Taxi et Jakarta (moto-taxi) calculées à
-partir de la distance à vol d'oiseau (formule de Haversine), qui restent
-disponibles même quand aucune ligne ne couvre le trajet.
+Moteur de calcul d'itinéraires : construit un graphe (arrêts + lignes +
+correspondances à pied) à partir de la base, puis calcule le meilleur
+chemin avec Dijkstra. Taxi et Jakarta restent toujours proposés en plus,
+calculés à vol d'oiseau, même sans ligne de bus disponible.
 """
 
 import math
 import heapq
 from collections import defaultdict
 
-# ---------------------------------------------------------------------
-# Constantes du modèle (vitesses moyennes, tarifs, etc. - approximations
-# raisonnables pour Dakar, à ajuster si besoin)
-# ---------------------------------------------------------------------
+# Constantes du modèle (vitesses, tarifs...), approximatives pour Dakar.
 VITESSE_BUS_KMH = 16.0        # vitesse commerciale moyenne (trafic dakarois)
 VITESSE_MARCHE_KMH = 4.5
 TEMPS_ARRET_MIN = 1.0         # temps perdu à chaque arrêt intermédiaire
 TEMPS_CORRESPONDANCE_MIN = 5.0  # attente moyenne lors d'un changement de ligne
 RAYON_CORRESPONDANCE_KM = 0.6   # distance max à pied considérée comme "même pôle"
 
-# Taxi : course privée/individuelle dans un véhicule réglementé et
-# identifiable (jaune et noir), prix négocié directement avec le chauffeur.
+# Taxi officiel (jaune et noir), prix négocié avec le chauffeur.
 TAXI_BASE = 500
 TAXI_PAR_KM_MIN = 120
 TAXI_PAR_KM_MAX = 220
 TAXI_VITESSE_KMH = 20.0
 
-# Clando (taxi clandestin) : voiture particulière sans signe distinctif
-# officiel, fonctionnant sur un principe de transport collectif partagé
-# (plusieurs passagers montent dans le même véhicule le long d'un axe), d'où
-# un tarif par personne nettement plus proche de celui d'un car rapide/Tata
-# que d'une course de taxi privée.
+# Clando : voiture partagée, tarif par personne proche du car rapide.
 CLANDO_BASE = 100
 CLANDO_PAR_KM_MIN = 40
 CLANDO_PAR_KM_MAX = 90
@@ -50,10 +35,7 @@ JAKARTA_PAR_KM_MIN = 80
 JAKARTA_PAR_KM_MAX = 150
 JAKARTA_VITESSE_KMH = 26.0
 
-# Ndiaga Ndiaye : minibus blanc de transport collectif, sans ligne fixe en
-# base (comme le Clando) mais avec un tarif estimable (contrairement au
-# Clando, purement négocié) — calibré pour rester dans la fourchette
-# affichée sur /transports (100-350 FCFA sur un trajet urbain courant).
+# Ndiaga Ndiaye : pas de ligne fixe, mais un tarif estimable (100-350 FCFA en ville).
 NDIAGA_NDIAYE_BASE = 100
 NDIAGA_NDIAYE_PAR_KM_MIN = 30
 NDIAGA_NDIAYE_PAR_KM_MAX = 70
@@ -75,13 +57,8 @@ def _arrondi_prix(x, base=50):
     return int(round(x / base) * base)
 
 
-# Car rapide / Minibus Tata : les tarifs enregistrés dans
-# moyens_transport (cout_min/cout_max) correspondent à un tronçon court
-# (~3 km, le cas le plus fréquent du réseau). Sans ajustement, un trajet
-# direct de 15-20 km sur une seule ligne affichait exactement le même prix
-# qu'un saut de 2 arrêts, ce qui ne reflète pas la réalité (le tarif réel
-# augmente avec la distance parcourue, dans la limite d'un plafond réaliste
-# pour ce type de transport artisanal/informel).
+# Les tarifs de base (cout_min/cout_max) sont pour un trajet court (~3 km),
+# donc on les fait grimper avec la distance, jusqu'à un plafond réaliste.
 MINIBUS_REF_KM = 3.0
 MINIBUS_RATE_MIN_PAR_KM = 12
 MINIBUS_RATE_MAX_PAR_KM = 22
@@ -96,9 +73,7 @@ def _tarif_echelle_minibus(cout_min, cout_max, distance_km):
     return max(tarif_min, cout_min), max(tarif_max, cout_max)
 
 
-# =====================================================================
 # Construction du graphe
-# =====================================================================
 
 class Graphe:
     def __init__(self, conn):
@@ -131,11 +106,7 @@ class Graphe:
             """)
         }
 
-        # Métadonnées (id_transport, image, capacité...) des moyens de
-        # transport hors-ligne (Taxi, Clando, Jakarta, Ndiaga Ndiaye) :
-        # chargées une seule fois depuis `moyens_transport` pour rester
-        # synchronisées avec la base plutôt que de dupliquer ces valeurs
-        # en dur dans le code.
+        # Infos des transports sans ligne fixe (Taxi, Clando, Jakarta...).
         self.transports_meta = {
             row["nom"]: dict(row)
             for row in conn.execute(
@@ -144,11 +115,8 @@ class Graphe:
             )
         }
 
-        # Tous les moyens de transport qui possèdent au moins une ligne
-        # exploitable dans le graphe (id_transport -> nom_transport) :
-        # utilisé pour calculer une alternative dédiée par mode (voir
-        # calculer_itineraire), au lieu de se limiter à un seul chemin
-        # "toutes lignes confondues" + une alternative minibus.
+        # Transports qui ont au moins une ligne dans le graphe (pour
+        # calculer une alternative par mode, voir calculer_itineraire).
         self.transports_routables = {
             info["id_transport"]: info["nom_transport"]
             for info in lignes_info.values()
@@ -195,13 +163,10 @@ class Graphe:
         return self.arrets_par_lieu.get(id_lieu, [])
 
 
-# =====================================================================
 # Dijkstra multi-source / multi-destination
-# =====================================================================
 
 def _dijkstra(graphe, sources, cibles):
-    """Retourne (meilleure_cible, distance, predecesseurs) où predecesseurs[a]
-    = (arret_precedent, type_arete, meta) pour reconstruire le chemin."""
+    """Chemin le plus court entre plusieurs départs et arrivées possibles."""
     dist = {s: 0.0 for s in sources}
     pred = {}
     visited = set()
@@ -229,9 +194,7 @@ def _dijkstra(graphe, sources, cibles):
 
 
 def _dijkstra_filtre(graphe, sources, cibles, filtre_ligne):
-    """Variante de _dijkstra qui n'emprunte que les arêtes de marche et les
-    arêtes de type 'ligne' satisfaisant `filtre_ligne(meta)`. Utilisée pour
-    calculer une alternative dédiée (ex : uniquement le réseau Minibus)."""
+    """Même chose que _dijkstra, mais limité aux lignes qui passent le filtre."""
     dist = {s: 0.0 for s in sources}
     pred = {}
     visited = set()
@@ -274,8 +237,7 @@ def _reconstruire_chemin(pred, sources, cible):
 
 
 def _grouper_en_etapes(graphe, chemin):
-    """Regroupe une suite d'arêtes en 'legs' : une ligne empruntée en continu
-    = 1 leg ; chaque tronçon de marche = 1 leg."""
+    """Regroupe le chemin en étapes : une ligne prise en continu = 1 étape."""
     legs = []
     cur = None
     for (a1, a2, typ, meta) in chemin:
@@ -316,8 +278,7 @@ def _grouper_en_etapes(graphe, chemin):
 
 
 def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
-    """Transforme une liste de legs en une option d'itinéraire (dict) prête
-    à être affichée / stockée, avec le même format que l'ancien système."""
+    """Transforme les étapes en une option de trajet prête à afficher."""
     etapes = []
     prix_min = prix_max = 0
     duree_min = duree_max = 0
@@ -325,6 +286,7 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
     transports_utilises = []
     nb_correspondances = 0
     premiere_ligne_meta = None
+    derniere_id_ligne = None
 
     legs_lignes = [l for l in legs if l["type"] == "ligne"]
 
@@ -357,8 +319,11 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
             prix_max += leg_cout_max
             duree_min += leg["duree_min"] * 0.85
             duree_max += leg["duree_min"] * 1.35
-            if i > 0 and legs[i - 1]["type"] == "ligne":
+            # Compte une correspondance dès que la ligne change, même si le
+            # petit bout de marche entre les deux n'était pas affiché.
+            if derniere_id_ligne is not None and derniere_id_ligne != leg["id_ligne"]:
                 nb_correspondances += 1
+            derniere_id_ligne = leg["id_ligne"]
 
     if not legs_lignes:
         return None
@@ -371,10 +336,7 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
     nom_transport = " + ".join(transports_utilises)
     numero_ligne = " puis ".join(dict.fromkeys(lignes_utilisees))
 
-    # Arrêt d'embarquement (départ de la 1ère ligne empruntée) : exposé pour
-    # permettre au front-end de géolocaliser l'utilisateur et d'afficher
-    # directement la distance/l'itinéraire piéton jusqu'à ce point de
-    # montée précis, sans repasser par une recherche d'arrêt générique.
+    # Arrêt de départ de la 1ère ligne, utile pour situer l'embarquement sur la carte.
     embarquement_nom = embarquement_lat = embarquement_lng = None
     if premiere_ligne_meta:
         arret_embarquement = graphe.arrets[premiere_ligne_meta["depart"]]
@@ -402,9 +364,7 @@ def _formatter_option_transit(graphe, legs, cible_finale_nom=None):
 
 
 def _option_taxi(distance_km, meta=None):
-    """Taxi officiel : course privée/individuelle, prix négocié directement
-    avec le chauffeur pour l'ensemble du véhicule (pas de partage du tarif
-    entre passagers, contrairement au Clando)."""
+    """Course privée, prix négocié avec le chauffeur pour tout le véhicule."""
     meta = meta or {}
     duree = distance_km / TAXI_VITESSE_KMH * 60 + 6
     prix_min = _arrondi_prix(TAXI_BASE + distance_km * TAXI_PAR_KM_MIN)
@@ -424,15 +384,9 @@ def _option_taxi(distance_km, meta=None):
 
 
 def _option_clando(distance_km, meta=None):
-    """Clando (taxi clandestin) : voiture particulière sans signe distinctif
-    officiel, fonctionnant en transport collectif partagé. Contrairement au
-    taxi ou au Jakarta, il n'y a pas de tarif affiché ni de formule fiable :
-    c'est le chauffeur qui fixe le prix sur place, au cas par cas. On
-    n'affiche donc aucune estimation chiffrée (prix_min/prix_max = None),
-    seulement un repère de durée et une indication que le prix se négocie
-    avec le chauffeur. Un ordre de grandeur interne (_prix_score) reste
-    utilisé en coulisses pour classer cette option parmi les autres, sans
-    jamais être montré à l'utilisateur."""
+    """Clando : pas de tarif fixe, le prix se négocie sur place avec le
+    chauffeur. On garde quand même un ordre de prix (_prix_score) en
+    interne pour le classement, sans jamais l'afficher à l'utilisateur."""
     meta = meta or {}
     duree = distance_km / CLANDO_VITESSE_KMH * 60 + 5
     prix_score_min = _arrondi_prix(CLANDO_BASE + distance_km * CLANDO_PAR_KM_MIN)
@@ -473,10 +427,8 @@ def _option_jakarta(distance_km, meta=None):
 
 
 def _option_ndiaga_ndiaye(distance_km, meta=None):
-    """Ndiaga Ndiaye : minibus blanc de transport collectif, sans ligne fixe
-    référencée en base (comme le Clando, il suit des axes informels plutôt
-    qu'un trajet cartographié), présenté ici comme option toujours
-    disponible sur le même principe que Taxi/Clando/Jakarta."""
+    """Ndiaga Ndiaye : pas de ligne fixe en base, toujours proposé en option,
+    comme Taxi/Clando/Jakarta."""
     meta = meta or {}
     duree = distance_km / NDIAGA_NDIAYE_VITESSE_KMH * 60 + 5
     prix_min = _arrondi_prix(NDIAGA_NDIAYE_BASE + distance_km * NDIAGA_NDIAYE_PAR_KM_MIN)
@@ -509,19 +461,11 @@ def _option_a_pied(distance_km):
     }
 
 
-# =====================================================================
 # Fonction principale, appelée par database.py
-# =====================================================================
 
 def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
-    """
-    lieu_depart / lieu_arrivee : sqlite3.Row (ou dict) de la table `lieux`.
-    graphe : instance de Graphe déjà construite (optionnel, pour réutilisation
-             lorsqu'on calcule plusieurs itinéraires d'affilée).
-    Retourne (options, distance_directe_km). `options` est une liste de dicts,
-    triée avec la meilleure en tête, avec `recommande=1` sur celle proposée
-    par défaut.
-    """
+    """Calcule toutes les options entre deux lieux et renvoie
+    (options, distance_km), la meilleure option étant marquée recommande=1."""
     if graphe is None:
         graphe = Graphe(conn)
 
@@ -546,11 +490,8 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
             if opt_transit:
                 options.append(opt_transit)
 
-        # Le réseau Minibus (Tata + Cars rapides) est le moyen de
-        # transport en commun le moins cher de Dakar : on calcule
-        # systématiquement une alternative dédiée qui n'emprunte que ce
-        # réseau, pour qu'elle apparaisse dans les résultats même quand un
-        # bus/BRT/TER plus rapide a été retenu comme itinéraire principal.
+        # Alternative minibus (Tata + Car rapide), le moins cher : calculée
+        # à part pour apparaître même si un autre mode est plus rapide.
         cible_mini, _dist_mini, pred_mini = _dijkstra_filtre(
             graphe, sources, cibles, lambda m: m.get("est_minibus")
         )
@@ -561,15 +502,8 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
             if opt_mini and not any(o["etapes"] == opt_mini["etapes"] for o in options):
                 options.append(opt_mini)
 
-        # Alternative dédiée par mode de transport (Dakar Dem Dikk, Car
-        # rapide, Minibus Tata, BRT, TER...) : sans cette boucle, seuls les
-        # modes qui composent le chemin objectivement le plus rapide (et le
-        # réseau minibus combiné ci-dessus) apparaissaient dans les
-        # résultats — les autres moyens de transport de la base, même
-        # disponibles pour ce trajet, étaient ignorés. On calcule ici un
-        # chemin filtré par mode (correspondances au sein du même mode
-        # incluses) et on ne l'ajoute que s'il atteint la destination et
-        # diffère des options déjà trouvées.
+        # Une alternative par mode de transport (DDD, Car rapide, Tata,
+        # BRT, TER...), pour ne pas se limiter au chemin le plus rapide.
         for id_transport, nom_transport in graphe.transports_routables.items():
             cible_mode, _dist_mode, pred_mode = _dijkstra_filtre(
                 graphe, sources, cibles, lambda m, tid=id_transport: m["id_transport"] == tid
@@ -595,9 +529,7 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
     if options:
         def score(o):
             correspondances_penalite = o.get("nb_correspondances", 0) * 12
-            # Le Clando n'a pas de prix affiché (fixé par le chauffeur) : on
-            # utilise son ordre de grandeur interne (_prix_score) uniquement
-            # pour le classement, jamais montré à l'utilisateur.
+            # Le Clando n'a pas de prix affiché, on utilise son estimation interne.
             if o["prix_min"] is not None:
                 prix_moyen = (o["prix_min"] + o["prix_max"]) / 2
             else:
