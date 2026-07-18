@@ -882,6 +882,13 @@ h1, h2, h3, h4 {
 .compare-table tr:last-child td, .wolof-table tr:last-child td { border-bottom: none; }
 .compare-table tr:hover td, .wolof-table tr:hover td { background: var(--bg-primary); color: var(--text-main); }
 
+/* Sous 640px, les colonnes ne tiennent plus dans width:100% sans devenir
+   illisibles : on laisse le tableau garder une largeur confortable et
+   défiler horizontalement dans son wrapper overflow-x:auto. */
+@media (max-width: 640px) {
+    .compare-table, .wolof-table { width: max-content; min-width: 100%; }
+}
+
 /* Trajets populaires (page /prix) : grille de cartes plutôt qu'un tableau
    à défilement horizontal, plus lisible sur mobile pour une liste courte. */
 .trajets-populaires-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 20px; }
@@ -1494,6 +1501,7 @@ a.feature-card { color: inherit; }
 @media (max-width: 960px) {
     .sn-layout { grid-template-columns: 1fr; }
     .sn-map-panel { height: 420px; }
+    .sn-panel { max-height: none; overflow-y: visible; }
 }
 
 /* Carte /minibus : marqueurs, grappes et popups aux couleurs de la marque. */
