@@ -3,8 +3,9 @@ itineraire.py
 --------------
 Moteur de calcul d'itinéraires : construit un graphe (arrêts + lignes +
 correspondances à pied) à partir de la base, puis calcule le meilleur
-chemin avec Dijkstra. Taxi et Jakarta restent toujours proposés en plus,
-calculés à vol d'oiseau, même sans ligne de bus disponible.
+chemin avec Dijkstra. Taxi, Clando, Jakarta, Ndiaga Ndiaye et Car rapide
+restent toujours proposés en plus, calculés à vol d'oiseau, même sans
+ligne de bus disponible.
 """
 
 import math
@@ -25,10 +26,13 @@ TAXI_PAR_KM_MAX = 220
 TAXI_VITESSE_KMH = 20.0
 
 # Clando : voiture partagée, tarif par personne proche du car rapide.
+# Attente plus courte que Ndiaga Ndiaye/Car rapide : quasi point-à-point,
+# pas besoin d'attendre que le véhicule se remplisse sur un axe fixe.
 CLANDO_BASE = 100
 CLANDO_PAR_KM_MIN = 40
 CLANDO_PAR_KM_MAX = 90
 CLANDO_VITESSE_KMH = 18.0
+CLANDO_ATTENTE_MIN = 4.0
 
 JAKARTA_BASE = 300
 JAKARTA_PAR_KM_MIN = 80
@@ -41,7 +45,22 @@ NDIAGA_NDIAYE_PAR_KM_MIN = 30
 NDIAGA_NDIAYE_PAR_KM_MAX = 70
 NDIAGA_NDIAYE_VITESSE_KMH = 17.0
 
+# Car rapide : comme le Ndiaga Ndiaye, pas de ligne fixe, on le hèle au bord de la route.
+# Le moins cher des minibus, mais aussi le plus lent à se remplir et à s'arrêter.
+CAR_RAPIDE_BASE = 50
+CAR_RAPIDE_PAR_KM_MIN = 22
+CAR_RAPIDE_PAR_KM_MAX = 48
+CAR_RAPIDE_VITESSE_KMH = 15.0
+CAR_RAPIDE_ATTENTE_MIN = 6.0
+
 SEUIL_MARCHE_A_PIED_KM = 1.0  # en dessous, on propose aussi "à pied"
+
+# Poids du score de recommandation (score = durée + pénalité + prix/PRIX_DIVISEUR).
+# PRIX_DIVISEUR calibré pour qu'aucun mode ne domine systématiquement tous les
+# autres : Clando gagne sur les courts trajets, Ndiaga Ndiaye sur les longs,
+# Car rapide et les vraies lignes de bus l'emportent ponctuellement selon le cas.
+PRIX_DIVISEUR_SCORE = 35
+PENALITE_CORRESPONDANCE_MIN = 12
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -111,7 +130,7 @@ class Graphe:
             row["nom"]: dict(row)
             for row in conn.execute(
                 "SELECT * FROM moyens_transport WHERE nom IN "
-                "('Taxi', 'Clando', 'Jakarta (moto-taxi)', 'Ndiaga Ndiaye')"
+                "('Taxi', 'Clando', 'Jakarta (moto-taxi)', 'Ndiaga Ndiaye', 'Car rapide')"
             )
         }
 
@@ -388,7 +407,7 @@ def _option_clando(distance_km, meta=None):
     chauffeur. On garde quand même un ordre de prix (_prix_score) en
     interne pour le classement, sans jamais l'afficher à l'utilisateur."""
     meta = meta or {}
-    duree = distance_km / CLANDO_VITESSE_KMH * 60 + 5
+    duree = distance_km / CLANDO_VITESSE_KMH * 60 + CLANDO_ATTENTE_MIN
     prix_score_min = _arrondi_prix(CLANDO_BASE + distance_km * CLANDO_PAR_KM_MIN)
     prix_score_max = _arrondi_prix(CLANDO_BASE + distance_km * CLANDO_PAR_KM_MAX)
     return {
@@ -443,6 +462,27 @@ def _option_ndiaga_ndiaye(distance_km, meta=None):
         "duree_max_minutes": max(5, int(round(duree * 1.35))),
         "correspondances": "Aucune",
         "etapes": f"Héler un Ndiaga Ndiaye sur son axe habituel et confirmer la destination avec le receveur | Trajet direct de {distance_km:.1f} km",
+        "recommande": 0,
+    }
+
+
+def _option_car_rapide(distance_km, meta=None):
+    """Car rapide : pas de ligne fixe en base, toujours proposé en option,
+    comme le Ndiaga Ndiaye — on le hèle au bord de la route."""
+    meta = meta or {}
+    duree = distance_km / CAR_RAPIDE_VITESSE_KMH * 60 + CAR_RAPIDE_ATTENTE_MIN
+    prix_min = _arrondi_prix(CAR_RAPIDE_BASE + distance_km * CAR_RAPIDE_PAR_KM_MIN)
+    prix_max = _arrondi_prix(CAR_RAPIDE_BASE + distance_km * CAR_RAPIDE_PAR_KM_MAX)
+    return {
+        "nom_transport": "Car rapide",
+        "image_url": meta.get("image_url") or "/static/img/Car_rapide.jpg",
+        "id_transport": meta.get("id_transport"),
+        "numero_ligne": "", "nom_ligne": "",
+        "prix_min": prix_min, "prix_max": max(prix_max, prix_min + 100),
+        "duree_min_minutes": max(3, int(round(duree * 0.85))),
+        "duree_max_minutes": max(5, int(round(duree * 1.35))),
+        "correspondances": "Aucune",
+        "etapes": f"Héler un car rapide sur son axe habituel, au bord de la route | Trajet direct de {distance_km:.1f} km",
         "recommande": 0,
     }
 
@@ -522,20 +562,21 @@ def calculer_itineraire(conn, lieu_depart, lieu_arrivee, graphe=None):
         options.append(_option_clando(distance_directe, transports_meta.get("Clando")))
         options.append(_option_jakarta(distance_directe, transports_meta.get("Jakarta (moto-taxi)")))
         options.append(_option_ndiaga_ndiaye(distance_directe, transports_meta.get("Ndiaga Ndiaye")))
+        options.append(_option_car_rapide(distance_directe, transports_meta.get("Car rapide")))
         if distance_directe <= SEUIL_MARCHE_A_PIED_KM:
             options.append(_option_a_pied(distance_directe))
 
     # --- Choix de l'option recommandée ---
     if options:
         def score(o):
-            correspondances_penalite = o.get("nb_correspondances", 0) * 12
+            correspondances_penalite = o.get("nb_correspondances", 0) * PENALITE_CORRESPONDANCE_MIN
             # Le Clando n'a pas de prix affiché, on utilise son estimation interne.
             if o["prix_min"] is not None:
                 prix_moyen = (o["prix_min"] + o["prix_max"]) / 2
             else:
                 prix_moyen = o.get("_prix_score", 0)
             duree_moyenne = (o["duree_min_minutes"] + o["duree_max_minutes"]) / 2
-            return duree_moyenne + correspondances_penalite + prix_moyen / 40
+            return duree_moyenne + correspondances_penalite + prix_moyen / PRIX_DIVISEUR_SCORE
 
         meilleure = min(options, key=score)
         meilleure["recommande"] = 1

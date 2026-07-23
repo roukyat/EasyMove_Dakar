@@ -108,8 +108,8 @@ def verifier_et_mettre_a_jour_schema():
     # Enrichit quartiers, lignes minibus et lexique wolof.
     _enrichir_reseau_et_lexique(cursor)
 
-    # Réseau minibus autour du pôle SONATEL, côté étudiant.
-    _ajouter_reseau_sonatel(cursor)
+    # Lieu SONATEL (repère réel sur la VDN), sans lignes dédiées.
+    _ajouter_lieu_sonatel(cursor)
 
     # Complète les photos manquantes (DDD, TER) sans écraser l'existant.
     _completer_images_transport_manquantes(cursor)
@@ -159,6 +159,12 @@ def verifier_et_mettre_a_jour_schema():
 
     # Vraies lignes DDD, pour qu'elles sortent dans les suggestions de trajet.
     _ajouter_lignes_dem_dikk_reelles_2026(cursor)
+
+    # Le car rapide n'a pas de ligne fixe : retire les lignes numérotées inventées.
+    _retirer_lignes_car_rapide(cursor)
+
+    # Retire les lignes SN-1 à SN-8, inventées pour la démo (pas de vraies lignes AFTU).
+    _retirer_lignes_sonatel_fictives(cursor)
 
     conn.commit()
     conn.close()
@@ -735,7 +741,7 @@ NOUVEAUX_CONSEILS_CARS_RAPIDES_ET_TATA = [
     ),
     (
         'Tata (bus)', 'Anticiper sa descente',
-        "Repérez les arrêts à l'avance pour ne pas dépasser votre destination.",
+        "Le chauffeur s'arrête presque partout, sauf zones interdites : demandez votre arrêt à l'avance, même entre deux stations.",
         "Toute l'année"
     ),
 ]
@@ -807,7 +813,7 @@ NOUVEAUX_CONSEILS_TEXTE_RACCOURCI = [
     ),
     (
         'Anticiper sa descente',
-        "Repérez les arrêts à l'avance pour ne pas dépasser votre destination."
+        "Le chauffeur s'arrête presque partout, sauf zones interdites : demandez votre arrêt à l'avance, même entre deux stations."
     ),
 ]
 
@@ -1089,91 +1095,6 @@ NOUVELLES_LIGNES_MINIBUS_2 = [
     },
 ]
 
-# Le car rapide ne comptait que 4 lignes (CR-1 à CR-4) : on porte le réseau à 20.
-NOUVELLES_LIGNES_CAR_RAPIDE = [
-    {
-        "numero_ligne": "CR-5", "nom_ligne": "Colobane - Guédiawaye (Car rapide)",
-        "description": "Car rapide reliant Colobane à Guédiawaye via Grand Dakar, HLM, Front de Terre, Parcelles Assainies, Golf",
-        "arrets": ["Colobane", "Grand Dakar", "HLM", "Front de Terre", "Parcelles Assainies", "Golf"],
-    },
-    {
-        "numero_ligne": "CR-6", "nom_ligne": "Petersen - Yoff (Car rapide)",
-        "description": "Car rapide reliant Petersen à Yoff via Bopp, Fann, Ouakam, Ngor",
-        "arrets": ["Petersen", "Bopp", "Fann", "Ouakam", "Ngor", "Yoff"],
-    },
-    {
-        "numero_ligne": "CR-7", "nom_ligne": "Sandaga - Keur Massar (Car rapide)",
-        "description": "Car rapide reliant Sandaga à Keur Massar via Colobane, Pikine, Thiaroye, Yeumbeul",
-        "arrets": ["Sandaga", "Colobane", "Pikine", "Thiaroye", "Yeumbeul", "Keur Massar"],
-    },
-    {
-        "numero_ligne": "CR-8", "nom_ligne": "Médina - Almadies (Car rapide)",
-        "description": "Car rapide reliant Médina à Almadies via Fass, Point E, Mermoz, Ngor",
-        "arrets": ["Médina", "Fass", "Point E", "Mermoz", "Ngor", "Almadies"],
-    },
-    {
-        "numero_ligne": "CR-9", "nom_ligne": "Plateau - Rufisque (Car rapide)",
-        "description": "Car rapide reliant Plateau à Rufisque via Hann Bel-Air, Thiaroye sur Mer, Rufisque Nord",
-        "arrets": ["Plateau", "Hann Bel-Air", "Thiaroye sur Mer", "Rufisque Nord", "Rufisque"],
-    },
-    {
-        "numero_ligne": "CR-10", "nom_ligne": "Colobane - Malika (Car rapide)",
-        "description": "Car rapide reliant Colobane à Malika via Cambérène, Thiaroye sur Mer",
-        "arrets": ["Colobane", "Cambérène", "Thiaroye sur Mer", "Malika"],
-    },
-    {
-        "numero_ligne": "CR-11", "nom_ligne": "Petersen - Diamniadio (Car rapide)",
-        "description": "Car rapide reliant Petersen à Diamniadio via Grand Mbao, Bargny",
-        "arrets": ["Petersen", "Grand Mbao", "Bargny", "Diamniadio"],
-    },
-    {
-        "numero_ligne": "CR-12", "nom_ligne": "Sandaga - Golf (Car rapide)",
-        "description": "Car rapide reliant Sandaga à Golf via HLM, Patte d'Oie, Parcelles Assainies",
-        "arrets": ["Sandaga", "HLM", "Patte d'Oie", "Parcelles Assainies", "Golf"],
-    },
-    {
-        "numero_ligne": "CR-13", "nom_ligne": "Médina - Sicap Baobab (Car rapide)",
-        "description": "Car rapide reliant Médina à Sicap Baobab via Fass, Liberté 2, Sicap Karack",
-        "arrets": ["Médina", "Fass", "Liberté 2", "Sicap Karack", "Sicap Baobab"],
-    },
-    {
-        "numero_ligne": "CR-14", "nom_ligne": "Petersen - Front de Terre (Car rapide)",
-        "description": "Car rapide reliant Petersen à Front de Terre via Grand Dakar, Biscuiterie, HLM",
-        "arrets": ["Petersen", "Grand Dakar", "Biscuiterie", "HLM", "Front de Terre"],
-    },
-    {
-        "numero_ligne": "CR-15", "nom_ligne": "Colobane - Yeumbeul (Car rapide)",
-        "description": "Car rapide reliant Colobane à Yeumbeul via Dalifort, Pikine, Guinaw Rail",
-        "arrets": ["Colobane", "Dalifort", "Pikine", "Guinaw Rail", "Yeumbeul"],
-    },
-    {
-        "numero_ligne": "CR-16", "nom_ligne": "Sandaga - Ouest Foire (Car rapide)",
-        "description": "Car rapide reliant Sandaga à Ouest Foire via Grand Dakar, Grand Yoff, Zone de Captage",
-        "arrets": ["Sandaga", "Grand Dakar", "Grand Yoff", "Zone de Captage", "Ouest Foire"],
-    },
-    {
-        "numero_ligne": "CR-17", "nom_ligne": "Petersen - Cambérène (Car rapide)",
-        "description": "Car rapide reliant Petersen à Cambérène via Grand Yoff, Grand Médine, Parcelles Assainies",
-        "arrets": ["Petersen", "Grand Yoff", "Grand Médine", "Parcelles Assainies", "Cambérène"],
-    },
-    {
-        "numero_ligne": "CR-18", "nom_ligne": "Rufisque - Diamniadio (Car rapide)",
-        "description": "Car rapide reliant Rufisque à Diamniadio via Rufisque Est, Bargny",
-        "arrets": ["Rufisque", "Rufisque Est", "Bargny", "Diamniadio"],
-    },
-    {
-        "numero_ligne": "CR-19", "nom_ligne": "Guédiawaye - Keur Massar (Car rapide)",
-        "description": "Car rapide reliant Guédiawaye à Keur Massar via Wakhinane, Médina Gounass",
-        "arrets": ["Guédiawaye", "Wakhinane", "Médina Gounass", "Keur Massar"],
-    },
-    {
-        "numero_ligne": "CR-20", "nom_ligne": "Petersen - Mbao (Car rapide)",
-        "description": "Car rapide reliant Petersen à Mbao via Hann, Hann Bel-Air, Petit Mbao",
-        "arrets": ["Petersen", "Hann", "Hann Bel-Air", "Petit Mbao", "Mbao"],
-    },
-]
-
-
 def _enrichir_reseau_et_lexique(cursor):
     """Ajoute quartiers, phrases wolof et lignes minibus s'ils n'existent pas déjà."""
 
@@ -1188,18 +1109,12 @@ def _enrichir_reseau_et_lexique(cursor):
     ligne_transport = cursor.execute(
         "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
     ).fetchone()
-    ligne_transport_cr = cursor.execute(
-        "SELECT id_transport FROM moyens_transport WHERE nom = 'Car rapide'"
-    ).fetchone()
     if not ligne_transport:
         return
     id_transport_tata = ligne_transport[0]
-    id_transport_car_rapide = ligne_transport_cr[0] if ligne_transport_cr else None
 
     # Chaque lot de lignes est rattaché à son transport, en tant que minibus.
     lots = [(NOUVELLES_LIGNES_MINIBUS, id_transport_tata), (NOUVELLES_LIGNES_MINIBUS_2, id_transport_tata)]
-    if id_transport_car_rapide:
-        lots.append((NOUVELLES_LIGNES_CAR_RAPIDE, id_transport_car_rapide))
 
     for lignes, id_transport_lot in lots:
         for ligne in lignes:
@@ -1234,62 +1149,16 @@ def _enrichir_reseau_et_lexique(cursor):
                 )
 
 
-# Réseau minibus curé autour du pôle SONATEL, côté quartiers étudiants.
+# Repère réel côté quartiers étudiants, sur la VDN.
 LIEU_SONATEL = (
     'SONATEL', 'entreprise', 14.7259, -17.4793,
-    "Siège social SONATEL / Orange, sur la Voie de Dégagement Nord (VDN) — repère central pour les minibus "
-    "vers les quartiers étudiants (UCAD, Sacré-Cœur, Liberté 5/6...)"
+    "Siège social SONATEL / Orange, sur la Voie de Dégagement Nord (VDN)"
 )
 
-LIGNES_MINIBUS_SONATEL = [
-    {
-        "numero_ligne": "SN-1", "nom_ligne": "SONATEL - UCAD",
-        "description": "Minibus reliant le pôle SONATEL (VDN) à l'UCAD via Sacré-Cœur, Point E et Fann — l'un "
-                       "des trajets les plus empruntés par les étudiants domiciliés côté VDN.",
-        "arrets": ["SONATEL", "Sacré-Cœur", "Point E", "Fann", "UCAD"],
-    },
-    {
-        "numero_ligne": "SN-2", "nom_ligne": "SONATEL - Ouakam",
-        "description": "Minibus reliant SONATEL à Ouakam via Ouest Foire, sur un axe court et très fréquenté.",
-        "arrets": ["SONATEL", "Ouest Foire", "Ouakam"],
-    },
-    {
-        "numero_ligne": "SN-3", "nom_ligne": "SONATEL - Liberté 6",
-        "description": "Minibus reliant SONATEL à Liberté 6 via Sacré-Cœur et Liberté 6 Extension.",
-        "arrets": ["SONATEL", "Sacré-Cœur", "Liberté 6 Extension", "Liberté 6"],
-    },
-    {
-        "numero_ligne": "SN-4", "nom_ligne": "SONATEL - Liberté 5",
-        "description": "Minibus reliant SONATEL à Liberté 5 via Sacré-Cœur et Liberté 6.",
-        "arrets": ["SONATEL", "Sacré-Cœur", "Liberté 6", "Liberté 5"],
-    },
-    {
-        "numero_ligne": "SN-5", "nom_ligne": "SONATEL - Sacré-Cœur",
-        "description": "Minibus reliant SONATEL à Sacré-Cœur, trajet direct et rapide sur la VDN.",
-        "arrets": ["SONATEL", "Sacré-Cœur"],
-    },
-    {
-        "numero_ligne": "SN-6", "nom_ligne": "SONATEL - Cité Keur Gorgui",
-        "description": "Minibus reliant SONATEL à Cité Keur Gorgui via Ouest Foire, vers le pôle d'affaires "
-                       "proche de la VDN.",
-        "arrets": ["SONATEL", "Ouest Foire", "Cité Keur Gorgui"],
-    },
-    {
-        "numero_ligne": "SN-7", "nom_ligne": "SONATEL - Ouest Foire",
-        "description": "Minibus reliant SONATEL à Ouest Foire, quartier voisin et carrefour de correspondance "
-                       "vers plusieurs autres lignes.",
-        "arrets": ["SONATEL", "Ouest Foire"],
-    },
-    {
-        "numero_ligne": "SN-8", "nom_ligne": "SONATEL - Ngor",
-        "description": "Minibus reliant SONATEL à Ngor via Mermoz et Almadies, pour rejoindre la façade littorale.",
-        "arrets": ["SONATEL", "Mermoz", "Almadies", "Ngor"],
-    },
-]
-
-
-def _ajouter_reseau_sonatel(cursor):
-    """Ajoute le lieu SONATEL et les lignes minibus SN-1 à SN-8 s'ils n'existent pas déjà."""
+def _ajouter_lieu_sonatel(cursor):
+    """Ajoute le lieu SONATEL (repère réel sur la VDN) s'il n'existe pas déjà.
+    Pas de lignes dédiées : ce point est desservi par les vraies lignes AFTU
+    qui passent à proximité, comme n'importe quel autre lieu."""
     nom_lieu, type_lieu, lat, lng, desc = LIEU_SONATEL
     existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom_lieu,)).fetchone()
     if not existe:
@@ -1298,43 +1167,27 @@ def _ajouter_reseau_sonatel(cursor):
             (nom_lieu, type_lieu, lat, lng, desc)
         )
 
-    ligne_transport = cursor.execute(
-        "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
-    ).fetchone()
-    if not ligne_transport:
-        return
-    id_transport_tata = ligne_transport[0]
 
-    for ligne in LIGNES_MINIBUS_SONATEL:
-        existe = cursor.execute(
-            "SELECT 1 FROM lignes_bus WHERE numero_ligne = ?", (ligne["numero_ligne"],)
-        ).fetchone()
-        if existe:
-            continue
-
-        cursor.execute(
-            "INSERT INTO lignes_bus (numero_ligne, nom_ligne, id_transport, est_minibus, description) "
-            "VALUES (?, ?, ?, 1, ?)",
-            (ligne["numero_ligne"], ligne["nom_ligne"], id_transport_tata, ligne["description"])
-        )
-        id_ligne = cursor.lastrowid
-
-        for ordre, nom_arret in enumerate(ligne["arrets"], start=1):
-            lieu_row = cursor.execute(
-                "SELECT id_lieu, latitude, longitude FROM lieux WHERE nom = ?", (nom_arret,)
+def _retirer_lignes_sonatel_fictives(cursor):
+    """Retire les anciennes lignes SN-1 à SN-8 : elles avaient été
+    inventées pour la démo, ce ne sont pas de vraies lignes AFTU."""
+    lignes = cursor.execute(
+        "SELECT id_ligne FROM lignes_bus WHERE numero_ligne LIKE 'SN-%'"
+    ).fetchall()
+    for ligne_row in lignes:
+        id_ligne = ligne_row[0]
+        arrets_a_supprimer = cursor.execute(
+            "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+        ).fetchall()
+        cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+        for arret_row in arrets_a_supprimer:
+            id_arret_candidat = arret_row[0]
+            encore_reference = cursor.execute(
+                "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
             ).fetchone()
-            if not lieu_row:
-                continue
-            id_lieu, lat_arret, lng_arret = lieu_row
-            cursor.execute(
-                "INSERT INTO arrets (nom, id_lieu, latitude, longitude) VALUES (?, ?, ?, ?)",
-                (f"Arrêt {nom_arret} ({ligne['numero_ligne']})", id_lieu, lat_arret, lng_arret)
-            )
-            id_arret = cursor.lastrowid
-            cursor.execute(
-                "INSERT INTO ligne_arrets (id_ligne, id_arret, ordre) VALUES (?, ?, ?)",
-                (id_ligne, id_arret, ordre)
-            )
+            if not encore_reference:
+                cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+        cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
 
 
 # Campus universitaire de Diamniadio, inauguré en 2022, distinct de l'UCAD.
@@ -1646,6 +1499,36 @@ def _retirer_lignes_tata_non_officielles_2026(cursor):
         cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
 
 
+def _retirer_lignes_car_rapide(cursor):
+    """Le car rapide n'a pas de ligne fixe ni de numéro dans la réalité :
+    on le hèle au bord de la route, comme un Ndiaga Ndiaye. Retire les
+    lignes numérotées qui avaient été ajoutées par erreur."""
+    transport_row = cursor.execute(
+        "SELECT id_transport FROM moyens_transport WHERE nom = 'Car rapide'"
+    ).fetchone()
+    if not transport_row:
+        return
+    id_transport = transport_row[0]
+
+    lignes = cursor.execute(
+        "SELECT id_ligne FROM lignes_bus WHERE id_transport = ?", (id_transport,)
+    ).fetchall()
+    for ligne_row in lignes:
+        id_ligne = ligne_row[0]
+        arrets_a_supprimer = cursor.execute(
+            "SELECT id_arret FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,)
+        ).fetchall()
+        cursor.execute("DELETE FROM ligne_arrets WHERE id_ligne = ?", (id_ligne,))
+        for arret_row in arrets_a_supprimer:
+            id_arret_candidat = arret_row[0]
+            encore_reference = cursor.execute(
+                "SELECT 1 FROM ligne_arrets WHERE id_arret = ?", (id_arret_candidat,)
+            ).fetchone()
+            if not encore_reference:
+                cursor.execute("DELETE FROM arrets WHERE id_arret = ?", (id_arret_candidat,))
+        cursor.execute("DELETE FROM lignes_bus WHERE id_ligne = ?", (id_ligne,))
+
+
 # Vraies stations du BRT (SunuBRT Petersen-Guédiawaye), notamment Liberté 6 qui manquait.
 NOUVEAUX_LIEUX_BRT_2026 = [
     ('Place de la Nation (BRT)', 'quartier', 14.694, -17.449,
@@ -1813,17 +1696,8 @@ NOUVELLES_LIGNES_MINIBUS_3 = [
     {"numero_ligne": "Ligne 102", "nom_ligne": "Colobane - Grande Mosquée de Dakar", "description": "Minibus Tata reliant Colobane à la Grande Mosquée de Dakar via Médina.", "arrets": ["Colobane", "Médina", "Grande Mosquée de Dakar"]},
 ]
 
-NOUVELLES_LIGNES_CAR_RAPIDE_2 = [
-    {"numero_ligne": "CR-21", "nom_ligne": "Plateau - Marché Kermel (Car rapide)", "description": "Car rapide reliant le Plateau au Marché Kermel.", "arrets": ["Plateau", "Marché Kermel"]},
-    {"numero_ligne": "CR-22", "nom_ligne": "Médina - Grande Mosquée de Dakar (Car rapide)", "description": "Car rapide reliant Médina à la Grande Mosquée de Dakar.", "arrets": ["Médina", "Grande Mosquée de Dakar"]},
-    {"numero_ligne": "CR-23", "nom_ligne": "Sandaga - CICES (Car rapide)", "description": "Car rapide reliant Sandaga au CICES via Grand Dakar et Nord Foire.", "arrets": ["Sandaga", "Grand Dakar", "Nord Foire", "CICES"]},
-    {"numero_ligne": "CR-24", "nom_ligne": "Rufisque - Sébikotane (Car rapide)", "description": "Car rapide reliant Rufisque à Sébikotane via Bargny et Diamniadio.", "arrets": ["Rufisque", "Bargny", "Diamniadio", "Sébikotane"]},
-    {"numero_ligne": "CR-25", "nom_ligne": "Guédiawaye - Hôpital Dalal Jamm (Car rapide)", "description": "Car rapide reliant Guédiawaye à l'Hôpital Dalal Jamm.", "arrets": ["Guédiawaye", "Hôpital Dalal Jamm"]},
-]
-
-
 def _enrichir_reseau_vague_3(cursor):
-    """Troisième vague d'enrichissement (lieux + lignes Tata et Car rapide)."""
+    """Troisième vague d'enrichissement (lieux + lignes Tata)."""
     for nom, type_lieu, lat, lng, desc in NOUVEAUX_LIEUX_3:
         existe = cursor.execute("SELECT 1 FROM lieux WHERE nom = ?", (nom,)).fetchone()
         if not existe:
@@ -1835,17 +1709,11 @@ def _enrichir_reseau_vague_3(cursor):
     ligne_transport = cursor.execute(
         "SELECT id_transport FROM moyens_transport WHERE nom LIKE 'Minibus Tata%'"
     ).fetchone()
-    ligne_transport_cr = cursor.execute(
-        "SELECT id_transport FROM moyens_transport WHERE nom = 'Car rapide'"
-    ).fetchone()
     if not ligne_transport:
         return
     id_transport_tata = ligne_transport[0]
-    id_transport_car_rapide = ligne_transport_cr[0] if ligne_transport_cr else None
 
     lots = [(NOUVELLES_LIGNES_MINIBUS_3, id_transport_tata)]
-    if id_transport_car_rapide:
-        lots.append((NOUVELLES_LIGNES_CAR_RAPIDE_2, id_transport_car_rapide))
 
     for lignes, id_transport_lot in lots:
         for ligne in lignes:
